@@ -1,0 +1,23 @@
+{{ define "email_already_registered" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">Bu adres zaten kayıtlı</p>
+              <p class="subtitle">Merhaba {{.FullName}}, az önce biri bu e-posta adresiyle Nodera'ya kaydolmayı denedi. Zaten bir hesabın olduğu için hiçbir şey değişmedi. Sen yaptıysan giriş yap; şifreni unuttuysan sıfırla.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

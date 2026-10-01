@@ -1,0 +1,28 @@
+environment = "dev"
+
+[rabbitmq]
+host = "127.0.0.1:5672"
+username = "guest"
+password = "guest"
+virtualhost = "/nodera"
+auth_secret = "dev-rabbitmq-auth-secret"
+
+[mail]
+from = "no-reply@nodera.local"
+from_name = "Nodera"
+templates_dir = "./templates/notification"
+provider = "smtp"
+
+[smtp]
+insecure_skip_verify = true
+host = "localhost"
+port = 1025
+username = ""
+password = ""
+
+[sendgrid]
+api_key = ""
+
+[metrics]
+enabled = false
+port = ":9102"

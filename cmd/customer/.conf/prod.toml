@@ -1,0 +1,52 @@
+environment = "prod"
+
+[server]
+name = "nodera-customer"
+port = ":9650"
+
+[postgresql]
+uri = ""
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+[mongodb]
+host = ""
+port = 0
+username = ""
+password = ""
+database = "nodera_customer_outbox"
+uri = ""
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+[secret]
+jwt = ""
+
+[auth]
+access_ttl_minutes = 15
+refresh_ttl_days = 30
+dev_code = ""
+
+[domain]
+front = "https://app.nodera.io"
+
+[metrics]
+enabled = true
+port = ":9100"

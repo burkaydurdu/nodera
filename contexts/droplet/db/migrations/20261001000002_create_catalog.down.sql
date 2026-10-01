@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS plans;
+DROP TABLE IF EXISTS offers;
+DROP TABLE IF EXISTS provider_images;
+DROP TABLE IF EXISTS provider_regions;
+DROP TABLE IF EXISTS images;
+DROP TABLE IF EXISTS regions;

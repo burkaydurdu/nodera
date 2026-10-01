@@ -1,0 +1,23 @@
+{{ define "email_already_registered" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">This address is already registered</p>
+              <p class="subtitle">Hi {{.FullName}}, someone just tried to sign up to Nodera with this email address. You already have an account, so nothing was changed. If it was you, sign in instead, or reset your password if you forgot it.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

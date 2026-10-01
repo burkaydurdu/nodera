@@ -1,0 +1,58 @@
+# Infrastructure only. The Go services run natively via `make`; docker-compose
+# never carries an application service.
+services:
+  postgres:
+    image: postgres:18
+    restart: always
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  redis:
+    image: redis:8.2
+    restart: always
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+
+  # Single-node replica set: the outbox library needs transactions
+  # (docs/adr/0001). `make mongo-init` runs rs.initiate once after first boot.
+  mongo:
+    image: mongo:8.2
+    restart: always
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    restart: always
+    ports:
+      - "${RABBITMQ_AMQP_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_VHOST=/nodera
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "${MAILHOG_SMTP_HOST_PORT:-1025}:1025"
+      - "${MAILHOG_WEB_HOST_PORT:-8025}:8025"
+
+volumes:
+  postgres-data:
+  redis-data:
+  mongo-data:
+  rabbitmq-data:

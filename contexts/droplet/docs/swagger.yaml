@@ -1,0 +1,368 @@
+basePath: /
+definitions:
+  github_com_piggystats_nodera_contexts_droplet_aggregates_droplet.ActionRequest:
+    properties:
+      type:
+        enum:
+        - power_on
+        - power_off
+        - reboot
+        type: string
+    required:
+    - type
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_aggregates_droplet.CreateRequest:
+    properties:
+      hostname:
+        maxLength: 63
+        minLength: 1
+        type: string
+      image:
+        maxLength: 64
+        type: string
+      plan:
+        maxLength: 64
+        type: string
+      region:
+        maxLength: 16
+        type: string
+      ssh_keys:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_aggregates_droplet.SSHKeyInput'
+        maxItems: 10
+        minItems: 1
+        type: array
+    required:
+    - hostname
+    - image
+    - plan
+    - region
+    - ssh_keys
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_aggregates_droplet.SSHKeyInput:
+    properties:
+      name:
+        maxLength: 64
+        type: string
+      public_key:
+        maxLength: 8192
+        type: string
+    required:
+    - name
+    - public_key
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.Droplet:
+    properties:
+      active_at:
+        type: string
+      created_at:
+        type: string
+      deletion_requested_at:
+        type: string
+      failure_reason:
+        type: string
+      history:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.DropletHistory'
+        type: array
+      hostname:
+        type: string
+      hourly_price:
+        example: "0.4920"
+        type: string
+      id:
+        type: string
+      image_code:
+        type: string
+      ipv4:
+        type: string
+      ipv6:
+        type: string
+      monthly_price:
+        example: "330.63"
+        type: string
+      plan_code:
+        type: string
+      project_id:
+        type: string
+      region_code:
+        type: string
+      ssh_keys:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.DropletSSHKey'
+        type: array
+      status:
+        enum:
+        - provisioning
+        - active
+        - "off"
+        - failed
+        - deleting
+        - deleted
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.DropletHistory:
+    properties:
+      at:
+        type: string
+      from:
+        type: string
+      reason:
+        type: string
+      to:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.DropletSSHKey:
+    properties:
+      fingerprint:
+        type: string
+      name:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.Image:
+    properties:
+      code:
+        type: string
+      family:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.Plan:
+    properties:
+      bandwidth_description:
+        type: string
+      code:
+        type: string
+      cpu_count:
+        type: integer
+      cpu_description:
+        type: string
+      disk_description:
+        type: string
+      hourly_price:
+        example: "0.4920"
+        type: string
+      id:
+        type: string
+      images:
+        items:
+          type: string
+        type: array
+      monthly_price:
+        example: "330.63"
+        type: string
+      ram_gb:
+        type: integer
+      region_code:
+        type: string
+      sold_out:
+        type: boolean
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.Region:
+    properties:
+      city:
+        type: string
+      code:
+        type: string
+      country:
+        type: string
+      id:
+        type: string
+      plan_count:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: Catalog (Regions, Plans, Images) and Droplets inside a Project. Prices
+    are USD excluding taxes.
+  title: Nodera Droplet API
+  version: "1.0"
+paths:
+  /v1/catalog/images:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Image'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Images a Droplet can be installed with
+      tags:
+      - catalog
+  /v1/catalog/plans:
+    get:
+      parameters:
+      - description: Region code, e.g. fra1
+        in: query
+        name: region
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Plan'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Plans of a Region with hourly and monthly prices (USD, excl. taxes)
+      tags:
+      - catalog
+  /v1/catalog/regions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Region'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Regions Nodera sells Droplets in
+      tags:
+      - catalog
+  /v1/droplets/{dropletID}:
+    delete:
+      description: Billing stops at the request; the Droplet answers as deleting until
+        the release is confirmed.
+      parameters:
+      - description: Droplet id
+        in: path
+        name: dropletID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Droplet'
+      security:
+      - BearerAuth: []
+      summary: Delete a Droplet
+      tags:
+      - droplets
+    get:
+      parameters:
+      - description: Droplet id
+        in: path
+        name: dropletID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Droplet'
+      security:
+      - BearerAuth: []
+      summary: A Droplet with its status history
+      tags:
+      - droplets
+  /v1/droplets/{dropletID}/actions:
+    post:
+      consumes:
+      - application/json
+      description: Allowed from active and off only; the resulting status arrives
+        through detail.
+      parameters:
+      - description: Droplet id
+        in: path
+        name: dropletID
+        required: true
+        type: string
+      - description: power_on | power_off | reboot
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_aggregates_droplet.ActionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Droplet'
+      security:
+      - BearerAuth: []
+      summary: Power a Droplet on or off, or reboot it
+      tags:
+      - droplets
+  /v1/projects/{projectID}/droplets:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Droplet'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Droplets of a Project the caller's Team owns, newest first
+      tags:
+      - droplets
+    post:
+      consumes:
+      - application/json
+      description: Answers 201 with the provisioning Droplet; the outcome arrives
+        through list and detail. 409 when the Plan sold out or its price rose since
+        the catalog was loaded.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Plan, Region, Image codes, hostname and SSH keys
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_aggregates_droplet.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.Droplet'
+      security:
+      - BearerAuth: []
+      summary: Create a Droplet in a Project
+      tags:
+      - droplets
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

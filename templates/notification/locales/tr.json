@@ -1,0 +1,6 @@
+{
+  "email_verification_code_subject": "Nodera doğrulama kodun",
+  "email_already_registered_subject": "E-posta adresin Nodera'da zaten kayıtlı",
+  "mfa_email_code_subject": "Nodera giriş kodun",
+  "password_reset_subject": "Nodera şifreni sıfırla"
+}

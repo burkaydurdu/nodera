@@ -1,0 +1,104 @@
+package middleware
+
+import (
+	"errors"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+
+	"github.com/labstack/echo/v4"
+
+	"github.com/piggystats/nodera/contexts/gateway/config"
+	"github.com/piggystats/nodera/pkg/constants"
+	"github.com/piggystats/nodera/utils/str"
+)
+
+type ReverseProxy interface {
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
+}
+
+type NewReverseProxy func(target *url.URL) ReverseProxy
+
+var DefaultReverseProxy NewReverseProxy = func(target *url.URL) ReverseProxy {
+	return httputil.NewSingleHostReverseProxy(target)
+}
+
+var (
+	ErrInvalidURL   = errors.New("invalid upstream url")
+	ErrNoProxySetup = errors.New("no upstream configured")
+)
+
+// Proxies holds one reverse proxy per upstream host.
+type Proxies map[string]ReverseProxy
+
+func SetupProxies(gateway *config.GatewayConfig, newProxy NewReverseProxy) (Proxies, error) {
+	proxies := make(Proxies)
+	for _, service := range gateway.Gateway.Services {
+		hostURL, err := url.Parse(service.Host)
+		if err != nil {
+			return nil, ErrInvalidURL
+		}
+		proxies[service.Host] = newProxy(hostURL)
+	}
+
+	if len(proxies) == 0 {
+		return nil, ErrNoProxySetup
+	}
+
+	return proxies, nil
+}
+
+// TargetHost resolves the target-service header to a service block of the
+// route table. The header value is the block's key; a name the table does
+// not know is an unlisted target and fails like an unlisted route, before any
+// session is looked at. A missing header is a client that does not speak the
+// gateway's protocol at all.
+func TargetHost(routeTable *config.GatewayConfig) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			targetServer := c.Request().Header.Get(constants.TargetServerHeader)
+			if str.IsEmpty(targetServer) {
+				return echo.ErrUnauthorized
+			}
+
+			if _, ok := routeTable.Service(targetServer); !ok {
+				return echo.ErrNotFound
+			}
+
+			c.Set(constants.TargetServer.String(), targetServer)
+
+			return next(c)
+		}
+	}
+}
+
+// targetService re-reads the service TargetHost resolved. A miss here is
+// broken wiring (the middleware ran out of order), not a client mistake.
+func targetService(c echo.Context, routeTable *config.GatewayConfig) (config.Service, bool) {
+	targetServer, ok := c.Get(constants.TargetServer.String()).(string)
+	if !ok {
+		return config.Service{}, false
+	}
+
+	return routeTable.Service(targetServer)
+}
+
+func Proxy(proxies Proxies) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			host, ok := c.Get(constants.TargetHost.String()).(string)
+			if !ok {
+				return echo.ErrUnauthorized
+			}
+
+			proxy, ok := proxies[host]
+			if !ok {
+				return echo.ErrUnauthorized
+			}
+
+			proxy.ServeHTTP(c.Response(), c.Request())
+
+			return nil
+		}
+	}
+}

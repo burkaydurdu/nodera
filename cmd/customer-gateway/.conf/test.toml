@@ -1,0 +1,23 @@
+environment = "test"
+
+[server]
+name = "nodera-customer-gateway"
+port = ":3460"
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+[secret]
+jwt = ""
+session_key_format = "session:%s"
+
+[cors]
+allow_origins = ["https://test.nodera.io"]
+
+[metrics]
+enabled = true
+port = ":9101"

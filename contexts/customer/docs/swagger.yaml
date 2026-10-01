@@ -1,0 +1,767 @@
+basePath: /
+definitions:
+  github_com_piggystats_nodera_contexts_customer_aggregates_project.CreateRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_sshkey.CreateRequest:
+    properties:
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      public_key:
+        type: string
+    required:
+    - name
+    - public_key
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_team.CreateRequest:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+      new_password_confirm:
+        type: string
+    required:
+    - current_password
+    - new_password
+    - new_password_confirm
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.MFAResendRequest:
+    properties:
+      challenge_token:
+        type: string
+    required:
+    - challenge_token
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.MFAVerifyRequest:
+    properties:
+      challenge_token:
+        type: string
+      code:
+        type: string
+    required:
+    - challenge_token
+    - code
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.RegisterRequest:
+    properties:
+      country:
+        type: string
+      email:
+        maxLength: 255
+        type: string
+      full_name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      locale:
+        type: string
+      password:
+        type: string
+    required:
+    - country
+    - email
+    - full_name
+    - locale
+    - password
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.ResendVerificationRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.ResetPasswordRequest:
+    properties:
+      password:
+        type: string
+      password_confirm:
+        type: string
+      token:
+        type: string
+    required:
+    - password
+    - password_confirm
+    - token
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.UpdateMFARequest:
+    properties:
+      method:
+        allOf:
+        - $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user_mfa.Method'
+        enum:
+        - none
+        - email
+      password:
+        type: string
+    required:
+    - method
+    - password
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.UpdateMeRequest:
+    properties:
+      country:
+        type: string
+      full_name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      locale:
+        type: string
+    required:
+    - country
+    - full_name
+    - locale
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_user_mfa.Method:
+    enum:
+    - none
+    - email
+    type: string
+    x-enum-varnames:
+    - MethodNone
+    - MethodEmail
+  github_com_piggystats_nodera_contexts_customer_application_dto.LoginResponse:
+    properties:
+      challenge_token:
+        type: string
+      method:
+        type: string
+      mfa_required:
+        type: boolean
+      resend_after_seconds:
+        type: integer
+      session:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Session'
+      supports_resend:
+        type: boolean
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.Project:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      team_id:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.SSHKey:
+    properties:
+      created_at:
+        type: string
+      fingerprint:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      public_key:
+        type: string
+      team_id:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.Session:
+    properties:
+      access_expires_at:
+        type: string
+      access_token:
+        type: string
+      refresh_expires_at:
+        type: string
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.SessionItem:
+    properties:
+      created_at:
+        type: string
+      current:
+        type: boolean
+      expires_at:
+        type: string
+      id:
+        type: string
+      ip:
+        type: string
+      last_used_at:
+        type: string
+      user_agent:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.Team:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.TeamSummary:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.User:
+    properties:
+      country:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      email_verified_at:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      locale:
+        type: string
+      mfa_method:
+        type: string
+      status:
+        type: string
+      team:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.TeamSummary'
+    type: object
+info:
+  contact: {}
+  description: 'Customer-facing API of Nodera: sign-up, sign-in, profile, teams and
+    projects.'
+  title: Nodera Customer API
+  version: "1.0"
+paths:
+  /v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.ForgotPasswordRequest'
+      responses:
+        "200":
+          description: OK
+      summary: Request a password reset link
+      tags:
+      - auth
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.LoginResponse'
+      summary: Sign in, step one
+      tags:
+      - auth
+  /v1/auth/logout:
+    post:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: End this session
+      tags:
+      - auth
+  /v1/auth/logout-all:
+    post:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: End every session of the caller
+      tags:
+      - auth
+  /v1/auth/mfa/resend:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Challenge
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.MFAResendRequest'
+      responses:
+        "200":
+          description: OK
+      summary: Send the MFA code again
+      tags:
+      - auth
+  /v1/auth/mfa/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Challenge and code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.MFAVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Session'
+      summary: Sign in, step two
+      tags:
+      - auth
+  /v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Session'
+      summary: Rotate the refresh token
+      tags:
+      - auth
+  /v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Sign-up form
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+      summary: Sign up
+      tags:
+      - auth
+  /v1/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.ResetPasswordRequest'
+      responses:
+        "200":
+          description: OK
+      summary: Set a new password with a reset token
+      tags:
+      - auth
+  /v1/auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email and code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Session'
+      summary: Verify the sign-up email and open the first session
+      tags:
+      - auth
+  /v1/auth/verify-email/resend:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.ResendVerificationRequest'
+      responses:
+        "200":
+          description: OK
+      summary: Send the verification code again
+      tags:
+      - auth
+  /v1/teams:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The caller's Teams
+      tags:
+      - teams
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Team
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_team.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team'
+      security:
+      - BearerAuth: []
+      summary: Create a Team owned by the caller
+      tags:
+      - teams
+  /v1/teams/{teamID}/projects:
+    get:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Project'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Projects of a Team the caller belongs to
+      tags:
+      - teams
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_project.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Project'
+      security:
+      - BearerAuth: []
+      summary: Create a Project in a Team the caller belongs to
+      tags:
+      - teams
+  /v1/teams/{teamID}/ssh-keys:
+    get:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.SSHKey'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The SSH keys of a Team the caller belongs to
+      tags:
+      - ssh-keys
+    post:
+      consumes:
+      - application/json
+      description: Accepts one OpenSSH authorized_keys line of type ssh-ed25519 or
+        ssh-rsa (at least 2048 bits).
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: SSH key
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_sshkey.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.SSHKey'
+      security:
+      - BearerAuth: []
+      summary: Add an SSH public key to a Team the caller belongs to
+      tags:
+      - ssh-keys
+  /v1/teams/{teamID}/ssh-keys/{keyID}:
+    delete:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: SSH key id
+        in: path
+        name: keyID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Remove an SSH key from a Team the caller belongs to
+      tags:
+      - ssh-keys
+  /v1/users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.User'
+      security:
+      - BearerAuth: []
+      summary: The caller's profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.UpdateMeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.User'
+      security:
+      - BearerAuth: []
+      summary: Update name, locale and country
+      tags:
+      - users
+  /v1/users/me/mfa:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Method and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.UpdateMFARequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.User'
+      security:
+      - BearerAuth: []
+      summary: Turn the MFA method on or off
+      tags:
+      - users
+  /v1/users/me/password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Passwords
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_user.ChangePasswordRequest'
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Change the password; other sessions end
+      tags:
+      - users
+  /v1/users/me/sessions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.SessionItem'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The caller's live sessions
+      tags:
+      - users
+  /v1/users/me/sessions/{sessionID}:
+    delete:
+      parameters:
+      - description: Session id
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: End one of the caller's sessions
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

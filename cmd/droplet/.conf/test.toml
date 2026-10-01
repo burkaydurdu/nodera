@@ -1,0 +1,47 @@
+environment = "test"
+
+[server]
+name = "nodera-droplet"
+port = ":9660"
+
+[postgresql]
+uri = ""
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+# The same JWT secret the customer service signs access tokens with.
+[secret]
+jwt = ""
+
+[providers.cherry]
+enabled = false
+token = ""
+project_id = 0
+endpoint = ""
+
+[jobs]
+sync_interval_minutes = 15
+poll_interval_seconds = 30
+
+[metrics]
+enabled = true
+port = ":9103"

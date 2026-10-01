@@ -1,0 +1,6 @@
+{
+  "email_verification_code_subject": "Your Nodera verification code",
+  "email_already_registered_subject": "Your email is already registered at Nodera",
+  "mfa_email_code_subject": "Your Nodera sign-in code",
+  "password_reset_subject": "Reset your Nodera password"
+}

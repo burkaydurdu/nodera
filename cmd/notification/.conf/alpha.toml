@@ -1,0 +1,28 @@
+environment = "alpha"
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+[mail]
+from = "no-reply@nodera.io"
+from_name = "Nodera"
+templates_dir = "./templates/notification"
+provider = "sendgrid"
+
+[smtp]
+insecure_skip_verify = false
+host = ""
+port = 0
+username = ""
+password = ""
+
+[sendgrid]
+api_key = ""
+
+[metrics]
+enabled = true
+port = ":9102"

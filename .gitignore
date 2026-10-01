@@ -1,0 +1,21 @@
+.env
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+.idea
+.vscode
+.docker
+coverage/
+__debug_bin*
+
+logs/
+.run/
+
+**/dev.toml
+.local/

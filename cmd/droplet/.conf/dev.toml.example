@@ -1,0 +1,48 @@
+# Copy to dev.toml (gitignored). Values match docker-compose.yml and cmd/customer/.conf/dev.toml.example.
+environment = "dev"
+
+[server]
+name = "nodera-droplet"
+port = ":9660"
+
+[postgresql]
+uri = "postgres://postgres:postgres@localhost:5432/nodera_droplet?sslmode=disable"
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = "localhost"
+port = 6379
+username = ""
+password = ""
+db = 0
+
+[rabbitmq]
+host = "127.0.0.1:5672"
+username = "guest"
+password = "guest"
+virtualhost = "/nodera"
+auth_secret = "dev-rabbitmq-auth-secret"
+
+# The same JWT secret the customer service signs access tokens with.
+[secret]
+jwt = "dev-jwt-secret-change-me"
+
+[providers.cherry]
+enabled = false
+token = ""
+project_id = 0
+endpoint = ""
+
+[jobs]
+sync_interval_minutes = 15
+poll_interval_seconds = 30
+
+[metrics]
+enabled = false
+port = ":9103"

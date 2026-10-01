@@ -1,0 +1,26 @@
+FROM golang:1.27-alpine AS builder
+
+RUN apk update && apk add --no-cache ca-certificates git && update-ca-certificates
+
+ARG GH_ACCESS_TOKEN
+ARG GOPRIVATE=github.com/piggystats/*
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN if [ -n "$GH_ACCESS_TOKEN" ]; then \
+    git config --global --add url.https://${GH_ACCESS_TOKEN}@github.com/.insteadOf https://github.com/ && \
+    go env -w GOPRIVATE=${GOPRIVATE}; \
+    fi
+RUN go mod download
+COPY . .
+
+WORKDIR /app/cmd/droplet
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main .
+
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates
+WORKDIR /app
+COPY --from=builder /app/main .
+COPY --from=builder /app/cmd/droplet/.conf ./cmd/droplet/.conf
+
+ENTRYPOINT ["./main"]
