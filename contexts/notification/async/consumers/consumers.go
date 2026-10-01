@@ -8,6 +8,7 @@ import (
 
 	"github.com/piggystats/nodera/contexts/notification/email"
 	"github.com/piggystats/nodera/contexts/notification/events"
+	"github.com/piggystats/nodera/pkg/authz"
 )
 
 // ISender is the slice of the email sender the consumers use.
@@ -98,4 +99,32 @@ func (c *PasswordReset) Consume(message *rabbitmq.Message) error {
 	params["ResetURL"] = event.Payload.ResetURL
 
 	return c.sender.Send(context.Background(), email.KindPasswordReset, event.Payload.Email, event.Payload.Locale, params)
+}
+
+type TeamInvitation struct{ sender ISender }
+
+func NewTeamInvitation(sender ISender) *TeamInvitation {
+	return &TeamInvitation{sender: sender}
+}
+
+func (c *TeamInvitation) Consume(message *rabbitmq.Message) error {
+	var event events.TeamInvitationEvent
+	if err := decode(message, &event); err != nil {
+		return err
+	}
+
+	// The template names the Role in the reader's language; a Role the matrix
+	// does not know has no name, and a redelivery would not grow one.
+	if !authz.IsRole(event.Payload.Role) {
+		return email.ErrorInvalidRecipient.Copy().SetMessage("unknown role in team invitation")
+	}
+
+	params := recipientParams(event.Payload.Recipient)
+	params["TeamName"] = event.Payload.TeamName
+	params["Role"] = event.Payload.Role
+	params["InviterName"] = event.Payload.InviterName
+	params["AcceptURL"] = event.Payload.AcceptURL
+	params["ExpiresAt"] = event.Payload.ExpiresAt
+
+	return c.sender.Send(context.Background(), email.KindTeamInvitation, event.Payload.Recipient.Email, event.Payload.Recipient.Locale, params)
 }

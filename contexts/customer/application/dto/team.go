@@ -29,6 +29,30 @@ func ToTeams(memberships team.Memberships) []*Team {
 	return out
 }
 
+// Member is one row of the members list: the person and their Role. The
+// timestamp goes out in UTC, like the events, whatever zone the database
+// handed back.
+type Member struct {
+	UserID   uuid.UUID `json:"user_id"`
+	FullName string    `json:"full_name"`
+	Email    string    `json:"email"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+func ToMember(m *team.MemberDetail) *Member {
+	return &Member{UserID: m.UserID, FullName: m.FullName, Email: m.Email, Role: string(m.Role), JoinedAt: m.CreatedAt.UTC()}
+}
+
+func ToMembers(members team.MemberDetails) []*Member {
+	out := make([]*Member, 0, len(members))
+	for _, m := range members {
+		out = append(out, ToMember(m))
+	}
+
+	return out
+}
+
 type Project struct {
 	ID          uuid.UUID `json:"id"`
 	TeamID      uuid.UUID `json:"team_id"`

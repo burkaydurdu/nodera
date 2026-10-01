@@ -251,7 +251,11 @@ func (s *dropletSuite) signIn() user {
 }
 
 func (s *dropletSuite) consume(routingKey, payload string) {
-	s.Require().NoError(s.consumer.Consume(&rabbitmq.Message{RoutingKey: routingKey, Payload: []byte(payload)}))
+	s.Require().NoError(s.consumeErr(routingKey, payload))
+}
+
+func (s *dropletSuite) consumeErr(routingKey, payload string) error {
+	return s.consumer.Consume(&rabbitmq.Message{RoutingKey: routingKey, Payload: []byte(payload)})
 }
 
 // grantProject replays the customer events that make a Project known: the

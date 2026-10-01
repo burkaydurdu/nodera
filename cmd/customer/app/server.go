@@ -7,10 +7,12 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/piggystats/nodera/cmd/customer/config"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/invitation"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/project"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/session"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/sshkey"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/team/permversion"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user/lockout"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user/mfa"
@@ -60,10 +62,16 @@ func BuildServer(
 	teamService := team.NewService(team.NewRepository(queries))
 	projectService := project.NewService(project.NewRepository(queries))
 	sshKeyService := sshkey.NewService(sshkey.NewRepository(queries))
+	invitationService := invitation.NewService(invitation.NewRepository(queries))
 
 	teamCreated := producers.NewTeamCreated(outboxClient)
 	memberAdded := producers.NewTeamMemberAdded(outboxClient)
+	roleChanged := producers.NewTeamMemberRoleChanged(outboxClient)
+	memberRemoved := producers.NewTeamMemberRemoved(outboxClient)
 	projectCreated := producers.NewProjectCreated(outboxClient)
+	permVersions := permversion.NewStore(redisService)
+	limiter := ratelimit.NewLimiter(redisService)
+	joiner := handlers.NewJoiner(log, teamService, invitationService, transactions, permVersions, memberAdded)
 
 	verificationCodes := otp.NewStore(redisService, otp.Policy{
 		Prefix: "verify:email", TTL: verificationCodeTTL, MaxAttempts: verificationCodeAttempts,
@@ -89,6 +97,8 @@ func BuildServer(
 		authConfig,
 		userService,
 		teamService,
+		invitationService,
+		joiner,
 		transactions,
 		verificationCodes,
 		producers.NewEmailVerificationCode(outboxClient),
@@ -99,13 +109,15 @@ func BuildServer(
 		sessions,
 		reset.NewStore(redisService),
 		producers.NewPasswordReset(outboxClient),
-		ratelimit.NewLimiter(redisService),
+		limiter,
+		permVersions,
 		teamCreated,
 		memberAdded,
 	)
 	userHandler := handlers.NewUser(userService, teamService, sessions)
-	teamHandler := handlers.NewTeam(log, teamService, projectService, transactions, teamCreated, memberAdded, projectCreated)
+	teamHandler := handlers.NewTeam(log, teamService, projectService, transactions, permVersions, teamCreated, memberAdded, roleChanged, memberRemoved, projectCreated)
 	sshKeyHandler := handlers.NewSSHKey(teamService, sshKeyService)
+	invitationHandler := handlers.NewInvitation(log, authConfig, userService, teamService, invitationService, limiter, joiner, producers.NewTeamInvitation(outboxClient))
 
 	authenticate := apiMiddleware.Authenticate(authConfig.JWTSecret, sessions)
 
@@ -118,6 +130,7 @@ func BuildServer(
 	v1.NewUser(userHandler, authenticate).SetRoutes(apiV1)
 	v1.NewTeam(teamHandler, authenticate).SetRoutes(apiV1)
 	v1.NewSSHKey(sshKeyHandler, authenticate).SetRoutes(apiV1)
+	v1.NewInvitation(invitationHandler, authenticate).SetRoutes(apiV1)
 
 	return server
 }

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/ory/dockertest/v3"
@@ -27,8 +28,11 @@ import (
 
 	"github.com/piggystats/nodera/cmd/customer/app"
 	"github.com/piggystats/nodera/cmd/customer/config"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/session"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/team/permversion"
 	"github.com/piggystats/nodera/internal/persistence/redis"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/authz"
 )
 
 const (
@@ -161,6 +165,8 @@ func (s *customerSuite) TearDownTest() {
 	ctx := context.Background()
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM projects`)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM ssh_keys`)
+	_, _ = s.pgPool.Exec(ctx, `UPDATE users SET pending_invitation_id = NULL`)
+	_, _ = s.pgPool.Exec(ctx, `DELETE FROM invitations`)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM team_members WHERE user_id NOT IN (SELECT id FROM users WHERE email = $1)`, seedEmail)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM teams WHERE owner_user_id NOT IN (SELECT id FROM users WHERE email = $1)`, seedEmail)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM users WHERE email != $1`, seedEmail)
@@ -193,7 +199,7 @@ func runMigrate(databaseURL, path, table string) error {
 func (s *customerSuite) flushRedis() {
 	// The service's Redis wrapper has no FLUSHALL on purpose; the suite reaches
 	// past it through the same client the wrapper was built on.
-	for _, pattern := range []string{"session:*", "user_sessions:*", "verify:*", "mfa:*", "login_lockout:*", "password_reset:*", "ratelimit:*"} {
+	for _, pattern := range []string{"session:*", "user_sessions:*", "verify:*", "mfa:*", "login_lockout:*", "password_reset:*", "ratelimit:*", "user_perm_version:*"} {
 		s.deleteByPattern(pattern)
 	}
 }
@@ -364,6 +370,46 @@ func (s *customerSuite) teamID(token string) string {
 	s.Require().NotEmpty(id)
 
 	return id
+}
+
+func (s *customerSuite) userID(email string) string {
+	var id string
+	s.Require().NoError(s.pgPool.QueryRow(s.T().Context(), `SELECT id FROM users WHERE email = $1`, email).Scan(&id))
+
+	return id
+}
+
+// addMember seats a User in a Team behind the service's back, so a scenario
+// about Roles does not have to walk the Invitation flow first.
+func (s *customerSuite) addMember(teamID, email string, role authz.Role) {
+	_, err := s.pgPool.Exec(s.T().Context(),
+		`INSERT INTO team_members (team_id, user_id, role) VALUES ($1, (SELECT id FROM users WHERE email = $2), $3)`, teamID, email, string(role))
+	s.Require().NoError(err)
+}
+
+// accessClaims decodes what the service put into an access token, as the
+// gateway will read it.
+func (s *customerSuite) accessClaims(accessToken string) *session.AccessClaims {
+	var claims session.AccessClaims
+	_, err := jwt.ParseWithClaims(accessToken, &claims, func(*jwt.Token) (any, error) { return []byte(testJWTSecret), nil })
+	s.Require().NoError(err)
+
+	return &claims
+}
+
+func (s *customerSuite) emailOf(t tokens) string {
+	return s.accessClaims(t.Access).Email
+}
+
+func (s *customerSuite) permVersion(userID string) int64 {
+	raw, err := rawRedis.Get(context.Background(), fmt.Sprintf(permversion.KeyFormat, userID)).Result()
+	if err != nil {
+		return 0
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	s.Require().NoError(err)
+
+	return n
 }
 
 func (s *customerSuite) expireKeyPattern(pattern string) {

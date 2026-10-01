@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
+	"github.com/piggystats/nodera/pkg/authz"
 	"github.com/piggystats/nodera/pkg/country"
 )
 
@@ -78,6 +79,9 @@ var customValidations = map[string]validator.Func{
 	},
 	"locale": func(fl validator.FieldLevel) bool {
 		return fl.Field().String() == "tr" || fl.Field().String() == "en"
+	},
+	"role": func(fl validator.FieldLevel) bool {
+		return authz.IsRole(fl.Field().String())
 	},
 }
 

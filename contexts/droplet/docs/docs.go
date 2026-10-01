@@ -143,7 +143,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Billing stops at the request; the Droplet answers as deleting until the release is confirmed.",
+                "description": "Billing stops at the request; the Droplet answers as deleting until the release is confirmed. 403 when the caller's Role lacks droplet.write.",
                 "produces": [
                     "application/json"
                 ],
@@ -177,7 +177,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allowed from active and off only; the resulting status arrives through detail.",
+                "description": "Allowed from active and off only; the resulting status arrives through detail. 403 when the caller's Role lacks droplet.write.",
                 "consumes": [
                     "application/json"
                 ],
@@ -257,7 +257,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Answers 201 with the provisioning Droplet; the outcome arrives through list and detail. 409 when the Plan sold out or its price rose since the catalog was loaded.",
+                "description": "Answers 201 with the provisioning Droplet; the outcome arrives through list and detail. 409 when the Plan sold out or its price rose since the catalog was loaded. 403 when the caller's Role in the Team lacks droplet.write; 404 for a Project the caller is not a member of.",
                 "consumes": [
                     "application/json"
                 ],

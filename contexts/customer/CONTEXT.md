@@ -31,9 +31,23 @@ more; each member holds a Role in it. Nothing is owned outside a Team.
 _Avoid_: workspace, organisation, customer, tenant, personal account
 
 **Role**:
-What a member may do inside one Team. A member holds exactly one Role per Team. Today only
-`owner`, the Role of the User who created the Team.
-_Avoid_: permission (a Role is made of them), group
+What a member may do inside one Team, as a named bundle of Permissions. A member holds exactly
+one Role per Team. `owner` runs the Team and its members (the creator starts as one; a Team may
+have several), `developer` works with Projects, Droplets and SSH keys, `finance` sees Droplets
+and handles invoices and payment methods.
+_Avoid_: admin (that is Nodera's own operator side), permission (a Role is made of them), group
+
+**Permission**:
+One thing a Role allows, named `<area>.<verb>` such as `team.manage` or `droplet.write`. The
+mapping from Role to Permissions is fixed by Nodera, the same for every Team, and never edited
+per Team.
+_Avoid_: right, scope, grant, capability
+
+**Invitation**:
+An owner's pending offer of a Role in a Team to an email address, whether or not a User exists
+for it yet. It is accepted once by the User who proves that email is theirs, or declined by
+them, or revoked by an owner, or it expires.
+_Avoid_: invite (the verb), request (that would come from the joiner), share
 
 **Project**:
 A named grouping of a Team's resources, like a namespace. Belongs to exactly one Team. A User

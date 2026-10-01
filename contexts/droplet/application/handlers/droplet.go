@@ -16,6 +16,7 @@ import (
 	"github.com/piggystats/nodera/contexts/droplet/providers"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/authz"
 	"github.com/piggystats/nodera/pkg/contextutil"
 	"github.com/piggystats/nodera/pkg/ratelimit"
 )
@@ -75,7 +76,7 @@ func NewDroplet(
 // the caller in its Team, otherwise the Project does not exist for them.
 func (h *Droplet) List(ctx context.Context, req *droplet.ListRequest) ([]*dto.Droplet, error) {
 	projectID := uuid.MustParse(req.ProjectID)
-	if _, err := h.access.FindProjectTeamForMember(ctx, projectID, contextutil.CurrentUserID(ctx)); err != nil {
+	if _, err := h.authorizeProject(ctx, projectID, authz.DropletRead); err != nil {
 		return nil, err
 	}
 
@@ -98,7 +99,7 @@ func (h *Droplet) Create(ctx context.Context, req *droplet.CreateRequest) (*dto.
 	}
 
 	projectID := uuid.MustParse(req.ProjectID)
-	teamID, err := h.access.FindProjectTeamForMember(ctx, projectID, userID)
+	membership, err := h.authorizeProject(ctx, projectID, authz.DropletWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +133,7 @@ func (h *Droplet) Create(ctx context.Context, req *droplet.CreateRequest) (*dto.
 
 	d := &droplet.Droplet{
 		ProjectID:       projectID,
-		TeamID:          teamID,
+		TeamID:          membership.TeamID,
 		PlanID:          plan.ID,
 		PlanCode:        plan.Code,
 		RegionCode:      plan.RegionCode,
@@ -314,7 +315,7 @@ func customerSafeReason(err error) string {
 }
 
 func (h *Droplet) Get(ctx context.Context, req *droplet.GetRequest) (*dto.Droplet, error) {
-	d, err := h.findAuthorized(ctx, req.DropletID)
+	d, err := h.findAuthorized(ctx, req.DropletID, authz.DropletRead)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +338,7 @@ func (h *Droplet) Action(ctx context.Context, req *droplet.ActionRequest) (*dto.
 		return nil, err
 	}
 
-	authorized, err := h.findAuthorized(ctx, req.DropletID)
+	authorized, err := h.findAuthorized(ctx, req.DropletID, authz.DropletWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +394,7 @@ func (h *Droplet) clearPending(ctx context.Context, id uuid.UUID, action droplet
 // status but deleting and deleted: a customer may abandon a Droplet still
 // being ordered. Never a hard delete.
 func (h *Droplet) Delete(ctx context.Context, req *droplet.DeleteRequest) (*dto.Droplet, error) {
-	authorized, err := h.findAuthorized(ctx, req.DropletID)
+	authorized, err := h.findAuthorized(ctx, req.DropletID, authz.DropletWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -433,20 +434,39 @@ func (h *Droplet) Delete(ctx context.Context, req *droplet.DeleteRequest) (*dto.
 	return dto.ToDroplet(d), nil
 }
 
-// findAuthorized answers the Droplet when the caller is in its Team; a
-// stranger's Droplet does not exist for them.
-func (h *Droplet) findAuthorized(ctx context.Context, rawID string) (*droplet.Droplet, error) {
+// authorizeProject answers the caller's membership in the Project's Team when
+// their Role holds the Permission (docs/adr/0005). A stranger and an unknown
+// Project are the same 404; a member without the Permission learns the
+// Project exists and gets a 403.
+func (h *Droplet) authorizeProject(ctx context.Context, projectID uuid.UUID, permission authz.Permission) (*access.Membership, error) {
+	membership, err := h.access.FindProjectMembership(ctx, projectID, contextutil.CurrentUserID(ctx))
+	if err != nil {
+		return nil, err
+	}
+	if !membership.Allows(permission) {
+		return nil, droplet.ErrorForbidden
+	}
+
+	return membership, nil
+}
+
+// findAuthorized answers the Droplet when the caller is in its Team with a
+// Role holding the Permission; a stranger's Droplet does not exist for them.
+func (h *Droplet) findAuthorized(ctx context.Context, rawID string, permission authz.Permission) (*droplet.Droplet, error) {
 	d, err := h.droplets.FindByID(ctx, uuid.MustParse(rawID))
 	if err != nil {
 		return nil, err
 	}
 
-	member, err := h.access.IsTeamMember(ctx, d.TeamID, contextutil.CurrentUserID(ctx))
+	membership, err := h.access.FindTeamMembership(ctx, d.TeamID, contextutil.CurrentUserID(ctx))
 	if err != nil {
 		return nil, err
 	}
-	if !member {
+	if membership == nil {
 		return nil, droplet.ErrorNotFound
+	}
+	if !membership.Allows(permission) {
+		return nil, droplet.ErrorForbidden
 	}
 
 	return d, nil

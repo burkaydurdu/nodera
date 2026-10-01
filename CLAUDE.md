@@ -19,6 +19,12 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
 - **Providers** (Cherry Servers today) are adapters behind `contexts/droplet/providers`; a
   Provider must bill hourly and permit resale (docs/adr/0003). Provider names never reach a
   DTO, an error message or the web app.
+- **Authorization** is Team-scoped: Roles `owner|developer|finance`, Permissions
+  `<area>.<verb>`, matrix only in `pkg/authz` (never copied, never per Team). The access
+  token carries `teams` (Team → Role) and `pv`; the gateway enforces a route's `permissions`
+  when the path has `:teamID` and 401s a stale `pv` (docs/adr/0005). Every service enforces
+  the same Permission itself: non-member 404, member without the Permission 403. Any
+  membership change bumps `user_perm_version:{userID}`.
 - **Layers.** `api/v1` binds and validates a request, then delegates; `application/handlers`
   hold the business rules and orchestrate services; `aggregates/<name>` own the model,
   requests (`request.go`), errors (`error.go`), a thin service and the pgx repository. An
@@ -27,7 +33,7 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
 - **Requests** are aggregate types bound by Echo tags; every input arrives through
   `c.Bind` + `c.Validate`, never `c.Param`. Responses are `application/dto`.
 - **Errors** are `piggystats/rerror` values with a repo-wide unique `Domain` per aggregate
-  (`error.go`) and an explicit `HttpStatus`. Taken domains: customer 1–7, 9, 12; droplet
+  (`error.go`) and an explicit `HttpStatus`. Taken domains: customer 1–9, 12; droplet
   20–23; common 100. Never mutate a var: `.Copy()` first. Sign-in
   answers `user.ErrorNotFound` for a wrong email and a wrong password alike.
 - **Transactions** ride the context (`transactions.Begin(ctx)`); repositories reach them

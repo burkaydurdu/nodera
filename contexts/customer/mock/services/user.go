@@ -43,6 +43,20 @@ func (m *MockIUserService) EXPECT() *MockIUserServiceMockRecorder {
 	return m.recorder
 }
 
+// ClearPendingInvitation mocks base method.
+func (m *MockIUserService) ClearPendingInvitation(ctx context.Context, id uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearPendingInvitation", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearPendingInvitation indicates an expected call of ClearPendingInvitation.
+func (mr *MockIUserServiceMockRecorder) ClearPendingInvitation(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearPendingInvitation", reflect.TypeOf((*MockIUserService)(nil).ClearPendingInvitation), ctx, id)
+}
+
 // Create mocks base method.
 func (m *MockIUserService) Create(ctx context.Context, arg1 *user.User) error {
 	m.ctrl.T.Helper()

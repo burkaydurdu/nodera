@@ -60,3 +60,15 @@ func (p *PasswordReset) Publish(ctx context.Context, recipient events.Recipient,
 		Payload: events.PasswordResetBody{Recipient: recipient, ResetURL: resetURL},
 	})
 }
+
+type TeamInvitation struct{ client OutboxClient }
+
+func NewTeamInvitation(client OutboxClient) *TeamInvitation {
+	return &TeamInvitation{client: client}
+}
+
+func (p *TeamInvitation) Publish(ctx context.Context, body events.TeamInvitationBody) error {
+	body.ExpiresAt = body.ExpiresAt.UTC()
+
+	return publish(ctx, p.client, constants.TeamInvitation, &events.TeamInvitationEvent{Payload: body})
+}

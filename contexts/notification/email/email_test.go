@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,9 +41,13 @@ func newSender(t *testing.T) (*Sender, *capturingClient) {
 
 func TestSender_RendersEveryKindInBothLocales(t *testing.T) {
 	sender, client := newSender(t)
-	params := map[string]any{"FullName": "Ada", "Code": "123456", "ResetURL": "http://localhost:3002/reset-password?token=abc"}
+	params := map[string]any{
+		"FullName": "Ada", "Email": "ada@example.com", "Code": "123456", "ResetURL": "http://localhost:3002/reset-password?token=abc",
+		"TeamName": "Platform", "Role": "developer", "InviterName": "Grace", "AcceptURL": "http://localhost:3002/invitations/accept?token=abc",
+		"ExpiresAt": time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC),
+	}
 
-	for _, kind := range []Kind{KindEmailVerificationCode, KindEmailAlreadyRegistered, KindMFAEmailCode, KindPasswordReset} {
+	for _, kind := range []Kind{KindEmailVerificationCode, KindEmailAlreadyRegistered, KindMFAEmailCode, KindPasswordReset, KindTeamInvitation} {
 		for _, locale := range []string{"tr", "en"} {
 			t.Run(string(kind)+"/"+locale, func(t *testing.T) {
 				require.NoError(t, sender.Send(context.Background(), kind, "ada@example.com", locale, params))
@@ -88,4 +93,50 @@ func TestSender_EmptyRecipient_IsTerminal(t *testing.T) {
 	err := sender.Send(context.Background(), KindMFAEmailCode, "", "en", nil)
 
 	assert.ErrorIs(t, err, ErrorInvalidRecipient)
+}
+
+func teamInvitationParams() map[string]any {
+	return map[string]any{
+		"FullName": "", "Email": "grace@example.com", "TeamName": "Platform", "Role": "developer", "InviterName": "Ada Lovelace",
+		"AcceptURL": "http://localhost:3002/invitations/accept?token=abc", "ExpiresAt": time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC),
+	}
+}
+
+func TestSender_TeamInvitation_English_TranslatesTheRoleAndNamesTheInviter(t *testing.T) {
+	sender, client := newSender(t)
+
+	require.NoError(t, sender.Send(context.Background(), KindTeamInvitation, "grace@example.com", "en", teamInvitationParams()))
+
+	assert.Equal(t, "Ada Lovelace invited you to join Platform on Nodera", client.message.Subject)
+	assert.Contains(t, client.message.Body, "Ada Lovelace")
+	assert.Contains(t, client.message.Body, "Platform")
+	assert.Contains(t, client.message.Body, "Developer")
+	assert.NotContains(t, client.message.Body, "developer", "the raw Role never reaches the reader")
+	assert.Contains(t, client.message.Body, `href="http://localhost:3002/invitations/accept?token=abc"`)
+	assert.Contains(t, client.message.Body, "October 8, 2026")
+	assert.Contains(t, client.message.Body, "grace@example.com")
+}
+
+func TestSender_TeamInvitation_Turkish_TranslatesTheRole(t *testing.T) {
+	sender, client := newSender(t)
+
+	require.NoError(t, sender.Send(context.Background(), KindTeamInvitation, "grace@example.com", "tr", teamInvitationParams()))
+
+	assert.Equal(t, "Ada Lovelace seni Nodera'da Platform takımına davet etti", client.message.Subject)
+	assert.Contains(t, client.message.Body, "Geliştirici")
+	assert.NotContains(t, client.message.Body, "developer")
+	assert.Contains(t, client.message.Body, "08.10.2026")
+	assert.Contains(t, client.message.Body, "grace@example.com")
+}
+
+func TestSender_TeamInvitation_FinanceRole_InBothLocales(t *testing.T) {
+	sender, client := newSender(t)
+	params := teamInvitationParams()
+	params["Role"] = "finance"
+
+	require.NoError(t, sender.Send(context.Background(), KindTeamInvitation, "grace@example.com", "en", params))
+	assert.Contains(t, client.message.Body, "Finance")
+
+	require.NoError(t, sender.Send(context.Background(), KindTeamInvitation, "grace@example.com", "tr", params))
+	assert.Contains(t, client.message.Body, "Finans")
 }

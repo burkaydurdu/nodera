@@ -35,8 +35,11 @@ func (p *Producer) AddPublisher(ctx context.Context) {
 		events.EmailAlreadyRegisteredEvent{},
 		events.MFAEmailCodeEvent{},
 		events.PasswordResetEvent{},
+		events.TeamInvitationEvent{},
 		events.TeamCreatedEvent{},
 		events.TeamMemberAddedEvent{},
+		events.TeamMemberRoleChangedEvent{},
+		events.TeamMemberRemovedEvent{},
 		events.ProjectCreatedEvent{},
 	)
 }

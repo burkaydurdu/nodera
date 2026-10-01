@@ -39,9 +39,12 @@ type User struct {
 	Status          Status
 	MFAMethod       mfa.Method
 	EmailVerifiedAt *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeletedAt       *time.Time
+	// PendingInvitationID is the Invitation a sign-up came from; email
+	// verification accepts it and clears this.
+	PendingInvitationID *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           *time.Time
 }
 
 func (u *User) IsActive() bool {

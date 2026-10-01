@@ -8,6 +8,7 @@ import (
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
 	"github.com/piggystats/nodera/contexts/customer/async/constants"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/authz"
 )
 
 func (s *customerSuite) TestTeams_ListsTheAutoCreatedTeam() {
@@ -181,6 +182,9 @@ func (s *customerSuite) TestReplayProjects_RepublishesEveryTeamMembershipAndProj
 	secondTeam := s.authed(http.MethodPost, "/v1/teams", `{"name":"Second"}`, tokens.Access).str("id")
 	projectID := s.authed(http.MethodPost, "/v1/teams/"+firstTeam+"/projects", `{"name":"P1","description":""}`, tokens.Access).str("id")
 	s.authed(http.MethodPost, "/v1/teams/"+secondTeam+"/projects", `{"name":"P2","description":""}`, tokens.Access)
+	finEmail := s.uniqueEmail("replay-fin")
+	s.registerAndVerify(finEmail, "Str0ng!pass")
+	s.addMember(firstTeam, finEmail, authz.RoleFinance)
 	s.clearOutbox()
 
 	var teams, members, projects int64
@@ -204,4 +208,5 @@ func (s *customerSuite) TestReplayProjects_RepublishesEveryTeamMembershipAndProj
 	s.Contains(s.outboxPayloads(constants.TeamCreated, "team_id"), firstTeam)
 	s.Contains(s.outboxPayloads(constants.TeamCreated, "team_id"), secondTeam)
 	s.Contains(s.outboxPayloads(constants.TeamMemberAdded, "team_id"), secondTeam)
+	s.Contains(s.outboxPayloads(constants.TeamMemberAdded, "role"), "finance", "a replayed membership carries its current Role")
 }

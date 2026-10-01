@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Customer-facing API of Nodera: sign-up, sign-in, profile, teams and projects.",
+        "description": "Customer-facing API of Nodera: sign-up, sign-in, profile, teams, members, invitations and projects.",
         "title": "Nodera Customer API",
         "contact": {},
         "version": "1.0"
@@ -314,6 +314,105 @@
                 }
             }
         },
+        "/v1/invitations/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Accept the Invitation an email link carries",
+                "parameters": [
+                    {
+                        "description": "Token from the link",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_invitation.TokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/invitations/decline": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Decline the Invitation an email link carries",
+                "parameters": [
+                    {
+                        "description": "Token from the link",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_invitation.TokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/invitations/lookup": {
+            "get": {
+                "description": "Token-scoped public read behind the accept page: Team, Role, inviter, the invited address and its state.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "What an Invitation link is for, without signing in",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token from the link",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.InvitationLookup"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/teams": {
             "get": {
                 "security": [
@@ -372,6 +471,308 @@
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/invitations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "The Invitations of a Team, every status, newest first (owners only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Invite an email address to a Team with a Role (owners only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Email and Role",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_invitation.CreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/invitations/{invitationID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Revoke a pending Invitation (owners only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Invitation id",
+                        "name": "invitationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/invitations/{invitationID}/resend": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Send an Invitation again with a fresh link (owners only; 60 s cooldown)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Invitation id",
+                        "name": "invitationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/members": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teams"
+                ],
+                "summary": "The members of a Team the caller belongs to, with their Roles",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Member"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/members/leave": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "teams"
+                ],
+                "summary": "Leave a Team (the last owner cannot)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/members/{userID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "teams"
+                ],
+                "summary": "Remove a member from a Team (owners only; the last owner stays)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member's user id",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/members/{userID}/role": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teams"
+                ],
+                "summary": "Change a member's Role (owners only; not your own; the last owner stays)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member's user id",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New Role",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_team.ChangeRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Member"
                         }
                     }
                 }
@@ -630,6 +1031,93 @@
                 }
             }
         },
+        "/v1/users/me/invitations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "The pending Invitations to the caller's email address",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/me/invitations/{invitationID}/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Accept one of the caller's pending Invitations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation id",
+                        "name": "invitationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/me/invitations/{invitationID}/decline": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Decline one of the caller's pending Invitations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation id",
+                        "name": "invitationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/v1/users/me/mfa": {
             "put": {
                 "security": [
@@ -756,6 +1244,34 @@
         }
     },
     "definitions": {
+        "github_com_piggystats_nodera_contexts_customer_aggregates_invitation.CreateRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "role"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_aggregates_invitation.TokenRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
         "github_com_piggystats_nodera_contexts_customer_aggregates_project.CreateRequest": {
             "type": "object",
             "required": [
@@ -786,6 +1302,17 @@
                     "minLength": 1
                 },
                 "public_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_aggregates_team.ChangeRoleRequest": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "role": {
                     "type": "string"
                 }
             }
@@ -907,6 +1434,11 @@
                     "maxLength": 255,
                     "minLength": 1
                 },
+                "invitation_token": {
+                    "description": "InvitationToken is the secret from an Invitation email, when the\nsign-up started from one.",
+                    "type": "string",
+                    "maxLength": 128
+                },
                 "locale": {
                     "type": "string"
                 },
@@ -1015,6 +1547,86 @@
                 "MethodEmail"
             ]
         },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation": {
+            "type": "object",
+            "properties": {
+                "team": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.Invitation": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invited_by": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.InvitedBy"
+                },
+                "responded_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "team_id": {
+                    "type": "string"
+                },
+                "team_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.InvitationLookup": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "email_hint": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "invited_by_name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "team_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.InvitedBy": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_piggystats_nodera_contexts_customer_application_dto.LoginResponse": {
             "type": "object",
             "properties": {
@@ -1035,6 +1647,26 @@
                 },
                 "supports_resend": {
                     "type": "boolean"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.Member": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
                 }
             }
         },

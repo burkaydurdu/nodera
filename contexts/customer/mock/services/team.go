@@ -57,6 +57,21 @@ func (mr *MockITeamServiceMockRecorder) AddMember(ctx, teamID, userID, role any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMember", reflect.TypeOf((*MockITeamService)(nil).AddMember), ctx, teamID, userID, role)
 }
 
+// CountOwners mocks base method.
+func (m *MockITeamService) CountOwners(ctx context.Context, teamID uuid.UUID) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountOwners", ctx, teamID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountOwners indicates an expected call of CountOwners.
+func (mr *MockITeamServiceMockRecorder) CountOwners(ctx, teamID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountOwners", reflect.TypeOf((*MockITeamService)(nil).CountOwners), ctx, teamID)
+}
+
 // Create mocks base method.
 func (m *MockITeamService) Create(ctx context.Context, arg1 *team.Team) error {
 	m.ctrl.T.Helper()
@@ -101,6 +116,36 @@ func (mr *MockITeamServiceMockRecorder) FindAllMembers(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllMembers", reflect.TypeOf((*MockITeamService)(nil).FindAllMembers), ctx)
 }
 
+// FindMember mocks base method.
+func (m *MockITeamService) FindMember(ctx context.Context, teamID, userID uuid.UUID) (*team.MemberDetail, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindMember", ctx, teamID, userID)
+	ret0, _ := ret[0].(*team.MemberDetail)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindMember indicates an expected call of FindMember.
+func (mr *MockITeamServiceMockRecorder) FindMember(ctx, teamID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindMember", reflect.TypeOf((*MockITeamService)(nil).FindMember), ctx, teamID, userID)
+}
+
+// FindMembers mocks base method.
+func (m *MockITeamService) FindMembers(ctx context.Context, teamID uuid.UUID) (team.MemberDetails, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindMembers", ctx, teamID)
+	ret0, _ := ret[0].(team.MemberDetails)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindMembers indicates an expected call of FindMembers.
+func (mr *MockITeamServiceMockRecorder) FindMembers(ctx, teamID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindMembers", reflect.TypeOf((*MockITeamService)(nil).FindMembers), ctx, teamID)
+}
+
 // FindMembership mocks base method.
 func (m *MockITeamService) FindMembership(ctx context.Context, teamID, userID uuid.UUID) (*team.Membership, error) {
 	m.ctrl.T.Helper()
@@ -129,4 +174,46 @@ func (m *MockITeamService) FindMembershipsByUserID(ctx context.Context, userID u
 func (mr *MockITeamServiceMockRecorder) FindMembershipsByUserID(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindMembershipsByUserID", reflect.TypeOf((*MockITeamService)(nil).FindMembershipsByUserID), ctx, userID)
+}
+
+// Lock mocks base method.
+func (m *MockITeamService) Lock(ctx context.Context, teamID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Lock", ctx, teamID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Lock indicates an expected call of Lock.
+func (mr *MockITeamServiceMockRecorder) Lock(ctx, teamID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Lock", reflect.TypeOf((*MockITeamService)(nil).Lock), ctx, teamID)
+}
+
+// RemoveMember mocks base method.
+func (m *MockITeamService) RemoveMember(ctx context.Context, teamID, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveMember", ctx, teamID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveMember indicates an expected call of RemoveMember.
+func (mr *MockITeamServiceMockRecorder) RemoveMember(ctx, teamID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMember", reflect.TypeOf((*MockITeamService)(nil).RemoveMember), ctx, teamID, userID)
+}
+
+// UpdateMemberRole mocks base method.
+func (m *MockITeamService) UpdateMemberRole(ctx context.Context, teamID, userID uuid.UUID, role team.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateMemberRole", ctx, teamID, userID, role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateMemberRole indicates an expected call of UpdateMemberRole.
+func (mr *MockITeamServiceMockRecorder) UpdateMemberRole(ctx, teamID, userID, role any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMemberRole", reflect.TypeOf((*MockITeamService)(nil).UpdateMemberRole), ctx, teamID, userID, role)
 }

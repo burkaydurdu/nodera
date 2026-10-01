@@ -10,6 +10,7 @@ import (
 
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user/mfa"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
+	"github.com/piggystats/nodera/utils/str"
 )
 
 type Repository struct {
@@ -23,7 +24,7 @@ func NewRepository(queries *postgresql.Queries) *Repository {
 const emailUniqueConstraint = "users_email_unique"
 
 const selectColumns = `id, email, password, full_name, locale, country, status, mfa_method,
-       email_verified_at, created_at, updated_at, deleted_at`
+       email_verified_at, pending_invitation_id, created_at, updated_at, deleted_at`
 
 func (r *Repository) Create(ctx context.Context, user *User) error {
 	if user.ID == uuid.Nil {
@@ -33,21 +34,21 @@ func (r *Repository) Create(ctx context.Context, user *User) error {
 		}
 		user.ID = id
 	}
-	if user.Status == "" {
+	if str.IsEmpty(string(user.Status)) {
 		user.Status = StatusPendingVerification
 	}
-	if user.MFAMethod == "" {
+	if str.IsEmpty(string(user.MFAMethod)) {
 		user.MFAMethod = mfa.MethodEmail
 	}
 
 	query := `
-		INSERT INTO users (id, email, password, full_name, locale, country, status, mfa_method)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO users (id, email, password, full_name, locale, country, status, mfa_method, pending_invitation_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING created_at, updated_at`
 
 	err := r.queries.Executor(ctx).QueryRow(ctx, query,
 		user.ID, user.Email, user.Password, user.FullName, string(user.Locale), user.Country,
-		string(user.Status), string(user.MFAMethod),
+		string(user.Status), string(user.MFAMethod), user.PendingInvitationID,
 	).Scan(&user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if constraint, ok := postgresql.UniqueViolationConstraint(err); ok && constraint == emailUniqueConstraint {
@@ -79,6 +80,10 @@ func (r *Repository) MarkEmailVerified(ctx context.Context, id uuid.UUID) error 
 		UPDATE users
 		SET status = $2, email_verified_at = now(), updated_at = now()
 		WHERE id = $1 AND deleted_at IS NULL`, id, string(StatusActive))
+}
+
+func (r *Repository) ClearPendingInvitation(ctx context.Context, id uuid.UUID) error {
+	return r.exec(ctx, `UPDATE users SET pending_invitation_id = NULL, updated_at = now() WHERE id = $1 AND deleted_at IS NULL`, id)
 }
 
 func (r *Repository) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
@@ -117,7 +122,7 @@ func scanUser(row pgx.Row) (*User, error) {
 
 	err := row.Scan(
 		&u.ID, &u.Email, &u.Password, &u.FullName, &locale, &u.Country, &status, &mfaMethod,
-		&emailVerifiedAt, &u.CreatedAt, &u.UpdatedAt, &deletedAt,
+		&emailVerifiedAt, &u.PendingInvitationID, &u.CreatedAt, &u.UpdatedAt, &deletedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrorNotFound

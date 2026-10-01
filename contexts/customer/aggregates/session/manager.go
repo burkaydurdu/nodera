@@ -230,6 +230,8 @@ func (m *Manager) rotate(ctx context.Context, s *Session, principal Principal) (
 		SessionID: s.ID.String(),
 		Email:     principal.Email,
 		Status:    principal.Status,
+		Teams:     teamsClaim(principal.Teams),
+		PV:        principal.PermissionVersion,
 	})
 	accessToken, err := access.SignedString([]byte(m.config.Secret))
 	if err != nil {
@@ -258,6 +260,16 @@ func (m *Manager) rotate(ctx context.Context, s *Session, principal Principal) (
 		AccessExpiresAt:  accessExpiresAt,
 		RefreshExpiresAt: s.ExpiresAt,
 	}, nil
+}
+
+// teamsClaim keeps the claim an object, never null: the gateway treats a
+// token without it as stale.
+func teamsClaim(teams map[string]string) map[string]string {
+	if teams == nil {
+		return map[string]string{}
+	}
+
+	return teams
 }
 
 // acceptsJTI is true for the current refresh token, or for the one it

@@ -12,8 +12,11 @@ package mockservices
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	uuid "github.com/google/uuid"
+	access "github.com/piggystats/nodera/contexts/droplet/aggregates/access"
+	authz "github.com/piggystats/nodera/pkg/authz"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,34 +44,62 @@ func (m *MockIAccessService) EXPECT() *MockIAccessServiceMockRecorder {
 	return m.recorder
 }
 
-// FindProjectTeamForMember mocks base method.
-func (m *MockIAccessService) FindProjectTeamForMember(ctx context.Context, projectID, userID uuid.UUID) (uuid.UUID, error) {
+// FindProjectMembership mocks base method.
+func (m *MockIAccessService) FindProjectMembership(ctx context.Context, projectID, userID uuid.UUID) (*access.Membership, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindProjectTeamForMember", ctx, projectID, userID)
-	ret0, _ := ret[0].(uuid.UUID)
+	ret := m.ctrl.Call(m, "FindProjectMembership", ctx, projectID, userID)
+	ret0, _ := ret[0].(*access.Membership)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindProjectTeamForMember indicates an expected call of FindProjectTeamForMember.
-func (mr *MockIAccessServiceMockRecorder) FindProjectTeamForMember(ctx, projectID, userID any) *gomock.Call {
+// FindProjectMembership indicates an expected call of FindProjectMembership.
+func (mr *MockIAccessServiceMockRecorder) FindProjectMembership(ctx, projectID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProjectTeamForMember", reflect.TypeOf((*MockIAccessService)(nil).FindProjectTeamForMember), ctx, projectID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProjectMembership", reflect.TypeOf((*MockIAccessService)(nil).FindProjectMembership), ctx, projectID, userID)
 }
 
-// IsTeamMember mocks base method.
-func (m *MockIAccessService) IsTeamMember(ctx context.Context, teamID, userID uuid.UUID) (bool, error) {
+// FindTeamMembership mocks base method.
+func (m *MockIAccessService) FindTeamMembership(ctx context.Context, teamID, userID uuid.UUID) (*access.Membership, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsTeamMember", ctx, teamID, userID)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "FindTeamMembership", ctx, teamID, userID)
+	ret0, _ := ret[0].(*access.Membership)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsTeamMember indicates an expected call of IsTeamMember.
-func (mr *MockIAccessServiceMockRecorder) IsTeamMember(ctx, teamID, userID any) *gomock.Call {
+// FindTeamMembership indicates an expected call of FindTeamMembership.
+func (mr *MockIAccessServiceMockRecorder) FindTeamMembership(ctx, teamID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsTeamMember", reflect.TypeOf((*MockIAccessService)(nil).IsTeamMember), ctx, teamID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTeamMembership", reflect.TypeOf((*MockIAccessService)(nil).FindTeamMembership), ctx, teamID, userID)
+}
+
+// RemoveTeamMember mocks base method.
+func (m *MockIAccessService) RemoveTeamMember(ctx context.Context, teamID, userID uuid.UUID, removedAt time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveTeamMember", ctx, teamID, userID, removedAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveTeamMember indicates an expected call of RemoveTeamMember.
+func (mr *MockIAccessServiceMockRecorder) RemoveTeamMember(ctx, teamID, userID, removedAt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveTeamMember", reflect.TypeOf((*MockIAccessService)(nil).RemoveTeamMember), ctx, teamID, userID, removedAt)
+}
+
+// UpdateTeamMemberRole mocks base method.
+func (m *MockIAccessService) UpdateTeamMemberRole(ctx context.Context, teamID, userID uuid.UUID, role authz.Role, changedAt time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateTeamMemberRole", ctx, teamID, userID, role, changedAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateTeamMemberRole indicates an expected call of UpdateTeamMemberRole.
+func (mr *MockIAccessServiceMockRecorder) UpdateTeamMemberRole(ctx, teamID, userID, role, changedAt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTeamMemberRole", reflect.TypeOf((*MockIAccessService)(nil).UpdateTeamMemberRole), ctx, teamID, userID, role, changedAt)
 }
 
 // UpsertProject mocks base method.
@@ -86,15 +117,15 @@ func (mr *MockIAccessServiceMockRecorder) UpsertProject(ctx, projectID, teamID a
 }
 
 // UpsertTeamMember mocks base method.
-func (m *MockIAccessService) UpsertTeamMember(ctx context.Context, teamID, userID uuid.UUID, role string) error {
+func (m *MockIAccessService) UpsertTeamMember(ctx context.Context, teamID, userID uuid.UUID, role authz.Role, addedAt time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpsertTeamMember", ctx, teamID, userID, role)
+	ret := m.ctrl.Call(m, "UpsertTeamMember", ctx, teamID, userID, role, addedAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpsertTeamMember indicates an expected call of UpsertTeamMember.
-func (mr *MockIAccessServiceMockRecorder) UpsertTeamMember(ctx, teamID, userID, role any) *gomock.Call {
+func (mr *MockIAccessServiceMockRecorder) UpsertTeamMember(ctx, teamID, userID, role, addedAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertTeamMember", reflect.TypeOf((*MockIAccessService)(nil).UpsertTeamMember), ctx, teamID, userID, role)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertTeamMember", reflect.TypeOf((*MockIAccessService)(nil).UpsertTeamMember), ctx, teamID, userID, role, addedAt)
 }

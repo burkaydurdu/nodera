@@ -19,7 +19,7 @@ import (
 
 // @title Nodera Customer API
 // @version 1.0
-// @description Customer-facing API of Nodera: sign-up, sign-in, profile, teams and projects.
+// @description Customer-facing API of Nodera: sign-up, sign-in, profile, teams, members, invitations and projects.
 // @basePath /
 // @securityDefinitions.apiKey BearerAuth
 // @in header

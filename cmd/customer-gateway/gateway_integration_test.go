@@ -32,6 +32,13 @@ const (
 	liveSessionID    = "019a0000-0000-7000-8000-00000000aaaa"
 	deadSessionID    = "019a0000-0000-7000-8000-00000000bbbb"
 	userID           = "019a0000-0000-7000-8000-000000000001"
+	freshUserID      = "019a0000-0000-7000-8000-000000000002"
+	ownerTeamID      = "019a0000-0000-7000-8000-00000000f001"
+	financeTeamID    = "019a0000-0000-7000-8000-00000000f002"
+	otherTeamID      = "019a0000-0000-7000-8000-00000000f003"
+	// permVersion is what Redis holds for userID; a token stamped with
+	// anything else is stale.
+	permVersion = 3
 
 	noTarget       = ""
 	targetCustomer = "customer"
@@ -117,6 +124,7 @@ func (s *gatewaySuite) SetupSuite() {
 	}))
 	s.redis = redis.NewService(client)
 	s.Require().NoError(s.redis.Set(context.Background(), fmt.Sprintf(sessionKeyFormat, liveSessionID), "{}", time.Hour))
+	s.Require().NoError(s.redis.Set(context.Background(), fmt.Sprintf(apiMiddleware.PermVersionKeyFormat, userID), strconv.Itoa(permVersion), time.Hour))
 
 	s.customer = newStubUpstream("customer")
 	s.droplet = newStubUpstream("droplet")
@@ -126,6 +134,8 @@ func (s *gatewaySuite) SetupSuite() {
 			{Path: "/v1/auth/login", Method: "POST", Public: true},
 			{Path: "/v1/users/me", Method: "GET"},
 			{Path: "/v1/teams/:teamID/projects", Method: "POST"},
+			{Path: "/v1/teams/:teamID/invitations", Method: "POST", Permissions: []string{"team.manage"}},
+			{Path: "/v1/teams/:teamID/members", Method: "GET", Permissions: []string{"team.read"}},
 		}},
 		"droplet": {Host: s.droplet.server.URL, Endpoints: gatewayConfig.Endpoints{
 			{Path: "/v1/catalog/regions", Method: "GET"},
@@ -175,7 +185,22 @@ func (s *gatewaySuite) do(method, path, token, target string) *httptest.Response
 	return rec
 }
 
+// defaultTeams is what the customer service would stamp for userID: owner of
+// one Team, finance in another, no membership in otherTeamID.
+func defaultTeams() map[string]string {
+	return map[string]string{ownerTeamID: "owner", financeTeamID: "finance"}
+}
+
+// token mints a current access token the way the customer service does.
 func (s *gatewaySuite) token(sessionID, typ string, expiresIn time.Duration) string {
+	return s.tokenWith(sessionID, typ, expiresIn, func(claims jwt.MapClaims) {
+		claims["teams"] = defaultTeams()
+		claims["pv"] = permVersion
+	})
+}
+
+// tokenWith lets a scenario shape the claims after the baseline is laid down.
+func (s *gatewaySuite) tokenWith(sessionID, typ string, expiresIn time.Duration, shape func(claims jwt.MapClaims)) string {
 	claims := jwt.MapClaims{
 		"sub": userID,
 		"sid": sessionID,
@@ -183,6 +208,7 @@ func (s *gatewaySuite) token(sessionID, typ string, expiresIn time.Duration) str
 		"exp": time.Now().Add(expiresIn).Unix(),
 		"iat": time.Now().Unix(),
 	}
+	shape(claims)
 	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(jwtSecret))
 	s.Require().NoError(err)
 
@@ -338,4 +364,119 @@ func (s *gatewaySuite) TestMissingTargetHeader_OnDropletPath_IsUnauthorized() {
 	rec := s.do(http.MethodGet, "/v1/catalog/regions", s.token(liveSessionID, "access", time.Minute), noTarget)
 
 	s.Equal(http.StatusUnauthorized, rec.Code, rec.Body.String())
+}
+
+func (s *gatewaySuite) TestGuardedRoute_Owner_IsProxied() {
+	token := s.token(liveSessionID, "access", time.Minute)
+
+	rec := s.do(http.MethodPost, "/v1/teams/"+ownerTeamID+"/invitations", token, targetCustomer)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+	s.Equal("customer", rec.Header().Get("X-Upstream"))
+	path, headers := s.customer.seen()
+	s.Equal("/v1/teams/"+ownerTeamID+"/invitations", path)
+	s.Equal("Bearer "+token, headers.Get(echo.HeaderAuthorization), "the service repeats the same check off the same token")
+}
+
+func (s *gatewaySuite) TestGuardedRoute_FinanceLacksThePermission_IsForbidden() {
+	rec := s.do(http.MethodPost, "/v1/teams/"+financeTeamID+"/invitations", s.token(liveSessionID, "access", time.Minute), targetCustomer)
+
+	s.Equal(http.StatusForbidden, rec.Code, rec.Body.String())
+	s.Contains(rec.Body.String(), `"domain":100`)
+}
+
+func (s *gatewaySuite) TestGuardedRoute_FinanceHoldsThePermission_IsProxied() {
+	rec := s.do(http.MethodGet, "/v1/teams/"+financeTeamID+"/members", s.token(liveSessionID, "access", time.Minute), targetCustomer)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+	s.Equal("customer", rec.Header().Get("X-Upstream"))
+}
+
+func (s *gatewaySuite) TestGuardedRoute_NotAMember_IsNotFound() {
+	rec := s.do(http.MethodPost, "/v1/teams/"+otherTeamID+"/invitations", s.token(liveSessionID, "access", time.Minute), targetCustomer)
+
+	s.Equal(http.StatusNotFound, rec.Code, rec.Body.String())
+}
+
+func (s *gatewaySuite) TestGuardedRoute_NoTeamsAtAll_IsNotFound() {
+	token := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["teams"] = map[string]string{}
+		claims["pv"] = permVersion
+	})
+
+	rec := s.do(http.MethodGet, "/v1/teams/"+ownerTeamID+"/members", token, targetCustomer)
+
+	s.Equal(http.StatusNotFound, rec.Code, rec.Body.String())
+}
+
+func (s *gatewaySuite) TestPrivateRoute_StalePermissionVersion_IsUnauthorized() {
+	token := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["teams"] = defaultTeams()
+		claims["pv"] = permVersion - 1
+	})
+
+	rec := s.do(http.MethodGet, "/v1/users/me", token, targetCustomer)
+
+	s.Equal(http.StatusUnauthorized, rec.Code, rec.Body.String())
+}
+
+func (s *gatewaySuite) TestPrivateRoute_TokenWithoutTeamsAndVersion_IsUnauthorized() {
+	token := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {})
+
+	rec := s.do(http.MethodGet, "/v1/users/me", token, targetCustomer)
+
+	s.Equal(http.StatusUnauthorized, rec.Code, rec.Body.String())
+}
+
+func (s *gatewaySuite) TestPrivateRoute_TokenWithoutVersionOnly_IsUnauthorized() {
+	token := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["teams"] = defaultTeams()
+	})
+
+	rec := s.do(http.MethodGet, "/v1/users/me", token, targetCustomer)
+
+	s.Equal(http.StatusUnauthorized, rec.Code, rec.Body.String())
+}
+
+// A User whose memberships never changed has no version key yet; the customer
+// service stamps 0 and the gateway must agree.
+func (s *gatewaySuite) TestPrivateRoute_NoVersionKeyInRedis_TokenAtZero_IsProxied() {
+	token := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["sub"] = freshUserID
+		claims["teams"] = map[string]string{}
+		claims["pv"] = 0
+	})
+
+	rec := s.do(http.MethodGet, "/v1/users/me", token, targetCustomer)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+}
+
+func (s *gatewaySuite) TestDropletRoute_NoPermissions_IsProxiedWithTheNewClaims() {
+	token := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["teams"] = map[string]string{financeTeamID: "finance"}
+		claims["pv"] = permVersion
+	})
+
+	rec := s.do(http.MethodPost, "/v1/projects/p1/droplets", token, targetDroplet)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+	s.Equal("droplet", rec.Header().Get("X-Upstream"))
+}
+
+// The route table is checked before the first request: permissions on a route
+// with no Team in its path would never find a Role, so the gateway refuses to
+// start rather than answer 404 to everyone.
+func TestRouteTable_PermissionsOnARouteWithoutTeamID_RefusesToStart(t *testing.T) {
+	routeTable := &gatewayConfig.GatewayConfig{Gateway: gatewayConfig.Gateway{Services: map[string]gatewayConfig.Service{
+		"droplet": {Host: "http://droplet:9660", Endpoints: gatewayConfig.Endpoints{
+			{Path: "/v1/droplets/:dropletID", Method: "DELETE", Permissions: []string{"droplet.write"}},
+		}},
+	}}}
+
+	err := routeTable.Validate()
+
+	if err == nil {
+		t.Fatal("expected the route table to be refused")
+	}
 }

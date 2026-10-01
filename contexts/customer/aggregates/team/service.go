@@ -14,6 +14,12 @@ type IService interface {
 	FindMembership(ctx context.Context, teamID, userID uuid.UUID) (*Membership, error)
 	FindAll(ctx context.Context) (Teams, error)
 	FindAllMembers(ctx context.Context) (Members, error)
+	FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error)
+	FindMember(ctx context.Context, teamID, userID uuid.UUID) (*MemberDetail, error)
+	Lock(ctx context.Context, teamID uuid.UUID) error
+	CountOwners(ctx context.Context, teamID uuid.UUID) (int, error)
+	UpdateMemberRole(ctx context.Context, teamID, userID uuid.UUID, role Role) error
+	RemoveMember(ctx context.Context, teamID, userID uuid.UUID) error
 }
 
 type IRepository interface {
@@ -23,6 +29,12 @@ type IRepository interface {
 	FindMembership(ctx context.Context, teamID, userID uuid.UUID) (*Membership, error)
 	FindAll(ctx context.Context) (Teams, error)
 	FindAllMembers(ctx context.Context) (Members, error)
+	FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error)
+	FindMember(ctx context.Context, teamID, userID uuid.UUID) (*MemberDetail, error)
+	Lock(ctx context.Context, teamID uuid.UUID) error
+	CountOwners(ctx context.Context, teamID uuid.UUID) (int, error)
+	UpdateMemberRole(ctx context.Context, teamID, userID uuid.UUID, role Role) error
+	RemoveMember(ctx context.Context, teamID, userID uuid.UUID) error
 }
 
 type Service struct {
@@ -55,4 +67,28 @@ func (s *Service) FindAll(ctx context.Context) (Teams, error) {
 
 func (s *Service) FindAllMembers(ctx context.Context) (Members, error) {
 	return s.repository.FindAllMembers(ctx)
+}
+
+func (s *Service) FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error) {
+	return s.repository.FindMembers(ctx, teamID)
+}
+
+func (s *Service) FindMember(ctx context.Context, teamID, userID uuid.UUID) (*MemberDetail, error) {
+	return s.repository.FindMember(ctx, teamID, userID)
+}
+
+func (s *Service) Lock(ctx context.Context, teamID uuid.UUID) error {
+	return s.repository.Lock(ctx, teamID)
+}
+
+func (s *Service) CountOwners(ctx context.Context, teamID uuid.UUID) (int, error) {
+	return s.repository.CountOwners(ctx, teamID)
+}
+
+func (s *Service) UpdateMemberRole(ctx context.Context, teamID, userID uuid.UUID, role Role) error {
+	return s.repository.UpdateMemberRole(ctx, teamID, userID, role)
+}
+
+func (s *Service) RemoveMember(ctx context.Context, teamID, userID uuid.UUID) error {
+	return s.repository.RemoveMember(ctx, teamID, userID)
 }

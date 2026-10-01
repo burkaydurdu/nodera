@@ -36,6 +36,8 @@ func NewWorker(client rabbitmq.IClient, log logger.ILog, consumer rabbitmq.ICons
 		items: rabbitmq.ConsumerItems{
 			bind(constants.TeamCreated),
 			bind(constants.TeamMemberAdded),
+			bind(constants.TeamMemberRoleChanged),
+			bind(constants.TeamMemberRemoved),
 			bind(constants.ProjectCreated),
 		},
 	}

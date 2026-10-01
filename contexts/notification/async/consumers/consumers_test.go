@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/piggystats/rabbitmq"
 	"github.com/piggystats/rerror"
@@ -98,4 +99,47 @@ func TestConsume_TransportFailure_IsRetryable(t *testing.T) {
 		`{"payload":{"user_id":"019a0000-0000-7000-8000-000000000001","email":"ada@example.com","full_name":"Ada","locale":"en","code":"654321"}}`))
 
 	assert.True(t, rerror.IsRetryable(err))
+}
+
+func TestTeamInvitation_SendsTheInvitationInTheRecipientLocale(t *testing.T) {
+	sender := &recordingSender{}
+
+	err := NewTeamInvitation(sender).Consume(message(
+		`{"payload":{"recipient":{"user_id":"00000000-0000-0000-0000-000000000000","email":"grace@example.com","full_name":"","locale":"tr"},` +
+			`"team_name":"Platform","role":"developer","inviter_name":"Ada Lovelace",` +
+			`"accept_url":"http://localhost:3002/invitations/accept?token=abc","expires_at":"2026-10-08T12:00:00Z"}}`))
+
+	require.NoError(t, err)
+	assert.Equal(t, email.KindTeamInvitation, sender.kind)
+	assert.Equal(t, "grace@example.com", sender.to)
+	assert.Equal(t, "tr", sender.locale)
+	assert.Equal(t, "Platform", sender.params["TeamName"])
+	assert.Equal(t, "developer", sender.params["Role"])
+	assert.Equal(t, "Ada Lovelace", sender.params["InviterName"])
+	assert.Equal(t, "http://localhost:3002/invitations/accept?token=abc", sender.params["AcceptURL"])
+	assert.Equal(t, "grace@example.com", sender.params["Email"])
+	assert.Equal(t, time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC), sender.params["ExpiresAt"])
+}
+
+func TestTeamInvitation_MalformedPayload_IsTerminal(t *testing.T) {
+	err := NewTeamInvitation(&recordingSender{}).Consume(message(`{"payload":{"expires_at":"not a date"}}`))
+
+	var rerr rerror.Error
+	require.True(t, errors.As(err, &rerr))
+	assert.False(t, rerr.IsRetryable)
+}
+
+// A Role the matrix does not know has no name in any locale; redelivering
+// the same payload would fail the same way, so it is terminal.
+func TestTeamInvitation_UnknownRole_IsTerminal(t *testing.T) {
+	sender := &recordingSender{}
+
+	err := NewTeamInvitation(sender).Consume(message(
+		`{"payload":{"recipient":{"email":"grace@example.com","locale":"en"},"team_name":"Platform","role":"admin",` +
+			`"inviter_name":"Ada","accept_url":"http://x/accept?token=1","expires_at":"2026-10-08T12:00:00Z"}}`))
+
+	var rerr rerror.Error
+	require.True(t, errors.As(err, &rerr))
+	assert.False(t, rerr.IsRetryable)
+	assert.Empty(t, sender.kind, "nothing was sent")
 }

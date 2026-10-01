@@ -56,7 +56,11 @@ _Avoid_: current price, list price
 
 **Project access**:
 What the droplet context knows about a Project: which Team it belongs to and which Users are
-members. Learned from the customer context's events, never queried.
+members with which Role. Learned from the customer context's events, never queried. The Role
+is checked against the shared matrix (`pkg/authz`): `droplet.read` to list and view,
+`droplet.write` to create, act on and delete. The events arrive unordered, so each row
+follows the newest event by its own time, and a removed member is remembered as removed
+rather than deleted, so a late copy of an older event cannot bring them back.
 _Avoid_: membership (the customer context's word), permission
 
 ### Providers

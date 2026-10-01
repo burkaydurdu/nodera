@@ -11,6 +11,7 @@ import (
 
 	"github.com/piggystats/nodera/pkg/clients/mail"
 	"github.com/piggystats/nodera/pkg/locale"
+	"github.com/piggystats/nodera/utils/str"
 )
 
 type Kind string
@@ -20,6 +21,7 @@ const (
 	KindEmailAlreadyRegistered Kind = "email_already_registered"
 	KindMFAEmailCode           Kind = "mfa_email_code"
 	KindPasswordReset          Kind = "password_reset"
+	KindTeamInvitation         Kind = "team_invitation"
 )
 
 // shared templates carry no copy; per-locale ones do.
@@ -55,7 +57,7 @@ func NewSender(config Config, client mail.IClient) *Sender {
 // what the template sees; the subject comes from the locale file under
 // "<kind>_subject".
 func (s *Sender) Send(ctx context.Context, kind Kind, to, recipientLocale string, params map[string]any) error {
-	if to == "" {
+	if str.IsBlank(to) {
 		return ErrorInvalidRecipient
 	}
 
@@ -84,8 +86,11 @@ func (s *Sender) render(kind Kind, lang string, params map[string]any) (string, 
 	files = append(files, filepath.Join(s.config.TemplatesDir, "email", lang, string(kind)+".html"))
 
 	// html/template context-escapes the params, so a person's name cannot
-	// inject markup into their own or anyone else's email.
-	tpl, err := template.New(string(kind)).ParseFiles(files...)
+	// inject markup into their own or anyone else's email. "t" lets a body
+	// name an enum (a Role) in the reader's language from the same locale file
+	// the subject comes from.
+	funcs := template.FuncMap{"t": func(key string) string { return s.locale.Translate(lang, key, params) }}
+	tpl, err := template.New(string(kind)).Funcs(funcs).ParseFiles(files...)
 	if err != nil {
 		return "", err
 	}

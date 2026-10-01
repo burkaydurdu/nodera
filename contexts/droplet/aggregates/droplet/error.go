@@ -19,4 +19,7 @@ var (
 	// ErrorProvisioningTimedOut is the reason a Droplet the Provider never
 	// delivered is failed with.
 	ErrorProvisioningTimedOut = rerror.Error{Code: 10007, Domain: Domain, HttpStatus: http.StatusGatewayTimeout, Message: "the server was not delivered in time"}
+	// ErrorForbidden is for a member of the Team whose Role lacks the
+	// Permission; a stranger gets ErrorNotFound instead (docs/adr/0005).
+	ErrorForbidden = rerror.Error{Code: 10008, Domain: Domain, HttpStatus: http.StatusForbidden, Message: "not allowed for your role"}
 )

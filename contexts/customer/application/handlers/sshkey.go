@@ -9,6 +9,7 @@ import (
 	"github.com/piggystats/nodera/contexts/customer/aggregates/sshkey/publickey"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
 	"github.com/piggystats/nodera/contexts/customer/application/dto"
+	"github.com/piggystats/nodera/pkg/authz"
 	"github.com/piggystats/nodera/pkg/contextutil"
 )
 
@@ -21,15 +22,16 @@ func NewSSHKey(teams team.IService, keys sshkey.IService) *SSHKey {
 	return &SSHKey{teams: teams, keys: keys}
 }
 
-// Every route establishes membership first: the Team id is caller-controlled
-// and a stranger must see the same not-found as for any other Team route.
+// Every route establishes the caller's Role first: the Team id is
+// caller-controlled and a stranger must see the same not-found as for any
+// other Team route.
 func (h *SSHKey) List(ctx context.Context, req *sshkey.ListRequest) ([]*dto.SSHKey, error) {
-	teamID, err := requireMembership(ctx, h.teams, req.TeamID)
+	m, err := requirePermission(ctx, h.teams, req.TeamID, authz.TeamRead)
 	if err != nil {
 		return nil, err
 	}
 
-	keys, err := h.keys.FindByTeamID(ctx, teamID)
+	keys, err := h.keys.FindByTeamID(ctx, m.Team.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +40,7 @@ func (h *SSHKey) List(ctx context.Context, req *sshkey.ListRequest) ([]*dto.SSHK
 }
 
 func (h *SSHKey) Create(ctx context.Context, req *sshkey.CreateRequest) (*dto.SSHKey, error) {
-	teamID, err := requireMembership(ctx, h.teams, req.TeamID)
+	m, err := requirePermission(ctx, h.teams, req.TeamID, authz.SSHKeyWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +51,7 @@ func (h *SSHKey) Create(ctx context.Context, req *sshkey.CreateRequest) (*dto.SS
 	}
 
 	key := &sshkey.SSHKey{
-		TeamID:      teamID,
+		TeamID:      m.Team.ID,
 		Name:        req.Name,
 		PublicKey:   parsed.PublicKey,
 		Fingerprint: parsed.Fingerprint,
@@ -63,10 +65,10 @@ func (h *SSHKey) Create(ctx context.Context, req *sshkey.CreateRequest) (*dto.SS
 }
 
 func (h *SSHKey) Delete(ctx context.Context, req *sshkey.DeleteRequest) error {
-	teamID, err := requireMembership(ctx, h.teams, req.TeamID)
+	m, err := requirePermission(ctx, h.teams, req.TeamID, authz.SSHKeyWrite)
 	if err != nil {
 		return err
 	}
 
-	return h.keys.Delete(ctx, teamID, uuid.MustParse(req.KeyID))
+	return h.keys.Delete(ctx, m.Team.ID, uuid.MustParse(req.KeyID))
 }

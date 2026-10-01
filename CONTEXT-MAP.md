@@ -21,7 +21,8 @@ is first written down, so this list grows as terms are settled.
 ## Relationships
 
 - **Customer gateway → Customer**: routing plus per-endpoint access rules. A route absent from the
-  gateway's config does not exist.
+  gateway's config does not exist. For routes that name a Team, the gateway also checks the
+  caller's Role from the access token against the route's Permissions (ADR-0005).
 - **Customer → Notification**: customer emits email events (verification code, MFA code, password
   reset); notification consumes them and sends the mail.
 - **Customer → Droplet**: customer emits Team and Project events (team created, member added,

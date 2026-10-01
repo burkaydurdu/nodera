@@ -53,16 +53,76 @@ gateway:
           method: GET
         - path: /v1/teams
           method: POST
+        # Team routes carry the Permission the caller's Role must hold
+        # (docs/adr/0005); the gateway reads the Role from the token's teams
+        # claim for the :teamID in the path.
         - path: /v1/teams/:teamID/projects
           method: GET
+          permissions:
+            - team.read
         - path: /v1/teams/:teamID/projects
           method: POST
+          permissions:
+            - project.write
         - path: /v1/teams/:teamID/ssh-keys
           method: GET
+          permissions:
+            - team.read
         - path: /v1/teams/:teamID/ssh-keys
           method: POST
+          permissions:
+            - sshkey.write
         - path: /v1/teams/:teamID/ssh-keys/:keyID
           method: DELETE
+          permissions:
+            - sshkey.write
+        - path: /v1/teams/:teamID/members
+          method: GET
+          permissions:
+            - team.read
+        - path: /v1/teams/:teamID/members/:userID/role
+          method: PUT
+          permissions:
+            - team.manage
+        - path: /v1/teams/:teamID/members/:userID
+          method: DELETE
+          permissions:
+            - team.manage
+        - path: /v1/teams/:teamID/members/leave
+          method: POST
+          permissions:
+            - team.read
+        - path: /v1/teams/:teamID/invitations
+          method: GET
+          permissions:
+            - team.manage
+        - path: /v1/teams/:teamID/invitations
+          method: POST
+          permissions:
+            - team.manage
+        - path: /v1/teams/:teamID/invitations/:invitationID/resend
+          method: POST
+          permissions:
+            - team.manage
+        - path: /v1/teams/:teamID/invitations/:invitationID
+          method: DELETE
+          permissions:
+            - team.manage
+        - path: /v1/users/me/invitations
+          method: GET
+        - path: /v1/users/me/invitations/:invitationID/accept
+          method: POST
+        - path: /v1/users/me/invitations/:invitationID/decline
+          method: POST
+        # Token-scoped: the link is the whole secret, so the lookup needs no
+        # session; accepting and declining still need a signed-in invitee.
+        - path: /v1/invitations/lookup
+          method: GET
+          public: true
+        - path: /v1/invitations/accept
+          method: POST
+        - path: /v1/invitations/decline
+          method: POST
     # Selected by X-Target-Server: droplet. Every route needs a live session:
     # the catalog is priced for signed-in customers only.
     droplet:

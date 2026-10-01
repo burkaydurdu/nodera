@@ -68,7 +68,7 @@ func (h *Droplet) List(c echo.Context) error {
 
 // Create godoc
 // @Summary Create a Droplet in a Project
-// @Description Answers 201 with the provisioning Droplet; the outcome arrives through list and detail. 409 when the Plan sold out or its price rose since the catalog was loaded.
+// @Description Answers 201 with the provisioning Droplet; the outcome arrives through list and detail. 409 when the Plan sold out or its price rose since the catalog was loaded. 403 when the caller's Role in the Team lacks droplet.write; 404 for a Project the caller is not a member of.
 // @Tags droplets
 // @Security BearerAuth
 // @Accept json
@@ -125,7 +125,7 @@ func (h *Droplet) Get(c echo.Context) error {
 
 // Action godoc
 // @Summary Power a Droplet on or off, or reboot it
-// @Description Allowed from active and off only; the resulting status arrives through detail.
+// @Description Allowed from active and off only; the resulting status arrives through detail. 403 when the caller's Role lacks droplet.write.
 // @Tags droplets
 // @Security BearerAuth
 // @Accept json
@@ -155,7 +155,7 @@ func (h *Droplet) Action(c echo.Context) error {
 
 // Delete godoc
 // @Summary Delete a Droplet
-// @Description Billing stops at the request; the Droplet answers as deleting until the release is confirmed.
+// @Description Billing stops at the request; the Droplet answers as deleting until the release is confirmed. 403 when the caller's Role lacks droplet.write.
 // @Tags droplets
 // @Security BearerAuth
 // @Produce json

@@ -13,6 +13,9 @@ type RegisterRequest struct {
 	FullName string `json:"full_name" validate:"required,min=1,max=255"`
 	Country  string `json:"country" validate:"required,country"`
 	Locale   string `json:"locale" validate:"required,locale"`
+	// InvitationToken is the secret from an Invitation email, when the
+	// sign-up started from one.
+	InvitationToken string `json:"invitation_token" validate:"omitempty,max=128"`
 }
 
 // Normalize folds the email and the country code so the same address never

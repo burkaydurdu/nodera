@@ -5,6 +5,7 @@ package consumers
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/piggystats/rabbitmq"
@@ -12,13 +13,13 @@ import (
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/access"
 	"github.com/piggystats/nodera/contexts/droplet/async/constants"
 	"github.com/piggystats/nodera/contexts/droplet/async/events"
+	"github.com/piggystats/nodera/pkg/authz"
 	"github.com/piggystats/nodera/utils/str"
 )
 
-const roleOwner = "owner"
-
-// CustomerEvents applies the three Team and Project events; every write is
-// an idempotent upsert so redelivery and replay are harmless.
+// CustomerEvents applies the Team and Project events. Every membership
+// write is last-writer-wins on the event's own time, so redelivery, replay
+// and the unordered arrival of the three membership events are harmless.
 type CustomerEvents struct {
 	access access.IService
 }
@@ -34,15 +35,10 @@ func (c *CustomerEvents) Consume(message *rabbitmq.Message) error {
 
 	switch message.RoutingKey {
 	case constants.TeamCreated:
-		var event events.TeamCreatedEvent
-		if err := decode(message, &event); err != nil {
-			return err
-		}
-		if err := requireIDs(event.Payload.TeamID, event.Payload.OwnerUserID); err != nil {
-			return err
-		}
-
-		return c.access.UpsertTeamMember(ctx, event.Payload.TeamID, event.Payload.OwnerUserID, roleOwner)
+		// The creator's membership arrives as its own TeamMemberAdded; writing
+		// it here as well would re-grant a creator who has since left whenever
+		// the Team is replayed. Acknowledged so the queue stays bound.
+		return nil
 
 	case constants.TeamMemberAdded:
 		var event events.TeamMemberAddedEvent
@@ -52,12 +48,48 @@ func (c *CustomerEvents) Consume(message *rabbitmq.Message) error {
 		if err := requireIDs(event.Payload.TeamID, event.Payload.UserID); err != nil {
 			return err
 		}
-		role := event.Payload.Role
-		if str.IsEmpty(role) {
-			role = roleOwner
+		if err := requireTime(event.Payload.AddedAt); err != nil {
+			return err
+		}
+		// Memberships that predate Roles were replayed without one; they are
+		// the owners of their Teams.
+		role := authz.Role(event.Payload.Role)
+		if str.IsEmpty(event.Payload.Role) {
+			role = authz.RoleOwner
 		}
 
-		return c.access.UpsertTeamMember(ctx, event.Payload.TeamID, event.Payload.UserID, role)
+		return c.access.UpsertTeamMember(ctx, event.Payload.TeamID, event.Payload.UserID, role, event.Payload.AddedAt)
+
+	case constants.TeamMemberRoleChanged:
+		var event events.TeamMemberRoleChangedEvent
+		if err := decode(message, &event); err != nil {
+			return err
+		}
+		if err := requireIDs(event.Payload.TeamID, event.Payload.UserID); err != nil {
+			return err
+		}
+		if err := requireTime(event.Payload.ChangedAt); err != nil {
+			return err
+		}
+		if str.IsBlank(event.Payload.Role) {
+			return access.ErrorMalformedEvent.Copy().SetMessage("event payload is missing the role")
+		}
+
+		return c.access.UpdateTeamMemberRole(ctx, event.Payload.TeamID, event.Payload.UserID, authz.Role(event.Payload.Role), event.Payload.ChangedAt)
+
+	case constants.TeamMemberRemoved:
+		var event events.TeamMemberRemovedEvent
+		if err := decode(message, &event); err != nil {
+			return err
+		}
+		if err := requireIDs(event.Payload.TeamID, event.Payload.UserID); err != nil {
+			return err
+		}
+		if err := requireTime(event.Payload.RemovedAt); err != nil {
+			return err
+		}
+
+		return c.access.RemoveTeamMember(ctx, event.Payload.TeamID, event.Payload.UserID, event.Payload.RemovedAt)
 
 	case constants.ProjectCreated:
 		var event events.ProjectCreatedEvent
@@ -80,6 +112,16 @@ func (c *CustomerEvents) Consume(message *rabbitmq.Message) error {
 func decode(message *rabbitmq.Message, into any) error {
 	if err := json.Unmarshal(message.Payload, into); err != nil {
 		return access.ErrorMalformedEvent.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+// A membership event without its time cannot be ordered against the others,
+// so it is as malformed as one without an id.
+func requireTime(at time.Time) error {
+	if at.IsZero() {
+		return access.ErrorMalformedEvent.Copy().SetMessage("event payload is missing its time")
 	}
 
 	return nil

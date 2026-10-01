@@ -35,6 +35,7 @@ func NewWorker(client rabbitmq.IClient, log logger.ILog, sender ISender) *Worker
 			bind(NewEmailAlreadyRegistered(sender), constants.EmailAlreadyRegistered),
 			bind(NewMFAEmailCode(sender), constants.MFAEmailCode),
 			bind(NewPasswordReset(sender), constants.PasswordReset),
+			bind(NewTeamInvitation(sender), constants.TeamInvitation),
 		},
 	}
 }

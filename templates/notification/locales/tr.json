@@ -2,5 +2,9 @@
   "email_verification_code_subject": "Nodera doğrulama kodun",
   "email_already_registered_subject": "E-posta adresin Nodera'da zaten kayıtlı",
   "mfa_email_code_subject": "Nodera giriş kodun",
-  "password_reset_subject": "Nodera şifreni sıfırla"
+  "password_reset_subject": "Nodera şifreni sıfırla",
+  "team_invitation_subject": "{{.InviterName}} seni Nodera'da {{.TeamName}} takımına davet etti",
+  "role_owner": "Sahip",
+  "role_developer": "Geliştirici",
+  "role_finance": "Finans"
 }

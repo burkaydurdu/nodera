@@ -1,0 +1,28 @@
+{{ define "team_invitation" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.InviterName}} seni {{.TeamName}} takımına {{ t (printf "role_%s" .Role) }} olarak davet etti</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{.InviterName}} seni Nodera'daki {{.TeamName}} takımında {{ t (printf "role_%s" .Role) }} rolüyle görmek istiyor. Takımla çalışmaya başlamak için daveti kabul et.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.AcceptURL}}">Daveti kabul et</a></td></tr>
+              </table>
+              <p class="subtitle">Davet {{ .ExpiresAt.UTC.Format "02.01.2006" }} tarihinde geçersiz olur.</p>
+              <p class="subtitle">Bu bağlantı {{.Email}} adresi için gönderildi. Bu sen değilsen bu e-postayı yok sayabilirsin.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

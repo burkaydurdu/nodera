@@ -1,5 +1,24 @@
 basePath: /
 definitions:
+  github_com_piggystats_nodera_contexts_customer_aggregates_invitation.CreateRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      role:
+        type: string
+    required:
+    - email
+    - role
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_invitation.TokenRequest:
+    properties:
+      token:
+        maxLength: 128
+        type: string
+    required:
+    - token
+    type: object
   github_com_piggystats_nodera_contexts_customer_aggregates_project.CreateRequest:
     properties:
       description:
@@ -23,6 +42,13 @@ definitions:
     required:
     - name
     - public_key
+    type: object
+  github_com_piggystats_nodera_contexts_customer_aggregates_team.ChangeRoleRequest:
+    properties:
+      role:
+        type: string
+    required:
+    - role
     type: object
   github_com_piggystats_nodera_contexts_customer_aggregates_team.CreateRequest:
     properties:
@@ -97,6 +123,12 @@ definitions:
       full_name:
         maxLength: 255
         minLength: 1
+        type: string
+      invitation_token:
+        description: |-
+          InvitationToken is the secret from an Invitation email, when the
+          sign-up started from one.
+        maxLength: 128
         type: string
       locale:
         type: string
@@ -176,6 +208,58 @@ definitions:
     x-enum-varnames:
     - MethodNone
     - MethodEmail
+  github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation:
+    properties:
+      team:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team'
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.Invitation:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      invited_by:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.InvitedBy'
+      responded_at:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      team_id:
+        type: string
+      team_name:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.InvitationLookup:
+    properties:
+      email:
+        type: string
+      email_hint:
+        type: string
+      expires_at:
+        type: string
+      invited_by_name:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      team_name:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.InvitedBy:
+    properties:
+      full_name:
+        type: string
+      user_id:
+        type: string
+    type: object
   github_com_piggystats_nodera_contexts_customer_application_dto.LoginResponse:
     properties:
       challenge_token:
@@ -190,6 +274,19 @@ definitions:
         $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Session'
       supports_resend:
         type: boolean
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.Member:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      joined_at:
+        type: string
+      role:
+        type: string
+      user_id:
+        type: string
     type: object
   github_com_piggystats_nodera_contexts_customer_application_dto.Project:
     properties:
@@ -294,8 +391,8 @@ definitions:
     type: object
 info:
   contact: {}
-  description: 'Customer-facing API of Nodera: sign-up, sign-in, profile, teams and
-    projects.'
+  description: 'Customer-facing API of Nodera: sign-up, sign-in, profile, teams, members,
+    invitations and projects.'
   title: Nodera Customer API
   version: "1.0"
 paths:
@@ -490,6 +587,68 @@ paths:
       summary: Send the verification code again
       tags:
       - auth
+  /v1/invitations/accept:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token from the link
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_invitation.TokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation'
+      security:
+      - BearerAuth: []
+      summary: Accept the Invitation an email link carries
+      tags:
+      - invitations
+  /v1/invitations/decline:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token from the link
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_invitation.TokenRequest'
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Decline the Invitation an email link carries
+      tags:
+      - invitations
+  /v1/invitations/lookup:
+    get:
+      description: 'Token-scoped public read behind the accept page: Team, Role, inviter,
+        the invited address and its state.'
+      parameters:
+      - description: Token from the link
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.InvitationLookup'
+      summary: What an Invitation link is for, without signing in
+      tags:
+      - invitations
   /v1/teams:
     get:
       produces:
@@ -526,6 +685,193 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a Team owned by the caller
+      tags:
+      - teams
+  /v1/teams/{teamID}/invitations:
+    get:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Invitations of a Team, every status, newest first (owners only)
+      tags:
+      - invitations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Email and Role
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_invitation.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation'
+      security:
+      - BearerAuth: []
+      summary: Invite an email address to a Team with a Role (owners only)
+      tags:
+      - invitations
+  /v1/teams/{teamID}/invitations/{invitationID}:
+    delete:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Invitation id
+        in: path
+        name: invitationID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Revoke a pending Invitation (owners only)
+      tags:
+      - invitations
+  /v1/teams/{teamID}/invitations/{invitationID}/resend:
+    post:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Invitation id
+        in: path
+        name: invitationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation'
+      security:
+      - BearerAuth: []
+      summary: Send an Invitation again with a fresh link (owners only; 60 s cooldown)
+      tags:
+      - invitations
+  /v1/teams/{teamID}/members:
+    get:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Member'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The members of a Team the caller belongs to, with their Roles
+      tags:
+      - teams
+  /v1/teams/{teamID}/members/{userID}:
+    delete:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Member's user id
+        in: path
+        name: userID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Remove a member from a Team (owners only; the last owner stays)
+      tags:
+      - teams
+  /v1/teams/{teamID}/members/{userID}/role:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Member's user id
+        in: path
+        name: userID
+        required: true
+        type: string
+      - description: New Role
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_team.ChangeRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Member'
+      security:
+      - BearerAuth: []
+      summary: Change a member's Role (owners only; not your own; the last owner stays)
+      tags:
+      - teams
+  /v1/teams/{teamID}/members/leave:
+    post:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Leave a Team (the last owner cannot)
       tags:
       - teams
   /v1/teams/{teamID}/projects:
@@ -685,6 +1031,58 @@ paths:
       summary: Update name, locale and country
       tags:
       - users
+  /v1/users/me/invitations:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Invitation'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The pending Invitations to the caller's email address
+      tags:
+      - invitations
+  /v1/users/me/invitations/{invitationID}/accept:
+    post:
+      parameters:
+      - description: Invitation id
+        in: path
+        name: invitationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation'
+      security:
+      - BearerAuth: []
+      summary: Accept one of the caller's pending Invitations
+      tags:
+      - invitations
+  /v1/users/me/invitations/{invitationID}/decline:
+    post:
+      parameters:
+      - description: Invitation id
+        in: path
+        name: invitationID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Decline one of the caller's pending Invitations
+      tags:
+      - invitations
   /v1/users/me/mfa:
     put:
       consumes:

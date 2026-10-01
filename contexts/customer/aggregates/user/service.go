@@ -14,6 +14,7 @@ type IService interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
+	ClearPendingInvitation(ctx context.Context, id uuid.UUID) error
 	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
 	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, locale Locale, country string) error
 	UpdateMFAMethod(ctx context.Context, id uuid.UUID, method mfa.Method) error
@@ -24,6 +25,7 @@ type IRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
+	ClearPendingInvitation(ctx context.Context, id uuid.UUID) error
 	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
 	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, locale Locale, country string) error
 	UpdateMFAMethod(ctx context.Context, id uuid.UUID, method mfa.Method) error
@@ -51,6 +53,10 @@ func (s *Service) FindByEmail(ctx context.Context, email string) (*User, error) 
 
 func (s *Service) MarkEmailVerified(ctx context.Context, id uuid.UUID) error {
 	return s.repository.MarkEmailVerified(ctx, id)
+}
+
+func (s *Service) ClearPendingInvitation(ctx context.Context, id uuid.UUID) error {
+	return s.repository.ClearPendingInvitation(ctx, id)
 }
 
 func (s *Service) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {

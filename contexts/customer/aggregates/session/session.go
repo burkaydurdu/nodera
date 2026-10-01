@@ -42,11 +42,14 @@ type Device struct {
 	UserAgent string
 }
 
-// Principal is what the tokens say about the User.
+// Principal is what the tokens say about the User. Teams maps Team id to
+// Role; PermissionVersion is the value the gateway checks against Redis.
 type Principal struct {
-	UserID uuid.UUID
-	Email  string
-	Status string
+	UserID            uuid.UUID
+	Email             string
+	Status            string
+	Teams             map[string]string
+	PermissionVersion int64
 }
 
 // TokenPair is what a sign-in, a verification and a refresh hand back.

@@ -6,4 +6,5 @@ const (
 	EmailAlreadyRegistered = "EmailAlreadyRegistered"
 	MFAEmailCode           = "MFAEmailCode"
 	PasswordReset          = "PasswordReset"
+	TeamInvitation         = "TeamInvitation"
 )

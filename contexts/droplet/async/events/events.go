@@ -33,3 +33,20 @@ type ProjectCreatedEvent struct {
 		CreatedAt time.Time `json:"created_at"`
 	} `json:"payload"`
 }
+
+type TeamMemberRoleChangedEvent struct {
+	Payload struct {
+		TeamID    uuid.UUID `json:"team_id"`
+		UserID    uuid.UUID `json:"user_id"`
+		Role      string    `json:"role"`
+		ChangedAt time.Time `json:"changed_at"`
+	} `json:"payload"`
+}
+
+type TeamMemberRemovedEvent struct {
+	Payload struct {
+		TeamID    uuid.UUID `json:"team_id"`
+		UserID    uuid.UUID `json:"user_id"`
+		RemovedAt time.Time `json:"removed_at"`
+	} `json:"payload"`
+}

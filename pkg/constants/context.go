@@ -23,6 +23,9 @@ const (
 	CurrentUserEmail  ContextKey = "currentUserEmail"
 	CurrentUserStatus ContextKey = "currentUserStatus"
 	CurrentSessionID  ContextKey = "currentSessionID"
+	// CurrentUserTeams is the token's Team id → Role map (docs/adr/0005),
+	// typed map[string]authz.Role.
+	CurrentUserTeams ContextKey = "currentUserTeams"
 
 	// ClientIP and ClientUserAgent describe the device a session is created
 	// for; they are read off the request by the API layer.

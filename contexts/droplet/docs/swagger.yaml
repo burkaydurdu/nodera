@@ -240,7 +240,7 @@ paths:
   /v1/droplets/{dropletID}:
     delete:
       description: Billing stops at the request; the Droplet answers as deleting until
-        the release is confirmed.
+        the release is confirmed. 403 when the caller's Role lacks droplet.write.
       parameters:
       - description: Droplet id
         in: path
@@ -283,7 +283,7 @@ paths:
       consumes:
       - application/json
       description: Allowed from active and off only; the resulting status arrives
-        through detail.
+        through detail. 403 when the caller's Role lacks droplet.write.
       parameters:
       - description: Droplet id
         in: path
@@ -335,7 +335,8 @@ paths:
       - application/json
       description: Answers 201 with the provisioning Droplet; the outcome arrives
         through list and detail. 409 when the Plan sold out or its price rose since
-        the catalog was loaded.
+        the catalog was loaded. 403 when the caller's Role in the Team lacks droplet.write;
+        404 for a Project the caller is not a member of.
       parameters:
       - description: Project id
         in: path

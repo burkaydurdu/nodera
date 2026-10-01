@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/piggystats/rerror"
 
+	"github.com/piggystats/nodera/contexts/customer/aggregates/invitation"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/session"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user"
@@ -24,6 +25,7 @@ import (
 	"github.com/piggystats/nodera/pkg/contextutil"
 	"github.com/piggystats/nodera/pkg/ratelimit"
 	"github.com/piggystats/nodera/utils/hash"
+	"github.com/piggystats/nodera/utils/str"
 )
 
 // Rate-limit budgets on the public endpoints, per source address and per email.
@@ -60,6 +62,8 @@ type Auth struct {
 	config             config.Auth
 	users              user.IService
 	teams              team.IService
+	invitations        invitation.IService
+	joiner             *Joiner
 	transactions       postgresql.ITransactionManager
 	verificationCodes  *otp.Store
 	verificationMailer IEmailVerificationCodeProducer
@@ -71,6 +75,7 @@ type Auth struct {
 	resets             *reset.Store
 	resetMailer        IPasswordResetProducer
 	limiter            ratelimit.ILimiter
+	permVersions       IPermissionVersions
 	teamCreated        ITeamCreatedProducer
 	memberAdded        ITeamMemberAddedProducer
 }
@@ -80,6 +85,8 @@ func NewAuth(
 	cfg config.Auth,
 	users user.IService,
 	teams team.IService,
+	invitations invitation.IService,
+	joiner *Joiner,
 	transactions postgresql.ITransactionManager,
 	verificationCodes *otp.Store,
 	verificationMailer IEmailVerificationCodeProducer,
@@ -91,6 +98,7 @@ func NewAuth(
 	resets *reset.Store,
 	resetMailer IPasswordResetProducer,
 	limiter ratelimit.ILimiter,
+	permVersions IPermissionVersions,
 	teamCreated ITeamCreatedProducer,
 	memberAdded ITeamMemberAddedProducer,
 ) *Auth {
@@ -99,6 +107,8 @@ func NewAuth(
 		config:             cfg,
 		users:              users,
 		teams:              teams,
+		invitations:        invitations,
+		joiner:             joiner,
 		transactions:       transactions,
 		verificationCodes:  verificationCodes,
 		verificationMailer: verificationMailer,
@@ -110,6 +120,7 @@ func NewAuth(
 		resets:             resets,
 		resetMailer:        resetMailer,
 		limiter:            limiter,
+		permVersions:       permVersions,
 		teamCreated:        teamCreated,
 		memberAdded:        memberAdded,
 	}
@@ -118,9 +129,15 @@ func NewAuth(
 // Register creates the User, their Team and the owner membership in one
 // transaction, then sends the verification code. A duplicate email is not an
 // error: the address's owner is told by mail, and the caller sees the same
-// 201 as everyone else.
+// 201 as everyone else. A sign-up from an Invitation link remembers the
+// Invitation; verification completes it.
 func (h *Auth) Register(ctx context.Context, req *user.RegisterRequest) error {
 	if err := h.limiter.Allow(ctx, "register:ip", contextutil.ClientIP(ctx), ruleRegisterIP); err != nil {
+		return err
+	}
+
+	pending, err := h.pendingInvitationFor(ctx, req)
+	if err != nil {
 		return err
 	}
 
@@ -149,6 +166,9 @@ func (h *Auth) Register(ctx context.Context, req *user.RegisterRequest) error {
 		Country:   req.Country,
 		Status:    user.StatusPendingVerification,
 		MFAMethod: mfa.MethodEmail,
+	}
+	if pending != nil {
+		newUser.PendingInvitationID = &pending.ID
 	}
 
 	txCtx, err := h.transactions.Begin(ctx)
@@ -185,6 +205,7 @@ func (h *Auth) Register(ctx context.Context, req *user.RegisterRequest) error {
 	}
 
 	publishTeamOpened(ctx, h.log, h.teamCreated, h.memberAdded, newTeam, owner)
+	bumpPermissionVersion(ctx, h.log, h.permVersions, newUser.ID)
 
 	return h.sendVerificationCode(ctx, newUser, true)
 }
@@ -215,6 +236,61 @@ func (h *Auth) VerifyEmail(ctx context.Context, req *user.VerifyEmailRequest) (*
 	u.Status = user.StatusActive
 
 	return h.openSession(ctx, u)
+}
+
+// pendingInvitationFor checks the link a sign-up came from. The address must
+// be the invited one: the form locks it, and a mismatch here means the link
+// was tampered with or reused for someone else.
+func (h *Auth) pendingInvitationFor(ctx context.Context, req *user.RegisterRequest) (*invitation.Invitation, error) {
+	if str.IsEmpty(req.InvitationToken) {
+		return nil, nil
+	}
+
+	inv, err := h.invitations.FindByTokenHash(ctx, invitation.HashToken(req.InvitationToken))
+	if err != nil {
+		return nil, err
+	}
+	if !inv.IsPending(time.Now()) {
+		return nil, invitation.ErrorNoLongerValid
+	}
+	if inv.Email != req.Email {
+		return nil, invitation.ErrorEmailMismatch
+	}
+
+	return inv, nil
+}
+
+// completeInvitation accepts the Invitation a sign-up came from, now that the
+// address is proven. Signing in must not fail on it, so a refusal is logged
+// and the User lands in their own Team only. The reminder is cleared when the
+// offer is settled, accepted or dead; a transient failure keeps it, and the
+// next sign-in tries again.
+func (h *Auth) completeInvitation(ctx context.Context, u *user.User) {
+	inv, err := h.invitations.FindByID(ctx, *u.PendingInvitationID)
+	if err == nil {
+		_, err = h.joiner.Accept(ctx, inv, u)
+	}
+	if err != nil {
+		h.log.Warn(err)
+		if !isSettled(err) {
+			return
+		}
+	}
+
+	if err := h.users.ClearPendingInvitation(ctx, u.ID); err != nil {
+		h.log.Error(err)
+
+		return
+	}
+	u.PendingInvitationID = nil
+}
+
+// isSettled tells a dead offer, which no retry will revive, from a failure
+// worth another attempt.
+func isSettled(err error) bool {
+	return errors.Is(err, invitation.ErrorNoLongerValid) ||
+		errors.Is(err, invitation.ErrorNotFound) ||
+		errors.Is(err, invitation.ErrorForAnotherEmail)
 }
 
 // ResendVerification answers 200 whatever it finds, so the endpoint cannot be
@@ -349,7 +425,7 @@ func (h *Auth) Refresh(ctx context.Context, req *user.RefreshRequest) (*dto.Sess
 			return nil, err
 		}
 
-		return principalOf(u), nil
+		return h.principalOf(ctx, u)
 	})
 	if err != nil {
 		return nil, err
@@ -453,13 +529,51 @@ func (h *Auth) openChallenge(ctx context.Context, token string) (*user.User, mfa
 	return u, provider, nil
 }
 
+// openSession is every sign-in's last step. An Invitation the sign-up came
+// from is completed here first, so the very first token carries the Team and
+// a completion that failed earlier gets its retry.
 func (h *Auth) openSession(ctx context.Context, u *user.User) (*dto.Session, error) {
-	pair, err := h.sessions.Issue(ctx, *principalOf(u), deviceOf(ctx))
+	if u.PendingInvitationID != nil {
+		h.completeInvitation(ctx, u)
+	}
+
+	principal, err := h.principalOf(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := h.sessions.Issue(ctx, *principal, deviceOf(ctx))
 	if err != nil {
 		return nil, err
 	}
 
 	return dto.ToSession(pair), nil
+}
+
+// principalOf reads what the access token must say about the User at the
+// moment it is minted: the Role per Team and the permission version the
+// gateway will compare (docs/adr/0005). Refresh goes through it too, which is
+// how a Role change reaches a token without a sign-out.
+func (h *Auth) principalOf(ctx context.Context, u *user.User) (*session.Principal, error) {
+	// The version is read before the memberships on purpose: a change that
+	// lands in between leaves the token with a stale version, which the
+	// gateway refuses and the web app refreshes once more. The other order
+	// would stamp a fresh version onto stale Roles.
+	version, err := h.permVersions.Current(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	memberships, err := h.teams.FindMembershipsByUserID(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	teams := make(map[string]string, len(memberships))
+	for _, m := range memberships {
+		teams[m.Team.ID.String()] = string(m.Role)
+	}
+
+	return &session.Principal{UserID: u.ID, Email: u.Email, Status: string(u.Status), Teams: teams, PermissionVersion: version}, nil
 }
 
 // registerLoginFailure records the miss and answers the enumeration-safe
@@ -502,10 +616,6 @@ func recipientOf(u *user.User) events.Recipient {
 
 func challengeContextOf(u *user.User) mfa.ChallengeContext {
 	return mfa.ChallengeContext{UserID: u.ID, Email: u.Email, FullName: u.FullName, Locale: string(u.Locale)}
-}
-
-func principalOf(u *user.User) *session.Principal {
-	return &session.Principal{UserID: u.ID, Email: u.Email, Status: string(u.Status)}
 }
 
 func deviceOf(ctx context.Context) session.Device {

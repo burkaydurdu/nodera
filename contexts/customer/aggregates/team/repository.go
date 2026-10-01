@@ -147,6 +147,113 @@ func (r *Repository) FindMembership(ctx context.Context, teamID, userID uuid.UUI
 	return m, err
 }
 
+const memberDetailColumns = `m.team_id, m.user_id, m.role, m.created_at, u.full_name, u.email`
+
+func (r *Repository) FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `
+		SELECT `+memberDetailColumns+`
+		FROM team_members m
+		JOIN users u ON u.id = m.user_id
+		WHERE m.team_id = $1
+		ORDER BY m.created_at`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	members := make(MemberDetails, 0)
+	for rows.Next() {
+		m, err := scanMemberDetail(rows)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+
+	return members, rows.Err()
+}
+
+func (r *Repository) FindMember(ctx context.Context, teamID, userID uuid.UUID) (*MemberDetail, error) {
+	row := r.queries.Executor(ctx).QueryRow(ctx, `
+		SELECT `+memberDetailColumns+`
+		FROM team_members m
+		JOIN users u ON u.id = m.user_id
+		WHERE m.team_id = $1 AND m.user_id = $2`, teamID, userID)
+
+	m, err := scanMemberDetail(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrorMemberNotFound
+	}
+
+	return m, err
+}
+
+// Lock takes the Team row for the rest of the transaction. It is its own
+// statement on purpose: under READ COMMITTED a statement that blocks on the
+// lock keeps the snapshot it started with, so a count in the same statement
+// would read the world before the other transaction committed. Callers lock
+// first, then read.
+func (r *Repository) Lock(ctx context.Context, teamID uuid.UUID) error {
+	var id uuid.UUID
+	err := r.queries.Executor(ctx).QueryRow(ctx, `SELECT id FROM teams WHERE id = $1 FOR UPDATE`, teamID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrorNotFound
+	}
+	if err != nil {
+		return ErrorCannotUpdate.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+func (r *Repository) CountOwners(ctx context.Context, teamID uuid.UUID) (int, error) {
+	var count int
+	err := r.queries.Executor(ctx).QueryRow(ctx, `
+		SELECT count(*) FROM team_members WHERE team_id = $1 AND role = $2`, teamID, string(RoleOwner),
+	).Scan(&count)
+
+	return count, err
+}
+
+func (r *Repository) UpdateMemberRole(ctx context.Context, teamID, userID uuid.UUID, role Role) error {
+	tag, err := r.queries.Executor(ctx).Exec(ctx, `
+		UPDATE team_members SET role = $3 WHERE team_id = $1 AND user_id = $2`, teamID, userID, string(role))
+	if err != nil {
+		return ErrorCannotUpdate.Copy().SetError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrorMemberNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) RemoveMember(ctx context.Context, teamID, userID uuid.UUID) error {
+	tag, err := r.queries.Executor(ctx).Exec(ctx, `
+		DELETE FROM team_members WHERE team_id = $1 AND user_id = $2`, teamID, userID)
+	if err != nil {
+		return ErrorCannotUpdate.Copy().SetError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrorMemberNotFound
+	}
+
+	return nil
+}
+
+func scanMemberDetail(row pgx.Row) (*MemberDetail, error) {
+	var (
+		m    MemberDetail
+		role string
+	)
+	if err := row.Scan(&m.TeamID, &m.UserID, &role, &m.CreatedAt, &m.FullName, &m.Email); err != nil {
+		return nil, err
+	}
+	m.Role = Role(role)
+
+	return &m, nil
+}
+
 func scanMembership(row pgx.Row) (*Membership, error) {
 	var (
 		m    Membership

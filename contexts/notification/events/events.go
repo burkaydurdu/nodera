@@ -3,7 +3,11 @@
 // never import each other.
 package events
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Recipient struct {
 	UserID   uuid.UUID `json:"user_id"`
@@ -36,5 +40,19 @@ type PasswordResetEvent struct {
 	Payload struct {
 		Recipient
 		ResetURL string `json:"reset_url"`
+	} `json:"payload"`
+}
+
+// TeamInvitationEvent invites an email address, not a User: the invitee may
+// have no account, so UserID can be the nil uuid and FullName empty, and the
+// Locale is then the inviter's.
+type TeamInvitationEvent struct {
+	Payload struct {
+		Recipient   Recipient `json:"recipient"`
+		TeamName    string    `json:"team_name"`
+		Role        string    `json:"role"`
+		InviterName string    `json:"inviter_name"`
+		AcceptURL   string    `json:"accept_url"`
+		ExpiresAt   time.Time `json:"expires_at"`
 	} `json:"payload"`
 }
