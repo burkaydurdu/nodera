@@ -1,5 +1,5 @@
-// Package events is the notification context's own view of the customer
-// context's payloads: the same wire shape, declared here so the two contexts
+// Package events is the notification context's own view of the customer and
+// billing contexts' payloads: the same wire shape, declared here so the contexts
 // never import each other.
 package events
 

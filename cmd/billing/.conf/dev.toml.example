@@ -1,0 +1,88 @@
+# Copy to dev.toml (gitignored). Values match docker-compose.yml and cmd/customer/.conf/dev.toml.example.
+environment = "dev"
+
+[server]
+name = "nodera-billing"
+port = ":9670"
+
+[postgresql]
+uri = "postgres://postgres:postgres@localhost:5432/nodera_billing?sslmode=disable"
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = "localhost"
+port = 6379
+username = ""
+password = ""
+db = 0
+
+# The outbox only (docs/adr/0001).
+[mongodb]
+host = ""
+port = 0
+username = ""
+password = ""
+database = "nodera_billing_outbox"
+uri = "mongodb://localhost:27017/?directConnection=true"
+
+[rabbitmq]
+host = "127.0.0.1:5672"
+username = "guest"
+password = "guest"
+virtualhost = "/nodera"
+auth_secret = "dev-rabbitmq-auth-secret"
+
+# The same JWT secret the customer service signs access tokens with. `links`
+# signs the Invoice PDF and payment confirmation links in billing emails.
+[secret]
+jwt = "dev-jwt-secret-change-me"
+links = "dev-billing-links-secret-change-me"
+
+# Which provider a country uses is the payment_routes table's decision.
+[providers.craftgate]
+enabled = false
+api_key = ""
+secret_key = ""
+base_url = ""
+webhook_key = ""
+threeds_callback_key = ""
+
+# Built and contract-tested, not routed until a non-Turkish entity exists.
+[providers.stripe]
+enabled = false
+secret_key = ""
+webhook_secret = ""
+
+[pdf]
+gotenberg_url = "http://localhost:3300"
+
+[storage]
+local_dir = ".local/billing-storage"
+
+# Empty means https://www.tcmb.gov.tr/kurlar/today.xml.
+[exchange]
+tcmb_url = ""
+
+[jobs]
+threshold_interval_minutes = 15
+dunning_interval_minutes = 60
+reconcile_interval_minutes = 5
+
+[domain]
+front = "http://localhost:3002"
+# The gateway origin the payment provider posts the 3-D Secure result to.
+gateway = "http://localhost:3460"
+
+# Usage before the cutover is never billed.
+[billing]
+start_at = "2026-10-01T00:00:00Z"
+
+[metrics]
+enabled = false
+port = ":9104"

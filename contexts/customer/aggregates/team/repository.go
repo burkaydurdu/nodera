@@ -55,22 +55,25 @@ func (r *Repository) AddMember(ctx context.Context, teamID, userID uuid.UUID, ro
 }
 
 // FindAll and FindAllMembers feed the replay of domain events; they walk
-// every live row on purpose.
-func (r *Repository) FindAll(ctx context.Context) (Teams, error) {
+// every live row on purpose and join the users table because the events
+// carry who the person is, not just their id. The owner may have left the
+// Team since, so the join is on the Team's owner, not on a membership.
+func (r *Repository) FindAll(ctx context.Context) (TeamDetails, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
-		SELECT id, name, owner_user_id, created_at, updated_at
-		FROM teams
-		WHERE deleted_at IS NULL
-		ORDER BY created_at`)
+		SELECT t.id, t.name, t.owner_user_id, t.created_at, t.updated_at, u.email, u.full_name, u.locale
+		FROM teams t
+		JOIN users u ON u.id = t.owner_user_id
+		WHERE t.deleted_at IS NULL
+		ORDER BY t.created_at`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	teams := make(Teams, 0)
+	teams := make(TeamDetails, 0)
 	for rows.Next() {
-		var t Team
-		if err := rows.Scan(&t.ID, &t.Name, &t.OwnerUserID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		var t TeamDetail
+		if err := rows.Scan(&t.ID, &t.Name, &t.OwnerUserID, &t.CreatedAt, &t.UpdatedAt, &t.Owner.Email, &t.Owner.FullName, &t.Owner.Locale); err != nil {
 			return nil, err
 		}
 		teams = append(teams, &t)
@@ -79,28 +82,25 @@ func (r *Repository) FindAll(ctx context.Context) (Teams, error) {
 	return teams, rows.Err()
 }
 
-func (r *Repository) FindAllMembers(ctx context.Context) (Members, error) {
+func (r *Repository) FindAllMembers(ctx context.Context) (MemberDetails, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
-		SELECT m.team_id, m.user_id, m.role, m.created_at
+		SELECT `+memberDetailColumns+`
 		FROM team_members m
 		JOIN teams t ON t.id = m.team_id AND t.deleted_at IS NULL
+		JOIN users u ON u.id = m.user_id
 		ORDER BY m.created_at`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	members := make(Members, 0)
+	members := make(MemberDetails, 0)
 	for rows.Next() {
-		var (
-			m    Member
-			role string
-		)
-		if err := rows.Scan(&m.TeamID, &m.UserID, &role, &m.CreatedAt); err != nil {
+		m, err := scanMemberDetail(rows)
+		if err != nil {
 			return nil, err
 		}
-		m.Role = Role(role)
-		members = append(members, &m)
+		members = append(members, m)
 	}
 
 	return members, rows.Err()
@@ -147,7 +147,7 @@ func (r *Repository) FindMembership(ctx context.Context, teamID, userID uuid.UUI
 	return m, err
 }
 
-const memberDetailColumns = `m.team_id, m.user_id, m.role, m.created_at, u.full_name, u.email`
+const memberDetailColumns = `m.team_id, m.user_id, m.role, m.created_at, u.email, u.full_name, u.locale`
 
 func (r *Repository) FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
@@ -246,7 +246,7 @@ func scanMemberDetail(row pgx.Row) (*MemberDetail, error) {
 		m    MemberDetail
 		role string
 	)
-	if err := row.Scan(&m.TeamID, &m.UserID, &role, &m.CreatedAt, &m.FullName, &m.Email); err != nil {
+	if err := row.Scan(&m.TeamID, &m.UserID, &role, &m.CreatedAt, &m.Email, &m.FullName, &m.Locale); err != nil {
 		return nil, err
 	}
 	m.Role = Role(role)

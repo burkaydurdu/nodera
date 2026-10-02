@@ -1,0 +1,28 @@
+{{ define "invoice_issued" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">Invoice {{.InvoiceNumber}} for {{.TeamName}} is ready</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, your Nodera invoice for the period {{ .PeriodStart.UTC.Format "January 2, 2006" }} – {{ .PeriodEnd.UTC.Format "January 2, 2006" }} has been issued.</p>
+              <p class="subtitle">Total due: <strong>{{.TotalDue}} {{.Currency}}</strong>{{if .SettlementAmount}}, charged as {{.SettlementAmount}} {{.SettlementCurrency}}{{end}}. The amount is charged to your default card automatically; no action is needed.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.PdfURL}}">Download the invoice (PDF)</a></td></tr>
+              </table>
+              <p class="subtitle">This email was sent to {{.Email}} because it is a billing contact of {{.TeamName}}.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

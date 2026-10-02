@@ -1,0 +1,25 @@
+{{ define "payment_failed" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">Payment failed for {{.TeamName}}</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, we could not charge <strong>{{.Amount}} {{.Currency}}</strong> for invoice {{.InvoiceNumber}} (attempt {{.Attempt}}).{{if .FailureReason}} Your bank said: {{.FailureReason}}.{{end}}</p>
+              <p class="subtitle">{{if .NextRetryAt}}We will try again on {{ .NextRetryAt.UTC.Format "January 2, 2006" }}. {{end}}Please check your card or add a new one in the billing dashboard so your droplets keep running. Teams with an unpaid invoice are suspended after repeated failures.</p>
+              <p class="subtitle">This email was sent to {{.Email}} because it is a billing contact of {{.TeamName}}.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

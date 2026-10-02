@@ -1,0 +1,24 @@
+{{define "style"}}<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10.5pt; color: #1d2433; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+  .brand { font-size: 20pt; font-weight: 700; letter-spacing: -0.5px; }
+  h1 { font-size: 15pt; margin: 0 0 6px; text-align: right; }
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #5b6475; margin: 0 0 4px; }
+  table { border-collapse: collapse; }
+  .meta th { text-align: left; font-weight: 400; color: #5b6475; padding: 1px 10px 1px 0; }
+  .meta td { text-align: right; }
+  .notice { border: 1px solid #d9dde5; background: #f6f7f9; padding: 8px 10px; font-size: 9pt; }
+  .payer p { margin: 0 0 6px; line-height: 1.45; }
+  .muted { color: #5b6475; }
+  .lines { width: 100%; margin-top: 16px; }
+  .lines th { text-align: left; border-bottom: 1px solid #1d2433; padding: 5px 4px; font-size: 9pt; }
+  .lines td { border-bottom: 1px solid #e3e6ec; padding: 5px 4px; }
+  .num, .lines th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .totals { margin: 14px 0 0 auto; min-width: 55%; }
+  .totals th { text-align: left; font-weight: 400; padding: 3px 12px 3px 0; }
+  .totals td { padding: 3px 0; }
+  .totals .total th, .totals .total td { font-weight: 700; border-top: 1px solid #1d2433; padding-top: 6px; }
+  .totals .rate td { font-size: 8.5pt; color: #5b6475; }
+  footer { margin-top: 28px; font-size: 8.5pt; color: #5b6475; }
+</style>{{end}}

@@ -1,0 +1,87 @@
+environment = "test"
+
+[server]
+name = "nodera-billing"
+port = ":9670"
+
+[postgresql]
+uri = ""
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+# The outbox only (docs/adr/0001).
+[mongodb]
+host = ""
+port = 0
+username = ""
+password = ""
+database = "nodera_billing_outbox"
+uri = ""
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+# The same JWT secret the customer service signs access tokens with. `links`
+# signs the Invoice PDF and payment confirmation links in billing emails.
+[secret]
+jwt = ""
+links = ""
+
+# Which provider a country uses is the payment_routes table's decision.
+[providers.craftgate]
+enabled = false
+api_key = ""
+secret_key = ""
+base_url = ""
+webhook_key = ""
+threeds_callback_key = ""
+
+# Built and contract-tested, not routed until a non-Turkish entity exists.
+[providers.stripe]
+enabled = false
+secret_key = ""
+webhook_secret = ""
+
+[pdf]
+gotenberg_url = ""
+
+[storage]
+local_dir = ""
+
+# Empty means https://www.tcmb.gov.tr/kurlar/today.xml.
+[exchange]
+tcmb_url = ""
+
+[jobs]
+threshold_interval_minutes = 15
+dunning_interval_minutes = 60
+reconcile_interval_minutes = 5
+
+[domain]
+front = "https://app.nodera.io"
+# The gateway origin the payment provider posts the 3-D Secure result to.
+gateway = "https://api.nodera.io"
+
+# Usage before the cutover is never billed.
+[billing]
+start_at = "2026-10-01T00:00:00Z"
+
+[metrics]
+enabled = true
+port = ":9104"

@@ -425,7 +425,7 @@ func (s *dropletSuite) TestCreate_NeedsAtLeastOneSSHKey() {
 		`{"plan":"c4-32","region":"vno1","image":"ubuntu-24-04","hostname":"web-1","ssh_keys":[]}`, u.Token)
 
 	s.Equal(http.StatusBadRequest, res.Code, res.Raw)
-	s.Contains(res.Raw, "SSHKeys")
+	s.Contains(res.Raw, `"field":"ssh_keys"`, "the error names the field the client sent")
 }
 
 func (s *dropletSuite) TestCreate_MoreThanTenKeysIsRejected() {

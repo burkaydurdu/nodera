@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Nodera backend (Go, DDD). Bounded contexts under `contexts/` (customer, droplet, gateway,
+Nodera backend (Go, DDD). Bounded contexts under `contexts/` (customer, droplet, billing, gateway,
 notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per-context
 `CONTEXT.md`; decisions in `docs/adr/`. Read the glossary before naming anything.
 
@@ -17,8 +17,14 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
   `contexts/notification/events`, `contexts/droplet/async/events`). The droplet context knows
   Projects only through its event-fed read model (docs/adr/0004); it never queries customer.
 - **Providers** (Cherry Servers today) are adapters behind `contexts/droplet/providers`; a
-  Provider must bill hourly and permit resale (docs/adr/0003). Provider names never reach a
-  DTO, an error message or the web app.
+  Provider must bill hourly and permit resale (docs/adr/0003). **Payment providers** (Craftgate
+  today, Stripe built but unrouted) are adapters behind `contexts/billing/providers`, chosen by a
+  country routing table (docs/adr/0006). Neither kind of provider name reaches a DTO, an error
+  message or the web app.
+- **Billing** is postpaid per Team and calendar month (UTC); the droplet context learns a Team's
+  Billing status from events and refuses creation without a Payment method (402) or when
+  suspended (423). Usage flows droplet → billing as events; the Invoice model carries the
+  e-invoice fields even while PDFs are statements.
 - **Authorization** is Team-scoped: Roles `owner|developer|finance`, Permissions
   `<area>.<verb>`, matrix only in `pkg/authz` (never copied, never per Team). The access
   token carries `teams` (Team → Role) and `pv`; the gateway enforces a route's `permissions`
@@ -34,7 +40,7 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
   `c.Bind` + `c.Validate`, never `c.Param`. Responses are `application/dto`.
 - **Errors** are `piggystats/rerror` values with a repo-wide unique `Domain` per aggregate
   (`error.go`) and an explicit `HttpStatus`. Taken domains: customer 1–9, 12; droplet
-  20–23; common 100. Never mutate a var: `.Copy()` first. Sign-in
+  20–24; billing 30–39; common 100. Never mutate a var: `.Copy()` first. Sign-in
   answers `user.ErrorNotFound` for a wrong email and a wrong password alike.
 - **Transactions** ride the context (`transactions.Begin(ctx)`); repositories reach them
   through `queries.Executor(ctx)`. An outbox publish runs after `Commit`, never inside
@@ -55,8 +61,10 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
 - Unit tests next to the code, one function per scenario, mockgen mocks (`make generate`);
   table-driven only for pure input matrices.
 - Integration suites: `cmd/customer/integration-test` (dockertest: postgres:18, redis,
-  mongo:8.2), `cmd/droplet/integration-test` (postgres:18, redis, the fake Provider, worker
-  jobs called directly) and `cmd/customer-gateway/gateway_integration_test.go`; gated by
+  mongo:8.2), `cmd/droplet/integration-test` (postgres:18, redis, mongo:8.2, the fake Provider,
+  worker jobs called directly), `cmd/billing/integration-test` (postgres:18, redis, mongo:8.2,
+  gotenberg, the fake Payment provider, a controllable clock) and
+  `cmd/customer-gateway/gateway_integration_test.go`; gated by
   `INTEGRATION=true`; assert the exact `HttpStatus` of the triggered rerror. The customer and
   droplet suites are the primary seams and every user-facing flow gets a scenario there. The
   real Cherry API is touched only by the read-only contract test under `NODERA_DROPLET_SMOKE`.
@@ -65,8 +73,8 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
 
 ## Commands
 
-`make docker-up`, `make migrate-customer` / `make migrate-droplet`, `make seed-customer` /
+`make docker-up`, `make migrate-customer` / `make migrate-droplet` / `make migrate-billing`, `make seed-customer` /
 `make seed-droplet`, `make start` / `make stop` / `make logs-tail`, `make test`, `make test-all`,
-`make test-droplet-integration`, `make lint`, `make swagger-customer` / `make swagger-droplet`,
+`make test-droplet-integration`, `make test-billing-integration`, `make lint`, `make swagger-customer` / `make swagger-droplet`,
 `make generate`. One-off: `go run ./cmd/customer replay-projects --env=dev` republishes Team and
 Project events for rows that predate them.

@@ -1,0 +1,34 @@
+FROM golang:1.27-alpine AS builder
+
+RUN apk update && apk add --no-cache ca-certificates git && update-ca-certificates
+
+ARG GH_ACCESS_TOKEN
+ARG GOPRIVATE=github.com/piggystats/*
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN if [ -n "$GH_ACCESS_TOKEN" ]; then \
+    git config --global --add url.https://${GH_ACCESS_TOKEN}@github.com/.insteadOf https://github.com/ && \
+    go env -w GOPRIVATE=${GOPRIVATE}; \
+    fi
+RUN go mod download
+COPY . .
+
+WORKDIR /app/cmd/billing
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main .
+
+FROM golang:1.27-alpine AS migrate-builder
+RUN apk add --no-cache git
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.0
+
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+COPY --from=migrate-builder /go/bin/migrate /usr/local/bin/migrate
+WORKDIR /app
+COPY --from=builder /app/main .
+COPY --from=builder /app/cmd/billing/.conf ./cmd/billing/.conf
+COPY --from=builder /app/contexts/billing/db/migrations ./contexts/billing/db/migrations
+COPY --from=builder /app/contexts/billing/db/seed ./contexts/billing/db/seed
+
+# The deployment passes "migrate" or "seed" as the subcommand.
+ENTRYPOINT ["./main"]

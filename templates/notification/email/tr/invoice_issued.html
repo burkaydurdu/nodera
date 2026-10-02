@@ -1,0 +1,28 @@
+{{ define "invoice_issued" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.TeamName}} için {{.InvoiceNumber}} numaralı fatura hazır</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{ .PeriodStart.UTC.Format "02.01.2006" }} – {{ .PeriodEnd.UTC.Format "02.01.2006" }} dönemine ait Nodera faturan düzenlendi.</p>
+              <p class="subtitle">Ödenecek tutar: <strong>{{.TotalDue}} {{.Currency}}</strong>{{if .SettlementAmount}}, {{.SettlementAmount}} {{.SettlementCurrency}} olarak tahsil edilir{{end}}. Tutar varsayılan kartından otomatik olarak çekilir; bir şey yapman gerekmiyor.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.PdfURL}}">Faturayı indir (PDF)</a></td></tr>
+              </table>
+              <p class="subtitle">Bu e-posta {{.TeamName}} takımının fatura iletişim adresi olduğu için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

@@ -1,0 +1,25 @@
+{{ define "card_expiring" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.Last4}} ile biten kartının süresi dolmak üzere</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{.TeamName}} takımı için kayıtlı {{.Last4}} ile biten {{.Brand}} kartının süresi {{.Expires}} tarihinde doluyor. Süresi dolduğunda faturalarını çekemeyiz ve takım askıya alınma riskiyle karşılaşır.</p>
+              <p class="subtitle">O tarihten önce fatura panelinden yeni bir kart ekle ve varsayılan yap.</p>
+              <p class="subtitle">Bu e-posta {{.TeamName}} takımının fatura iletişim adresi olduğu için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

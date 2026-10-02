@@ -45,7 +45,7 @@ func (h *Replay) Run(ctx context.Context) (*ReplaySummary, error) {
 		return nil, err
 	}
 	for _, t := range teams {
-		if err := h.teamCreated.Publish(ctx, t); err != nil {
+		if err := h.teamCreated.Publish(ctx, &t.Team, t.Owner); err != nil {
 			return nil, err
 		}
 		summary.Teams++
@@ -56,7 +56,7 @@ func (h *Replay) Run(ctx context.Context) (*ReplaySummary, error) {
 		return nil, err
 	}
 	for _, m := range members {
-		if err := h.memberAdded.Publish(ctx, m); err != nil {
+		if err := h.memberAdded.Publish(ctx, &m.Member, m.Person); err != nil {
 			return nil, err
 		}
 		summary.Members++

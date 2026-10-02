@@ -27,9 +27,10 @@ var (
 		echo.HeaderOrigin,
 		constants.TargetServerHeader,
 	}
-	// Retry-After is not CORS-safelisted; without exposing it the web app
-	// cannot show a lock countdown.
-	exposeHeaders = []string{echo.HeaderRetryAfter, constants.CorrelationIDHeader}
+	// Retry-After and Content-Disposition are not CORS-safelisted; without
+	// exposing them the web app can show neither a lock countdown nor an
+	// Invoice PDF's own file name.
+	exposeHeaders = []string{echo.HeaderRetryAfter, echo.HeaderContentDisposition, constants.CorrelationIDHeader}
 )
 
 // CreateEcho builds the gateway's Echo instance. Health is answered from

@@ -43,6 +43,7 @@ const (
 	noTarget       = ""
 	targetCustomer = "customer"
 	targetDroplet  = "droplet"
+	targetBilling  = "billing"
 )
 
 // stubUpstream records what reached it; that is how the suite reads what
@@ -85,6 +86,7 @@ type gatewaySuite struct {
 
 	customer *stubUpstream
 	droplet  *stubUpstream
+	billing  *stubUpstream
 
 	server *echo.Echo
 }
@@ -128,6 +130,7 @@ func (s *gatewaySuite) SetupSuite() {
 
 	s.customer = newStubUpstream("customer")
 	s.droplet = newStubUpstream("droplet")
+	s.billing = newStubUpstream("billing")
 
 	routeTable := &gatewayConfig.GatewayConfig{Gateway: gatewayConfig.Gateway{Services: map[string]gatewayConfig.Service{
 		"customer": {Host: s.customer.server.URL, Endpoints: gatewayConfig.Endpoints{
@@ -141,6 +144,14 @@ func (s *gatewaySuite) SetupSuite() {
 			{Path: "/v1/catalog/regions", Method: "GET"},
 			{Path: "/v1/projects/:projectID/droplets", Method: "POST"},
 			{Path: "/v1/droplets/:dropletID", Method: "DELETE"},
+		}},
+		"billing": {Host: s.billing.server.URL, Endpoints: gatewayConfig.Endpoints{
+			{Path: "/v1/teams/:teamID/billing/profile", Method: "GET", Permissions: []string{"billing.read"}},
+			{Path: "/v1/teams/:teamID/billing/status", Method: "GET", Permissions: []string{"team.read"}},
+			{Path: "/v1/billing/webhooks/craftgate", Method: "POST", Public: true, Headerless: true},
+			{Path: "/v1/billing/webhooks/stripe", Method: "POST", Public: true, Headerless: true},
+			{Path: "/v1/billing/payments/:paymentID/3ds/callback", Method: "POST", Public: true, Headerless: true},
+			{Path: "/v1/billing/payments/:paymentID/3ds/start", Method: "POST", Public: true},
 		}},
 	}}}
 	routeTable.InitEndpoints()
@@ -159,7 +170,7 @@ func (s *gatewaySuite) SetupSuite() {
 }
 
 func (s *gatewaySuite) TearDownSuite() {
-	for _, u := range []*stubUpstream{s.customer, s.droplet} {
+	for _, u := range []*stubUpstream{s.customer, s.droplet, s.billing} {
 		if u != nil {
 			u.server.Close()
 		}
@@ -355,7 +366,7 @@ func (s *gatewaySuite) TestDropletPath_WithCustomerTarget_IsNotFound() {
 }
 
 func (s *gatewaySuite) TestUnknownTarget_IsNotFound() {
-	rec := s.do(http.MethodGet, "/v1/users/me", s.token(liveSessionID, "access", time.Minute), "billing")
+	rec := s.do(http.MethodGet, "/v1/users/me", s.token(liveSessionID, "access", time.Minute), "admin")
 
 	s.Equal(http.StatusNotFound, rec.Code, rec.Body.String())
 }
@@ -462,6 +473,87 @@ func (s *gatewaySuite) TestDropletRoute_NoPermissions_IsProxiedWithTheNewClaims(
 
 	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
 	s.Equal("droplet", rec.Header().Get("X-Upstream"))
+}
+
+func (s *gatewaySuite) TestBillingRoute_FinanceIsProxiedToTheBillingUpstream_DeveloperIsForbidden() {
+	rec := s.do(http.MethodGet, "/v1/teams/"+financeTeamID+"/billing/profile", s.token(liveSessionID, "access", time.Minute), targetBilling)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+	s.Equal("billing", rec.Header().Get("X-Upstream"))
+	path, headers := s.billing.seen()
+	s.Equal("/v1/teams/"+financeTeamID+"/billing/profile", path)
+	s.Equal(targetBilling, headers.Get(constants.TargetServerHeader))
+
+	developer := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["teams"] = map[string]string{otherTeamID: "developer"}
+		claims["pv"] = permVersion
+	})
+	forbidden := s.do(http.MethodGet, "/v1/teams/"+otherTeamID+"/billing/profile", developer, targetBilling)
+	s.Equal(http.StatusForbidden, forbidden.Code, forbidden.Body.String())
+	s.Contains(forbidden.Body.String(), `"domain":100`)
+
+	status := s.do(http.MethodGet, "/v1/teams/"+otherTeamID+"/billing/status", developer, targetBilling)
+	s.Equal(http.StatusOK, status.Code, "every member reads the billing status: %s", status.Body.String())
+	s.Equal("billing", status.Header().Get("X-Upstream"))
+}
+
+func (s *gatewaySuite) TestBillingWebhook_IsPublic() {
+	rec := s.do(http.MethodPost, "/v1/billing/webhooks/craftgate", "", targetBilling)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+	s.Equal("billing", rec.Header().Get("X-Upstream"))
+	path, _ := s.billing.seen()
+	s.Equal("/v1/billing/webhooks/craftgate", path)
+
+	s.Equal(http.StatusUnauthorized, s.do(http.MethodPost, "/v1/billing/webhooks/craftgate", "", targetCustomer).Code, "public only under its own target")
+}
+
+// Payment providers and the card issuer's 3-D Secure page cannot add the
+// target header; their routes resolve their service from the path alone.
+func (s *gatewaySuite) TestHeaderlessRoutes_WithoutTargetHeader_ReachTheBillingUpstream() {
+	for _, path := range []string{
+		"/v1/billing/webhooks/craftgate",
+		"/v1/billing/webhooks/stripe",
+		"/v1/billing/payments/019a0000-0000-7000-8000-0000000000aa/3ds/callback",
+	} {
+		rec := s.do(http.MethodPost, path, "", noTarget)
+
+		s.Equal(http.StatusOK, rec.Code, "%s: %s", path, rec.Body.String())
+		s.Equal("billing", rec.Header().Get("X-Upstream"), path)
+		seen, _ := s.billing.seen()
+		s.Equal(path, seen)
+	}
+}
+
+func (s *gatewaySuite) TestHeaderlessRoute_WrongMethodWithoutTargetHeader_IsUnauthorized() {
+	rec := s.do(http.MethodGet, "/v1/billing/webhooks/stripe", "", noTarget)
+
+	s.Equal(http.StatusUnauthorized, rec.Code, rec.Body.String())
+}
+
+// The web app starts the 3-D Secure flow and sends the header like any other
+// call; being public does not make a route headerless.
+func (s *gatewaySuite) TestPublicRoute_NotHeaderless_WithoutTargetHeader_IsUnauthorized() {
+	rec := s.do(http.MethodPost, "/v1/billing/payments/019a0000-0000-7000-8000-0000000000aa/3ds/start", "", noTarget)
+
+	s.Equal(http.StatusUnauthorized, rec.Code, rec.Body.String())
+
+	withHeader := s.do(http.MethodPost, "/v1/billing/payments/019a0000-0000-7000-8000-0000000000aa/3ds/start", "", targetBilling)
+	s.Equal(http.StatusOK, withHeader.Code, withHeader.Body.String())
+	s.Equal("billing", withHeader.Header().Get("X-Upstream"))
+}
+
+// A header, once sent, is the whole answer: a headerless route named under
+// the wrong target is judged by that target's table, as before.
+func (s *gatewaySuite) TestHeaderlessRoute_WithAWrongTargetHeader_FollowsTheHeaderRules() {
+	asCustomer := s.do(http.MethodPost, "/v1/billing/webhooks/stripe", "", targetCustomer)
+	s.Equal(http.StatusUnauthorized, asCustomer.Code, "private under customer, and no token: %s", asCustomer.Body.String())
+
+	asDroplet := s.do(http.MethodPost, "/v1/billing/webhooks/stripe", s.token(liveSessionID, "access", time.Minute), targetDroplet)
+	s.Equal(http.StatusNotFound, asDroplet.Code, "unlisted under droplet: %s", asDroplet.Body.String())
+
+	unknown := s.do(http.MethodPost, "/v1/billing/webhooks/stripe", "", "payments")
+	s.Equal(http.StatusNotFound, unknown.Code, "an unknown target stays unknown: %s", unknown.Body.String())
 }
 
 // The route table is checked before the first request: permissions on a route

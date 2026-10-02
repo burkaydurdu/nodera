@@ -1,0 +1,25 @@
+{{ define "card_expiring" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">Your card ending in {{.Last4}} is about to expire</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, the {{.Brand}} card ending in {{.Last4}} on file for {{.TeamName}} expires {{.Expires}}. Once it expires we cannot charge your invoices and the team risks suspension.</p>
+              <p class="subtitle">Add a new card in the billing dashboard and make it the default before then.</p>
+              <p class="subtitle">This email was sent to {{.Email}} because it is a billing contact of {{.TeamName}}.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

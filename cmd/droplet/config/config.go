@@ -25,6 +25,7 @@ type Config struct {
 	Server      Server     `mapstructure:"server"`
 	PostgreSQL  PostgreSQL `mapstructure:"postgresql"`
 	Redis       Redis      `mapstructure:"redis"`
+	MongoDB     MongoDB    `mapstructure:"mongodb"`
 	RabbitMQ    RabbitMQ   `mapstructure:"rabbitmq"`
 	Secret      Secret     `mapstructure:"secret"`
 	Providers   Providers  `mapstructure:"providers"`
@@ -68,6 +69,16 @@ type Redis struct {
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	DB       int    `mapstructure:"db"`
+}
+
+// MongoDB backs the outbox and nothing else (docs/adr/0001).
+type MongoDB struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	Database string `mapstructure:"database" validate:"required"`
+	URI      string `mapstructure:"uri"`
 }
 
 // RabbitMQ.Host is "host:port"; the client builds the amqp URL from it, the
@@ -165,6 +176,12 @@ func maskSecrets(c Config) Config {
 	}
 	if str.IsNotEmpty(c.Redis.Password) {
 		c.Redis.Password = mask
+	}
+	if str.IsNotEmpty(c.MongoDB.Password) {
+		c.MongoDB.Password = mask
+	}
+	if str.IsNotEmpty(c.MongoDB.URI) {
+		c.MongoDB.URI = mask
 	}
 	if str.IsNotEmpty(c.RabbitMQ.Password) {
 		c.RabbitMQ.Password = mask

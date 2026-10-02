@@ -6,8 +6,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/piggystats/nodera/contexts/droplet/aggregates/billing"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/droplet"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/provider"
+	"github.com/piggystats/nodera/contexts/droplet/providers"
 	"github.com/piggystats/nodera/logger"
 	"github.com/piggystats/nodera/utils/str"
 )
@@ -16,13 +18,16 @@ const (
 	reasonProviderReported = "provider reported "
 	reasonReleased         = "released without a server"
 	reasonGoneAtProvider   = "server no longer exists at the provider"
+	reasonSuspended        = "suspended"
 )
 
 // PollDroplets asks the Provider about every Droplet in a transitional status
 // or with a pending power action, and applies what it says. Polling is the
 // only status source; there are no webhooks. The list is a snapshot: each
 // Droplet is re-read under a row lock before anything is decided about it,
-// so a user action landing in between is never overwritten.
+// so a user action landing in between is never overwritten. A poll that
+// makes a Droplet cross a meter boundary claims it in the same transaction
+// and announces it after the commit, so a redelivered poll announces nothing.
 func (j *Jobs) PollDroplets(ctx context.Context) error {
 	transitional, err := j.droplets.FindTransitional(ctx)
 	if err != nil {
@@ -59,8 +64,27 @@ func (j *Jobs) pollOne(ctx context.Context, id uuid.UUID) error {
 
 		return err
 	}
+	if err := j.applyBillingStatus(txCtx, d); err != nil {
+		_ = j.transactions.Rollback(txCtx)
 
-	return j.transactions.Commit(txCtx)
+		return err
+	}
+
+	claimed := d.ClaimBillingEvents(j.now())
+	if len(claimed) > 0 {
+		if err := j.droplets.Save(txCtx, d); err != nil {
+			_ = j.transactions.Rollback(txCtx)
+
+			return err
+		}
+	}
+
+	if err := j.transactions.Commit(txCtx); err != nil {
+		return err
+	}
+	j.meter.Publish(ctx, d, claimed)
+
+	return nil
 }
 
 // applyProviderState is one poller step on a locked Droplet.
@@ -106,7 +130,7 @@ func (j *Jobs) applyProviderState(ctx context.Context, d *droplet.Droplet) error
 
 	switch {
 	case reported != d.Status && d.Status.CanTransitionTo(reported):
-		return j.droplets.Transition(ctx, d, reported, reasonProviderReported+string(reported))
+		return j.droplets.Transition(ctx, d, reported, transitionReason(d, reported))
 	case d.PendingAction != nil && reported == d.PendingAction.TargetStatus():
 		// A reboot lands where it started; the pending marker is what clears.
 		d.PendingAction = nil
@@ -172,6 +196,65 @@ func (j *Jobs) serverGone(ctx context.Context, d *droplet.Droplet) error {
 	}
 
 	return nil
+}
+
+// applyBillingStatus brings a Droplet that has just settled in line with its
+// Team's Billing status. The suspension and recovery events act on the
+// Droplets that are idle when they arrive; one still being ordered or busy
+// with an action is caught here, on the poll where it settles. A suspended
+// Team's running Droplet is powered off and marked; a marked Droplet that is
+// off again while its Team is active is powered back on. The Provider is
+// asked inside the transaction, so a refusal rolls the whole poll step back
+// and the next poll tries again.
+func (j *Jobs) applyBillingStatus(ctx context.Context, d *droplet.Droplet) error {
+	if d.ProviderRef == nil || d.PendingAction != nil {
+		return nil
+	}
+
+	var want billing.Status
+	switch {
+	case d.Status == droplet.StatusActive && d.SuspendedPowerOffAt == nil:
+		want = billing.StatusSuspended
+	case d.Status == droplet.StatusOff && d.SuspendedPowerOffAt != nil:
+		want = billing.StatusActive
+	default:
+		return nil
+	}
+
+	status, err := j.billing.StatusOf(ctx, d.TeamID)
+	if err != nil || status != want {
+		return err
+	}
+
+	action := droplet.ActionPowerOn
+	d.SuspendedPowerOffAt = nil
+	if want == billing.StatusSuspended {
+		action = droplet.ActionPowerOff
+		at := droplet.Now()
+		d.SuspendedPowerOffAt = &at
+	}
+	d.PendingAction = &action
+	if err := j.droplets.Save(ctx, d); err != nil {
+		return err
+	}
+
+	adapter, err := j.adapterFor(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	return adapter.PowerAction(ctx, *d.ProviderRef, providers.Action(action))
+}
+
+// transitionReason names who asked for what the Provider now reports: a
+// power-off this context requested for a suspended Team is recorded as such,
+// so the history tells the customer why their server went down.
+func transitionReason(d *droplet.Droplet, reported droplet.Status) string {
+	if reported == droplet.StatusOff && d.SuspendedPowerOffAt != nil && d.PendingAction != nil && *d.PendingAction == droplet.ActionPowerOff {
+		return reasonSuspended
+	}
+
+	return reasonProviderReported + string(reported)
 }
 
 func applyAddresses(d *droplet.Droplet, ipv4, ipv6 string) bool {

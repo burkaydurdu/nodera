@@ -1,0 +1,55 @@
+{{define "statement.tr.html"}}<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Hesap özeti {{.Number}}</title>
+{{template "style"}}
+</head>
+<body>
+<header>
+  <div class="brand">Nodera</div>
+  <div class="doc">
+    <h1>Hesap özeti</h1>
+    <table class="meta">
+      <tr><th>Numara</th><td>{{.Number}}</td></tr>
+      <tr><th>Düzenlenme</th><td>{{date "02.01.2006" .IssuedAt}}</td></tr>
+      <tr><th>Dönem</th><td>{{date "02.01.2006" .PeriodStart}} – {{date "02.01.2006" .PeriodEnd}}</td></tr>
+      {{if .Threshold}}<tr><th>Tür</th><td>Erken hesap özeti: kullanım eşiği aşıldı</td></tr>{{end}}
+    </table>
+  </div>
+</header>
+
+<p class="notice">Bu belge bir hesap özetidir, fatura yerine geçmez. Yasal e-Arşiv faturası, Nodera'nın e-fatura entegrasyonu tamamlandığında ayrıca düzenlenecektir.</p>
+
+<section class="payer">
+  <h2>Fatura edilen</h2>
+  <p><strong>{{.Payer.LegalName}}</strong>{{if .TeamName}} <span class="muted">({{.TeamName}})</span>{{end}}<br>
+  {{.Payer.AddressLine1}}<br>{{if .Payer.AddressLine2}}{{.Payer.AddressLine2}}<br>{{end}}
+  {{if .Payer.PostalCode}}{{.Payer.PostalCode}} {{end}}{{.Payer.City}}, {{.Payer.Country}}</p>
+  <p>{{if .Payer.TaxID}}{{if .Payer.Company}}Vergi kimlik no (VKN){{else}}T.C. kimlik no (TCKN){{end}}: {{.Payer.TaxID}}<br>{{end}}
+  {{if .Payer.TaxOffice}}Vergi dairesi: {{.Payer.TaxOffice}}<br>{{end}}
+  {{if .Payer.VATID}}KDV numarası: {{.Payer.VATID}}<br>{{end}}
+  {{.Payer.InvoiceEmail}}</p>
+</section>
+
+<table class="lines">
+  <thead><tr><th>Droplet</th><th>Plan</th><th class="num">Saat</th><th class="num">Saatlik fiyat</th><th class="num">Tutar</th></tr></thead>
+  <tbody>
+  {{range .Lines}}<tr><td>{{.Hostname}}</td><td>{{.PlanCode}}</td><td class="num">{{.Hours}}</td><td class="num">{{.HourlyPrice}}</td><td class="num">{{.Amount}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+
+<table class="totals">
+  <tr><th>Ara toplam</th><td class="num">{{.Subtotal}} {{.Currency}}</td></tr>
+  {{range .TaxLines}}<tr><th>{{.Label}} ({{.Base}} üzerinden %{{.Rate}})</th><td class="num">{{.Amount}} {{$.Currency}}</td></tr>
+  {{end}}
+  {{if .HasCredit}}<tr><th>Kullanılan kredi</th><td class="num">− {{.Credit}} {{.Currency}}</td></tr>{{end}}
+  <tr class="total"><th>Ödenecek tutar</th><td class="num">{{.TotalDue}} {{.Currency}}</td></tr>
+  {{with .Settlement}}<tr class="settlement"><th>{{.Currency}} olarak tahsil edilecek tutar</th><td class="num">{{.Amount}} {{.Currency}}</td></tr>
+  <tr class="rate"><td colspan="2">Türkiye Cumhuriyet Merkez Bankası'nın {{date "02.01.2006" .RateDate}} tarihli USD döviz alış kuru ile çevrilmiştir: 1 USD = {{.Rate}} {{.Currency}}</td></tr>{{end}}
+</table>
+
+<footer>Fiyatlar ABD doları cinsindendir. Saatler, Droplet'in aktif olduğu andan silinmesinin istendiği ana kadar sayılır, tam saate yukarı yuvarlanır ve dönem başına Droplet başına en fazla 672 saattir.</footer>
+</body>
+</html>{{end}}

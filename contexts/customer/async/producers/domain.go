@@ -19,9 +19,17 @@ func NewTeamCreated(client OutboxClient) *TeamCreated {
 	return &TeamCreated{client: client}
 }
 
-func (p *TeamCreated) Publish(ctx context.Context, t *team.Team) error {
+func (p *TeamCreated) Publish(ctx context.Context, t *team.Team, owner team.Person) error {
 	return publish(ctx, p.client, constants.TeamCreated, &events.TeamCreatedEvent{
-		Payload: events.TeamCreatedBody{TeamID: t.ID, OwnerUserID: t.OwnerUserID, CreatedAt: t.CreatedAt.UTC()},
+		Payload: events.TeamCreatedBody{
+			TeamID:        t.ID,
+			Name:          t.Name,
+			OwnerUserID:   t.OwnerUserID,
+			OwnerEmail:    owner.Email,
+			OwnerFullName: owner.FullName,
+			OwnerLocale:   owner.Locale,
+			CreatedAt:     t.CreatedAt.UTC(),
+		},
 	})
 }
 
@@ -31,9 +39,17 @@ func NewTeamMemberAdded(client OutboxClient) *TeamMemberAdded {
 	return &TeamMemberAdded{client: client}
 }
 
-func (p *TeamMemberAdded) Publish(ctx context.Context, m *team.Member) error {
+func (p *TeamMemberAdded) Publish(ctx context.Context, m *team.Member, person team.Person) error {
 	return publish(ctx, p.client, constants.TeamMemberAdded, &events.TeamMemberAddedEvent{
-		Payload: events.TeamMemberAddedBody{TeamID: m.TeamID, UserID: m.UserID, Role: string(m.Role), AddedAt: m.CreatedAt.UTC()},
+		Payload: events.TeamMemberAddedBody{
+			TeamID:   m.TeamID,
+			UserID:   m.UserID,
+			Role:     string(m.Role),
+			Email:    person.Email,
+			FullName: person.FullName,
+			Locale:   person.Locale,
+			AddedAt:  m.CreatedAt.UTC(),
+		},
 	})
 }
 

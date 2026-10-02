@@ -10,6 +10,16 @@ const (
 	TeamMemberRemoved     = "TeamMemberRemoved"
 	ProjectCreated        = "ProjectCreated"
 
+	// Routing keys of the billing context's events this context consumes
+	// (docs/adr/0006).
+	TeamBillingStatusChanged      = "TeamBillingStatusChanged"
+	TeamDropletsDeletionRequested = "TeamDropletsDeletionRequested"
+
+	// Routing keys of the events this context publishes: the meter's two
+	// boundaries, consumed by the billing context.
+	DropletBillingStarted = "DropletBillingStarted"
+	DropletBillingStopped = "DropletBillingStopped"
+
 	// Queue names are prefixed so a second consumer of the same events never
 	// competes with this one.
 	QueuePrefix = "droplet."

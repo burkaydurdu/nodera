@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,7 +29,7 @@ var serverCmd = &cobra.Command{
 
 var workerCmd = &cobra.Command{
 	Use:   "worker",
-	Short: "Catalog sync, status poller and the customer-events consumer",
+	Short: "Catalog sync, status poller and the customer- and billing-events consumers",
 	Run: func(cmd *cobra.Command, args []string) {
 		RunWorker(config.InitConfig(viper.GetString("env")))
 	},
@@ -62,8 +67,43 @@ var seedRollbackCmd = &cobra.Command{
 	},
 }
 
+var outboxCmd = &cobra.Command{
+	Use:   "outbox",
+	Short: "Relay outbox messages to RabbitMQ",
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+		stop := RunOutbox(ctx, config.InitConfig(viper.GetString("env")))
+
+		sig := <-sigChan
+		log.Printf("Shutdown signal received (%v), starting graceful shutdown...\n", sig)
+		cancel()
+
+		const timeout = 30 * time.Second
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), timeout)
+		defer shutdownCancel()
+
+		if err := stop(shutdownCtx); err != nil {
+			log.Printf("Error during shutdown: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+var replayBillingCmd = &cobra.Command{
+	Use:   "replay-billing",
+	Short: "Republish DropletBillingStarted and DropletBillingStopped for every Droplet that was ever active, through the outbox",
+	Run: func(cmd *cobra.Command, args []string) {
+		RunReplayBilling(cmd.Context(), config.InitConfig(viper.GetString("env")))
+	},
+}
+
 func main() {
-	rootCmd.AddCommand(serverCmd, workerCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd)
+	rootCmd.AddCommand(serverCmd, workerCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, outboxCmd, replayBillingCmd)
 	rootCmd.PersistentFlags().StringP("env", "e", "dev", "Config file name under .conf (dev|test|alpha|prod)")
 	cobra.CheckErr(rootCmd.MarkPersistentFlagRequired("env"))
 	cobra.CheckErr(viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env")))

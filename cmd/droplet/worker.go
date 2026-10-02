@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/piggystats/rabbitmq"
 	"github.com/spf13/cobra"
 
 	"github.com/piggystats/nodera/cmd/droplet/app"
@@ -15,13 +14,11 @@ import (
 	"github.com/piggystats/nodera/logger"
 	"github.com/piggystats/nodera/pkg/metrics"
 	"github.com/piggystats/nodera/pkg/recover"
-	"github.com/piggystats/nodera/utils/convert"
 )
 
 const (
-	prefetchCount = 32
-	lockSync      = "droplet:lock:sync-catalog"
-	lockPoll      = "droplet:lock:poll-droplets"
+	lockSync = "droplet:lock:sync-catalog"
+	lockPoll = "droplet:lock:poll-droplets"
 )
 
 // Consumers never retry here: a failed event goes to the error queue and the
@@ -29,9 +26,10 @@ const (
 // the platform. The upserts are idempotent, so a redelivery after a partial
 // success is harmless.
 
-// RunWorker runs the three jobs in one process: catalog sync and status
-// poller on their intervals under Redis locks, and the customer-events
-// consumer on RabbitMQ.
+// RunWorker runs the jobs in one process: catalog sync and status poller on
+// their intervals under Redis locks, and the customer- and billing-events
+// consumers on RabbitMQ. The poller and the billing reactions write the
+// meter's events to the outbox; the `outbox` command relays them.
 func RunWorker(conf *config.Config) {
 	log := logger.New(conf.Environment)
 	ctx := context.Background()
@@ -49,25 +47,22 @@ func RunWorker(conf *config.Config) {
 
 	redisService := newRedisService(conf, log)
 	registry := newRegistry(conf, log)
-	workerJobs := app.BuildJobs(log, pool, registry)
+	rabbitMQClient := newRabbitMQClient(ctx, conf, log)
+
+	mongoClient := newMongoClient(conf, log)
+	defer func() { _ = mongoClient.GetClient().Disconnect(ctx) }()
+	outboxInstance, err := newOutbox(mongoClient, rabbitMQClient, log)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	workerJobs := app.BuildJobs(log, pool, registry, outboxInstance)
 	locker := jobs.NewLocker(redisService)
 
 	go loop(ctx, log, locker, lockSync, conf.Jobs.SyncInterval(), workerJobs.SyncCatalog)
 	go loop(ctx, log, locker, lockPoll, conf.Jobs.PollInterval(), workerJobs.PollDroplets)
 
-	rabbitMQClient := rabbitmq.NewRabbitMqClient(
-		ctx,
-		[]string{conf.RabbitMQ.Host},
-		conf.RabbitMQ.Username,
-		conf.RabbitMQ.Password,
-		conf.RabbitMQ.VirtualHost,
-		log,
-		rabbitmq.RetryCount(0),
-		rabbitmq.PrefetchCount(prefetchCount),
-		rabbitmq.WithMessageAuthentication(convert.StringToBytes(conf.RabbitMQ.AuthSecret), rabbitmq.AuthModeStrict),
-	)
-
-	consumers.NewWorker(rabbitMQClient, log, app.BuildCustomerConsumer(pool)).Consume(ctx)
+	consumers.NewWorker(rabbitMQClient, log, app.BuildCustomerConsumer(pool), app.BuildBillingConsumer(log, pool, registry, outboxInstance)).Consume(ctx)
 	cobra.CheckErr(rabbitMQClient.RunConsumers(ctx))
 }
 

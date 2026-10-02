@@ -43,7 +43,16 @@ func RunServer(conf *config.Config) {
 	redisService := newRedisService(conf, log)
 	registry := newRegistry(conf, log)
 
-	server := app.BuildServer(log, conf, pool, redisService, registry, http.DefaultRateLimit)
+	// The server only writes the outbox (a delete stops the meter); the
+	// `outbox` command relays, so no publisher registration happens here.
+	mongoClient := newMongoClient(conf, log)
+	defer func() { _ = mongoClient.GetClient().Disconnect(ctx) }()
+	outboxInstance, err := newOutbox(mongoClient, newRabbitMQClient(ctx, conf, log), log)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server := app.BuildServer(log, conf, pool, redisService, registry, outboxInstance, http.DefaultRateLimit)
 	server.Logger.Fatal(server.Start(conf.Server.Port))
 }
 

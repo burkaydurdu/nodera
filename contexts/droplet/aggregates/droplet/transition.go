@@ -89,6 +89,8 @@ func (d *Droplet) Transition(to Status, reason string, now time.Time) (*HistoryE
 	case StatusFailed:
 		r := reason
 		d.FailureReason = &r
+		at := now
+		d.FailedAt = &at
 	case StatusProvisioning, StatusOff:
 	}
 

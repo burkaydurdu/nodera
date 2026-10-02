@@ -12,7 +12,9 @@ type IService interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*Droplet, error)
 	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*Droplet, error)
 	FindByProjectID(ctx context.Context, projectID uuid.UUID) (Droplets, error)
+	FindByTeamID(ctx context.Context, teamID uuid.UUID) (Droplets, error)
 	FindTransitional(ctx context.Context) (Droplets, error)
+	FindBilled(ctx context.Context) (Droplets, error)
 	Save(ctx context.Context, d *Droplet) error
 	Transition(ctx context.Context, d *Droplet, to Status, reason string) error
 	ListHistory(ctx context.Context, dropletID uuid.UUID) (History, error)
@@ -23,7 +25,9 @@ type IRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*Droplet, error)
 	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*Droplet, error)
 	FindByProjectID(ctx context.Context, projectID uuid.UUID) (Droplets, error)
+	FindByTeamID(ctx context.Context, teamID uuid.UUID) (Droplets, error)
 	FindTransitional(ctx context.Context) (Droplets, error)
+	FindBilled(ctx context.Context) (Droplets, error)
 	Save(ctx context.Context, d *Droplet) error
 	AddHistory(ctx context.Context, dropletID uuid.UUID, entry *HistoryEntry) error
 	ListHistory(ctx context.Context, dropletID uuid.UUID) (History, error)
@@ -53,8 +57,16 @@ func (s *Service) FindByProjectID(ctx context.Context, projectID uuid.UUID) (Dro
 	return s.repository.FindByProjectID(ctx, projectID)
 }
 
+func (s *Service) FindByTeamID(ctx context.Context, teamID uuid.UUID) (Droplets, error) {
+	return s.repository.FindByTeamID(ctx, teamID)
+}
+
 func (s *Service) FindTransitional(ctx context.Context) (Droplets, error) {
 	return s.repository.FindTransitional(ctx)
+}
+
+func (s *Service) FindBilled(ctx context.Context) (Droplets, error) {
+	return s.repository.FindBilled(ctx)
 }
 
 func (s *Service) Save(ctx context.Context, d *Droplet) error {

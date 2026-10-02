@@ -21,6 +21,15 @@ username = ""
 password = ""
 db = 0
 
+# The outbox lives here and nothing else does (docs/adr/0001).
+[mongodb]
+host = ""
+port = 0
+username = ""
+password = ""
+database = "nodera_droplet_outbox"
+uri = ""
+
 [rabbitmq]
 host = ""
 username = ""

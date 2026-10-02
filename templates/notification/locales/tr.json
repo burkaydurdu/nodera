@@ -6,5 +6,12 @@
   "team_invitation_subject": "{{.InviterName}} seni Nodera'da {{.TeamName}} takımına davet etti",
   "role_owner": "Sahip",
   "role_developer": "Geliştirici",
-  "role_finance": "Finans"
+  "role_finance": "Finans",
+  "invoice_issued_subject": "{{.TeamName}} için {{.InvoiceNumber}} numaralı fatura hazır",
+  "payment_succeeded_subject": "{{.TeamName}} için ödeme alındı: {{.Amount}} {{.Currency}}",
+  "payment_failed_subject": "{{.TeamName}} için ödeme alınamadı: {{.InvoiceNumber}} numaralı fatura",
+  "payment_confirmation_required_subject": "{{.TeamName}} için ödemeni onayla",
+  "team_suspended_subject": "{{.TeamName}} Nodera'da askıya alındı",
+  "droplets_deletion_warning_subject": "İşlem gerekli: {{.TeamName}} droplet'leri silinecek",
+  "card_expiring_subject": "{{.TeamName}} için {{.Last4}} ile biten kartının süresi dolmak üzere"
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/piggystats/nodera/cmd/droplet/config"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/access"
+	"github.com/piggystats/nodera/contexts/droplet/aggregates/billing"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/catalog"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/droplet"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/provider"
@@ -15,6 +16,7 @@ import (
 	"github.com/piggystats/nodera/contexts/droplet/application/handlers"
 	"github.com/piggystats/nodera/contexts/droplet/application/jobs"
 	"github.com/piggystats/nodera/contexts/droplet/async/consumers"
+	"github.com/piggystats/nodera/contexts/droplet/async/producers"
 	"github.com/piggystats/nodera/contexts/droplet/providers"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/internal/persistence/redis"
@@ -31,6 +33,7 @@ type Services struct {
 	Catalog      catalog.IService
 	Droplets     droplet.IService
 	Access       access.IService
+	Billing      billing.IService
 	Transactions postgresql.ITransactionManager
 }
 
@@ -42,8 +45,15 @@ func NewServices(pool *pgxpool.Pool) *Services {
 		Catalog:      catalog.NewService(catalog.NewRepository(queries)),
 		Droplets:     droplet.NewService(droplet.NewRepository(queries)),
 		Access:       access.NewService(access.NewRepository(queries)),
+		Billing:      billing.NewService(billing.NewRepository(queries)),
 		Transactions: postgresql.NewTransactionManager(pool),
 	}
+}
+
+// NewMeter is the one announcer of the meter's boundaries; the server, the
+// jobs and the billing reactions each write through the same outbox.
+func NewMeter(log logger.ILog, outboxClient producers.OutboxClient) *handlers.Meter {
+	return handlers.NewMeter(log, producers.NewBillingStarted(outboxClient), producers.NewBillingStopped(outboxClient))
 }
 
 // BuildServer wires the droplet service over already-built dependencies. The
@@ -55,14 +65,15 @@ func BuildServer(
 	pool *pgxpool.Pool,
 	redisService redis.IService,
 	registry *providers.Registry,
+	outboxClient producers.OutboxClient,
 	rateLimit int,
 ) *echo.Echo {
 	services := NewServices(pool)
 
 	catalogHandler := handlers.NewCatalog(services.Catalog)
 	dropletHandler := handlers.NewDroplet(
-		log, services.Catalog, services.Droplets, services.Access, services.Providers, registry, services.Transactions,
-		ratelimit.NewLimiter(redisService),
+		log, services.Catalog, services.Droplets, services.Access, services.Billing, services.Providers, registry, services.Transactions,
+		NewMeter(log, outboxClient), ratelimit.NewLimiter(redisService),
 	)
 
 	authenticate := apiMiddleware.Authenticate(conf.Secret.JWT, apiMiddleware.NewRedisSessions(redisService))
@@ -78,12 +89,20 @@ func BuildServer(
 	return server
 }
 
-func BuildJobs(log logger.ILog, pool *pgxpool.Pool, registry *providers.Registry) *jobs.Jobs {
+func BuildJobs(log logger.ILog, pool *pgxpool.Pool, registry *providers.Registry, outboxClient producers.OutboxClient) *jobs.Jobs {
 	services := NewServices(pool)
 
-	return jobs.New(log, services.Providers, services.Catalog, services.Droplets, registry, services.Transactions)
+	return jobs.New(log, services.Providers, services.Catalog, services.Droplets, services.Billing, registry, services.Transactions, NewMeter(log, outboxClient))
 }
 
 func BuildCustomerConsumer(pool *pgxpool.Pool) *consumers.CustomerEvents {
 	return consumers.NewCustomerEvents(NewServices(pool).Access)
+}
+
+func BuildBillingConsumer(log logger.ILog, pool *pgxpool.Pool, registry *providers.Registry, outboxClient producers.OutboxClient) *consumers.BillingEvents {
+	services := NewServices(pool)
+
+	return consumers.NewBillingEvents(handlers.NewTeamBilling(
+		log, services.Billing, services.Droplets, services.Providers, registry, services.Transactions, NewMeter(log, outboxClient),
+	))
 }

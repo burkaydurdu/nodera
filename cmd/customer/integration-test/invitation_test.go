@@ -201,6 +201,10 @@ func (s *customerSuite) TestInvitations_AcceptByToken_JoinsWithTheRoleBumpsVersi
 	s.Equal(teamID, added["team_id"])
 	s.Equal(inviteeID, added["user_id"])
 	s.Equal("finance", added["role"])
+	s.Equal(inviteeEmail, added["email"])
+	s.Equal("Test Person", added["full_name"])
+	s.Equal("en", added["locale"])
+	s.isRFC3339UTC(added["added_at"])
 
 	refreshed := s.post("/v1/auth/refresh", fmt.Sprintf(`{"refresh_token":%q}`, invitee.Refresh))
 	s.Require().Equal(http.StatusOK, refreshed.Code, refreshed.Raw)
@@ -614,7 +618,11 @@ func (s *customerSuite) TestRegister_WithInvitationToken_VerificationJoinsTheTea
 	s.Equal("developer", claims.Teams[teamID])
 	s.Len(claims.Teams, 2)
 
-	s.Contains(s.outboxPayloads(constants.TeamMemberAdded, "team_id"), teamID)
+	added := s.outboxPayloadWhere(constants.TeamMemberAdded, map[string]any{"team_id": teamID, "user_id": s.userID(inviteeEmail)})
+	s.Equal("developer", added["role"])
+	s.Equal(inviteeEmail, added["email"], "the address goes out normalized, as the users table holds it")
+	s.Equal("New Hire", added["full_name"])
+	s.Equal("en", added["locale"])
 	var status string
 	var pending *string
 	s.Require().NoError(s.pgPool.QueryRow(s.T().Context(),

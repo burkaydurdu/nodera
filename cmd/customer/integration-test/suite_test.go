@@ -348,6 +348,34 @@ func (s *customerSuite) outboxPayloads(routingKey, field string) []string {
 	return values
 }
 
+// outboxPayloadWhere answers the payload under routingKey whose fields hold
+// every value in match, so a scenario can pick one event out of a batch.
+func (s *customerSuite) outboxPayloadWhere(routingKey string, match map[string]any) map[string]any {
+	cursor, err := s.mongoDB.Collection("outbox").Find(context.Background(), bson.M{"routing_key": routingKey})
+	s.Require().NoError(err)
+	defer func() { _ = cursor.Close(context.Background()) }()
+
+	for cursor.Next(context.Background()) {
+		var doc struct {
+			Payload string `bson:"payload"`
+		}
+		s.Require().NoError(cursor.Decode(&doc))
+		var event map[string]any
+		s.Require().NoError(json.Unmarshal([]byte(doc.Payload), &event))
+		payload, _ := event["payload"].(map[string]any)
+		matched := true
+		for field, value := range match {
+			matched = matched && payload[field] == value
+		}
+		if matched {
+			return payload
+		}
+	}
+	s.Require().FailNowf("no event matched", "%s with %v", routingKey, match)
+
+	return nil
+}
+
 func (s *customerSuite) clearOutbox() {
 	_, err := s.mongoDB.Collection("outbox").DeleteMany(context.Background(), bson.M{})
 	s.Require().NoError(err)

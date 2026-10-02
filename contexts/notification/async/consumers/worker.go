@@ -36,6 +36,13 @@ func NewWorker(client rabbitmq.IClient, log logger.ILog, sender ISender) *Worker
 			bind(NewMFAEmailCode(sender), constants.MFAEmailCode),
 			bind(NewPasswordReset(sender), constants.PasswordReset),
 			bind(NewTeamInvitation(sender), constants.TeamInvitation),
+			bind(NewInvoiceIssued(sender, log), constants.InvoiceIssued),
+			bind(NewPaymentSucceeded(sender, log), constants.PaymentSucceeded),
+			bind(NewPaymentFailed(sender, log), constants.PaymentFailed),
+			bind(NewPaymentConfirmationRequired(sender, log), constants.PaymentConfirmationRequired),
+			bind(NewTeamSuspended(sender, log), constants.TeamSuspended),
+			bind(NewDropletsDeletionWarning(sender, log), constants.DropletsDeletionWarning),
+			bind(NewCardExpiring(sender, log), constants.CardExpiring),
 		},
 	}
 }

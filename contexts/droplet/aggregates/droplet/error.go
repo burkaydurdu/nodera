@@ -22,4 +22,8 @@ var (
 	// ErrorForbidden is for a member of the Team whose Role lacks the
 	// Permission; a stranger gets ErrorNotFound instead (docs/adr/0005).
 	ErrorForbidden = rerror.Error{Code: 10008, Domain: Domain, HttpStatus: http.StatusForbidden, Message: "not allowed for your role"}
+	// The Team's Billing status, learned from the billing context's events
+	// (docs/adr/0006): no card yet, or suspended for an unpaid Invoice.
+	ErrorPaymentMethodRequired = rerror.Error{Code: 10009, Domain: Domain, HttpStatus: http.StatusPaymentRequired, Message: "payment method required"}
+	ErrorTeamSuspended         = rerror.Error{Code: 10010, Domain: Domain, HttpStatus: http.StatusLocked, Message: "team suspended"}
 )

@@ -9,6 +9,7 @@ import (
 	"github.com/piggystats/rerror"
 
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/access"
+	"github.com/piggystats/nodera/contexts/droplet/aggregates/billing"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/catalog"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/droplet"
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/provider"
@@ -29,7 +30,6 @@ const (
 	scopeCreate     = "droplet:create"
 	scopeAction     = "droplet:action"
 	reasonDeleteAsk = "deletion requested"
-	reasonNoServer  = "no server to release"
 	reasonAbandoned = "released: deleted while being ordered"
 
 	// provisionTimeout bounds the Provider calls made after the Droplet is
@@ -46,14 +46,11 @@ type ProviderRegistry interface {
 }
 
 type Droplet struct {
-	log          logger.ILog
-	catalog      catalog.IService
-	droplets     droplet.IService
-	access       access.IService
-	providers    provider.IService
-	registry     ProviderRegistry
-	transactions postgresql.ITransactionManager
-	limiter      ratelimit.ILimiter
+	*dropletOps
+	catalog catalog.IService
+	access  access.IService
+	billing billing.IService
+	limiter ratelimit.ILimiter
 }
 
 func NewDroplet(
@@ -61,14 +58,19 @@ func NewDroplet(
 	catalogService catalog.IService,
 	droplets droplet.IService,
 	accessService access.IService,
+	billingService billing.IService,
 	providerService provider.IService,
 	registry ProviderRegistry,
 	transactions postgresql.ITransactionManager,
+	meter *Meter,
 	limiter ratelimit.ILimiter,
 ) *Droplet {
 	return &Droplet{
-		log: log, catalog: catalogService, droplets: droplets, access: accessService, providers: providerService,
-		registry: registry, transactions: transactions, limiter: limiter,
+		dropletOps: &dropletOps{log: log, droplets: droplets, providers: providerService, registry: registry, transactions: transactions, meter: meter},
+		catalog:    catalogService,
+		access:     accessService,
+		billing:    billingService,
+		limiter:    limiter,
 	}
 }
 
@@ -88,10 +90,11 @@ func (h *Droplet) List(ctx context.Context, req *droplet.ListRequest) ([]*dto.Dr
 	return dto.ToDroplets(droplets), nil
 }
 
-// Create follows the spec's order: validate, authorize, check the catalog,
-// ask the Provider live, insert and commit, and only then order the server.
-// The answer is the provisioning Droplet whatever the Provider then says; the
-// outcome arrives through list and detail.
+// Create follows the spec's order: validate, authorize, check the Team's
+// Billing status, check the catalog, ask the Provider live, insert and
+// commit, and only then order the server. The answer is the provisioning
+// Droplet whatever the Provider then says; the outcome arrives through list
+// and detail.
 func (h *Droplet) Create(ctx context.Context, req *droplet.CreateRequest) (*dto.Droplet, error) {
 	userID := contextutil.CurrentUserID(ctx)
 	if err := h.limiter.Allow(ctx, scopeCreate, userID.String(), ratelimit.Rule{Window: rateLimitWindow, Limit: createRateLimit}); err != nil {
@@ -101,6 +104,9 @@ func (h *Droplet) Create(ctx context.Context, req *droplet.CreateRequest) (*dto.
 	projectID := uuid.MustParse(req.ProjectID)
 	membership, err := h.authorizeProject(ctx, projectID, authz.DropletWrite)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireBilling(ctx, membership.TeamID, true); err != nil {
 		return nil, err
 	}
 
@@ -278,31 +284,6 @@ func (h *Droplet) fail(ctx context.Context, id uuid.UUID, cause error) {
 	}
 }
 
-// update is the one read-modify-write on a Droplet: the row is locked for the
-// transaction, mutate sees the current row and persists what it decides, and
-// the commit releases the lock. The poller does the same, so neither side can
-// overwrite the other's change.
-func (h *Droplet) update(ctx context.Context, id uuid.UUID, mutate func(ctx context.Context, current *droplet.Droplet) error) error {
-	txCtx, err := h.transactions.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	current, err := h.droplets.FindByIDForUpdate(txCtx, id)
-	if err != nil {
-		_ = h.transactions.Rollback(txCtx)
-
-		return err
-	}
-	if err := mutate(txCtx, current); err != nil {
-		_ = h.transactions.Rollback(txCtx)
-
-		return err
-	}
-
-	return h.transactions.Commit(txCtx)
-}
-
 // customerSafeReason keeps only the message of a provider-domain rerror;
 // anything else is a generic unavailability.
 func customerSafeReason(err error) string {
@@ -330,8 +311,9 @@ func (h *Droplet) Get(ctx context.Context, req *droplet.GetRequest) (*dto.Drople
 
 // Action records a power request as pending and then forwards it; the
 // resulting status comes from the poller. Allowed from active and off only,
-// one at a time. The marker is committed before the Provider is asked, so a
-// poll landing in between sees it; a refused request clears it again.
+// one at a time; a suspended Team may only power off. The marker is
+// committed before the Provider is asked, so a poll landing in between sees
+// it; a refused request clears it again.
 func (h *Droplet) Action(ctx context.Context, req *droplet.ActionRequest) (*dto.Droplet, error) {
 	userID := contextutil.CurrentUserID(ctx)
 	if err := h.limiter.Allow(ctx, scopeAction, userID.String(), ratelimit.Rule{Window: rateLimitWindow, Limit: actionRateLimit}); err != nil {
@@ -346,10 +328,22 @@ func (h *Droplet) Action(ctx context.Context, req *droplet.ActionRequest) (*dto.
 	action := droplet.Action(req.Type)
 	var d *droplet.Droplet
 	err = h.update(ctx, authorized.ID, func(ctx context.Context, current *droplet.Droplet) error {
+		// Read under the row lock, so a suspension that lands meanwhile either
+		// refuses this action or finds its marker and leaves it to the poller.
+		if action != droplet.ActionPowerOff {
+			if err := h.requireBilling(ctx, current.TeamID, false); err != nil {
+				return err
+			}
+		}
 		if !current.Status.AllowsPowerAction() || current.PendingAction != nil || current.ProviderRef == nil {
 			return droplet.ErrorActionNotAllowed
 		}
 		current.PendingAction = &action
+		if action == droplet.ActionPowerOff {
+			// The customer's own power-off outlives a suspension: the recovery
+			// leaves this Droplet off.
+			current.SuspendedPowerOffAt = nil
+		}
 		d = current
 
 		return h.droplets.Save(ctx, current)
@@ -373,65 +367,40 @@ func (h *Droplet) Action(ctx context.Context, req *droplet.ActionRequest) (*dto.
 	return dto.ToDroplet(d), nil
 }
 
-// clearPending takes back the marker of a request the Provider never took;
-// only that request's own marker, should the poller have moved on already.
-func (h *Droplet) clearPending(ctx context.Context, id uuid.UUID, action droplet.Action) {
-	err := h.update(ctx, id, func(ctx context.Context, current *droplet.Droplet) error {
-		if current.PendingAction == nil || *current.PendingAction != action {
-			return nil
-		}
-		current.PendingAction = nil
-
-		return h.droplets.Save(ctx, current)
-	})
-	if err != nil {
-		h.log.ErrorWithFields(err, logger.NewFields().Add("droplet", id.String()).Add("action", string(action)))
-	}
-}
-
-// Delete stops the meter at once and asks the Provider to release the server;
-// the poller (or the absence of a server) finishes the job. Allowed from every
-// status but deleting and deleted: a customer may abandon a Droplet still
-// being ordered. Never a hard delete.
+// Delete releases the Droplet on the customer's word; the billing context's
+// deletion request takes the same path with its own reason.
 func (h *Droplet) Delete(ctx context.Context, req *droplet.DeleteRequest) (*dto.Droplet, error) {
 	authorized, err := h.findAuthorized(ctx, req.DropletID, authz.DropletWrite)
 	if err != nil {
 		return nil, err
 	}
 
-	var d *droplet.Droplet
-	err = h.update(ctx, authorized.ID, func(ctx context.Context, current *droplet.Droplet) error {
-		if !current.Status.AllowsDelete() {
-			return droplet.ErrorActionNotAllowed
-		}
-		if err := h.droplets.Transition(ctx, current, droplet.StatusDeleting, reasonDeleteAsk); err != nil {
-			return err
-		}
-		d = current
-		if current.ProviderRef != nil {
-			return nil
-		}
-
-		return h.droplets.Transition(ctx, current, droplet.StatusDeleted, reasonNoServer)
-	})
+	d, err := h.release(ctx, authorized.ID, reasonDeleteAsk)
 	if err != nil {
 		return nil, err
-	}
-	if d.ProviderRef == nil {
-		return dto.ToDroplet(d), nil
-	}
-
-	adapter, err := h.adapterFor(ctx, d)
-	if err != nil {
-		return nil, err
-	}
-	if err := adapter.DeleteServer(ctx, *d.ProviderRef); err != nil {
-		// The Droplet stays deleting; the poller asks the Provider again on
-		// every run until the server is gone.
-		h.log.ErrorWithFields(err, logger.NewFields().Add("droplet", d.ID.String()))
 	}
 
 	return dto.ToDroplet(d), nil
+}
+
+// requireBilling enforces the Team's Billing status after the access checks
+// (docs/adr/0006): a suspended Team may neither create nor power on; a Team
+// without a payment method, or one this context has not heard about yet,
+// may not create.
+func (h *Droplet) requireBilling(ctx context.Context, teamID uuid.UUID, creating bool) error {
+	status, err := h.billing.StatusOf(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case status == billing.StatusSuspended:
+		return droplet.ErrorTeamSuspended
+	case creating && status != billing.StatusActive:
+		return droplet.ErrorPaymentMethodRequired
+	default:
+		return nil
+	}
 }
 
 // authorizeProject answers the caller's membership in the Project's Team when
@@ -470,13 +439,4 @@ func (h *Droplet) findAuthorized(ctx context.Context, rawID string, permission a
 	}
 
 	return d, nil
-}
-
-func (h *Droplet) adapterFor(ctx context.Context, d *droplet.Droplet) (providers.Provider, error) {
-	p, err := h.providers.FindByID(ctx, d.ProviderID)
-	if err != nil {
-		return nil, err
-	}
-
-	return h.registry.Get(p.Code)
 }

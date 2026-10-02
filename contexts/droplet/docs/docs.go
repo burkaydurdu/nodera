@@ -177,7 +177,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allowed from active and off only; the resulting status arrives through detail. 403 when the caller's Role lacks droplet.write.",
+                "description": "Allowed from active and off only; the resulting status arrives through detail. 403 when the caller's Role lacks droplet.write. 423 (code 10010) for power_on and reboot while the Team is suspended for an unpaid Invoice; power_off is always allowed.",
                 "consumes": [
                     "application/json"
                 ],
@@ -257,7 +257,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Answers 201 with the provisioning Droplet; the outcome arrives through list and detail. 409 when the Plan sold out or its price rose since the catalog was loaded. 403 when the caller's Role in the Team lacks droplet.write; 404 for a Project the caller is not a member of.",
+                "description": "Answers 201 with the provisioning Droplet; the outcome arrives through list and detail. 409 when the Plan sold out or its price rose since the catalog was loaded. 403 when the caller's Role in the Team lacks droplet.write; 404 for a Project the caller is not a member of. 402 (code 10009) while the Team holds no payment method; 423 (code 10010) while the Team is suspended for an unpaid Invoice.",
                 "consumes": [
                     "application/json"
                 ],

@@ -42,15 +42,15 @@ func (m *MockITeamMemberAddedProducer) EXPECT() *MockITeamMemberAddedProducerMoc
 }
 
 // Publish mocks base method.
-func (m_2 *MockITeamMemberAddedProducer) Publish(ctx context.Context, m *team.Member) error {
+func (m_2 *MockITeamMemberAddedProducer) Publish(ctx context.Context, m *team.Member, person team.Person) error {
 	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "Publish", ctx, m)
+	ret := m_2.ctrl.Call(m_2, "Publish", ctx, m, person)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Publish indicates an expected call of Publish.
-func (mr *MockITeamMemberAddedProducerMockRecorder) Publish(ctx, m any) *gomock.Call {
+func (mr *MockITeamMemberAddedProducerMockRecorder) Publish(ctx, m, person any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockITeamMemberAddedProducer)(nil).Publish), ctx, m)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockITeamMemberAddedProducer)(nil).Publish), ctx, m, person)
 }

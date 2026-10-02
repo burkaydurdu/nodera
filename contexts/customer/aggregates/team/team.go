@@ -45,6 +45,24 @@ type Memberships []*Membership
 
 type Teams []*Team
 
+// Person is what the events say about a member besides their id, so a
+// consumer can address them without asking the customer context back
+// (docs/adr/0004). Locale is a string here because an aggregate never
+// imports a sibling.
+type Person struct {
+	Email    string
+	FullName string
+	Locale   string
+}
+
+// TeamDetail is a Team with who opened it, as the replay announces them.
+type TeamDetail struct {
+	Team
+	Owner Person
+}
+
+type TeamDetails []*TeamDetail
+
 // Member is a membership seen from the Team: who holds which Role since when.
 type Member struct {
 	TeamID    uuid.UUID
@@ -55,11 +73,10 @@ type Member struct {
 
 type Members []*Member
 
-// MemberDetail is a Member with what the members list shows about the person.
+// MemberDetail is a Member together with the person holding the seat.
 type MemberDetail struct {
 	Member
-	FullName string
-	Email    string
+	Person
 }
 
 type MemberDetails []*MemberDetail

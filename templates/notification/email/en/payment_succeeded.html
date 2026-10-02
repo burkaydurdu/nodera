@@ -1,0 +1,25 @@
+{{ define "payment_succeeded" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">Payment received for {{.TeamName}}</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, we received <strong>{{.Amount}} {{.Currency}}</strong> for invoice {{.InvoiceNumber}} on {{ .PaidAt.UTC.Format "January 2, 2006" }}. Thank you.</p>
+              <p class="subtitle">The receipt is attached to the invoice in your billing dashboard.</p>
+              <p class="subtitle">This email was sent to {{.Email}} because it is a billing contact of {{.TeamName}}.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

@@ -12,8 +12,8 @@ type IService interface {
 	AddMember(ctx context.Context, teamID, userID uuid.UUID, role Role) (*Member, error)
 	FindMembershipsByUserID(ctx context.Context, userID uuid.UUID) (Memberships, error)
 	FindMembership(ctx context.Context, teamID, userID uuid.UUID) (*Membership, error)
-	FindAll(ctx context.Context) (Teams, error)
-	FindAllMembers(ctx context.Context) (Members, error)
+	FindAll(ctx context.Context) (TeamDetails, error)
+	FindAllMembers(ctx context.Context) (MemberDetails, error)
 	FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error)
 	FindMember(ctx context.Context, teamID, userID uuid.UUID) (*MemberDetail, error)
 	Lock(ctx context.Context, teamID uuid.UUID) error
@@ -27,8 +27,8 @@ type IRepository interface {
 	AddMember(ctx context.Context, teamID, userID uuid.UUID, role Role) (*Member, error)
 	FindMembershipsByUserID(ctx context.Context, userID uuid.UUID) (Memberships, error)
 	FindMembership(ctx context.Context, teamID, userID uuid.UUID) (*Membership, error)
-	FindAll(ctx context.Context) (Teams, error)
-	FindAllMembers(ctx context.Context) (Members, error)
+	FindAll(ctx context.Context) (TeamDetails, error)
+	FindAllMembers(ctx context.Context) (MemberDetails, error)
 	FindMembers(ctx context.Context, teamID uuid.UUID) (MemberDetails, error)
 	FindMember(ctx context.Context, teamID, userID uuid.UUID) (*MemberDetail, error)
 	Lock(ctx context.Context, teamID uuid.UUID) error
@@ -61,11 +61,11 @@ func (s *Service) FindMembership(ctx context.Context, teamID, userID uuid.UUID) 
 	return s.repository.FindMembership(ctx, teamID, userID)
 }
 
-func (s *Service) FindAll(ctx context.Context) (Teams, error) {
+func (s *Service) FindAll(ctx context.Context) (TeamDetails, error) {
 	return s.repository.FindAll(ctx)
 }
 
-func (s *Service) FindAllMembers(ctx context.Context) (Members, error) {
+func (s *Service) FindAllMembers(ctx context.Context) (MemberDetails, error) {
 	return s.repository.FindAllMembers(ctx)
 }
 

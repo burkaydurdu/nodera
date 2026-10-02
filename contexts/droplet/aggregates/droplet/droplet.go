@@ -63,6 +63,13 @@ type Droplet struct {
 	ActiveAt        *time.Time
 	DeletionRequest *time.Time
 	DeletedAt       *time.Time
+	FailedAt        *time.Time
+
+	// The meter's boundaries announced so far (see billing.go) and the mark
+	// of a Droplet this context powered off because its Team was suspended.
+	BillingStartedPublishedAt *time.Time
+	BillingStoppedPublishedAt *time.Time
+	SuspendedPowerOffAt       *time.Time
 }
 
 type Droplets []*Droplet

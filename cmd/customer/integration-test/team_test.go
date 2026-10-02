@@ -116,6 +116,10 @@ func (s *customerSuite) TestRegister_PublishesTeamCreatedAndOwnerMembership() {
 	created := s.outboxPayload(constants.TeamCreated)
 	s.Equal(teamID, created["team_id"])
 	s.Equal(userID, created["owner_user_id"])
+	s.Equal("Test Person", created["name"], "the first Team is named after its owner")
+	s.Equal(email, created["owner_email"])
+	s.Equal("Test Person", created["owner_full_name"])
+	s.Equal("en", created["owner_locale"])
 	s.isRFC3339UTC(created["created_at"])
 
 	s.Equal(int64(1), s.outboxCount(constants.TeamMemberAdded))
@@ -123,25 +127,39 @@ func (s *customerSuite) TestRegister_PublishesTeamCreatedAndOwnerMembership() {
 	s.Equal(teamID, added["team_id"])
 	s.Equal(userID, added["user_id"])
 	s.Equal("owner", added["role"])
+	s.Equal(email, added["email"])
+	s.Equal("Test Person", added["full_name"])
+	s.Equal("en", added["locale"])
 	s.isRFC3339UTC(added["added_at"])
 
 	s.Equal(int64(0), s.outboxCount(constants.ProjectCreated))
 }
 
 func (s *customerSuite) TestTeams_CreatePublishesTeamCreatedAndOwnerMembership() {
-	tokens := s.registerAndVerify(s.uniqueEmail("teamcreateevents"), "Str0ng!pass")
+	email := s.uniqueEmail("teamcreateevents")
+	tokens := s.registerAndVerify(email, "Str0ng!pass")
 	s.clearOutbox()
 
 	created := s.authed(http.MethodPost, "/v1/teams", `{"name":"Platform"}`, tokens.Access)
 	s.Require().Equal(http.StatusCreated, created.Code, created.Raw)
 
 	s.Equal(int64(1), s.outboxCount(constants.TeamCreated))
-	s.Equal(created.str("id"), s.outboxPayload(constants.TeamCreated)["team_id"])
+	published := s.outboxPayload(constants.TeamCreated)
+	s.Equal(created.str("id"), published["team_id"])
+	s.Equal(s.userID(email), published["owner_user_id"])
+	s.Equal("Platform", published["name"])
+	s.Equal(email, published["owner_email"])
+	s.Equal("Test Person", published["owner_full_name"])
+	s.Equal("en", published["owner_locale"])
 
 	s.Equal(int64(1), s.outboxCount(constants.TeamMemberAdded))
 	added := s.outboxPayload(constants.TeamMemberAdded)
 	s.Equal(created.str("id"), added["team_id"])
+	s.Equal(s.userID(email), added["user_id"])
 	s.Equal("owner", added["role"])
+	s.Equal(email, added["email"])
+	s.Equal("Test Person", added["full_name"])
+	s.Equal("en", added["locale"])
 }
 
 func (s *customerSuite) TestTeams_RejectedCreatePublishesNothing() {
@@ -177,7 +195,8 @@ func (s *customerSuite) TestProjects_CreatePublishesProjectCreated() {
 // ── replay-projects ──────────────────────────────────────────────────────────
 
 func (s *customerSuite) TestReplayProjects_RepublishesEveryTeamMembershipAndProject() {
-	tokens := s.registerAndVerify(s.uniqueEmail("replay"), "Str0ng!pass")
+	ownerEmail := s.uniqueEmail("replay")
+	tokens := s.registerAndVerify(ownerEmail, "Str0ng!pass")
 	firstTeam := s.teamID(tokens.Access)
 	secondTeam := s.authed(http.MethodPost, "/v1/teams", `{"name":"Second"}`, tokens.Access).str("id")
 	projectID := s.authed(http.MethodPost, "/v1/teams/"+firstTeam+"/projects", `{"name":"P1","description":""}`, tokens.Access).str("id")
@@ -209,4 +228,17 @@ func (s *customerSuite) TestReplayProjects_RepublishesEveryTeamMembershipAndProj
 	s.Contains(s.outboxPayloads(constants.TeamCreated, "team_id"), secondTeam)
 	s.Contains(s.outboxPayloads(constants.TeamMemberAdded, "team_id"), secondTeam)
 	s.Contains(s.outboxPayloads(constants.TeamMemberAdded, "role"), "finance", "a replayed membership carries its current Role")
+
+	replayedTeam := s.outboxPayloadWhere(constants.TeamCreated, map[string]any{"team_id": secondTeam})
+	s.Equal("Second", replayedTeam["name"])
+	s.Equal(s.userID(ownerEmail), replayedTeam["owner_user_id"])
+	s.Equal(ownerEmail, replayedTeam["owner_email"], "a replayed Team carries its owner as the users table knows them")
+	s.Equal("Test Person", replayedTeam["owner_full_name"])
+	s.Equal("en", replayedTeam["owner_locale"])
+
+	replayedMember := s.outboxPayloadWhere(constants.TeamMemberAdded, map[string]any{"team_id": firstTeam, "user_id": s.userID(finEmail)})
+	s.Equal("finance", replayedMember["role"])
+	s.Equal(finEmail, replayedMember["email"])
+	s.Equal("Test Person", replayedMember["full_name"])
+	s.Equal("en", replayedMember["locale"])
 }

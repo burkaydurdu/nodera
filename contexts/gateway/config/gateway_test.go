@@ -188,3 +188,144 @@ func TestValidate_MissingPathOrMethod_IsRefused(t *testing.T) {
 
 	assert.Error(t, g.Validate())
 }
+
+func TestValidate_HeaderlessPublicRoute_Passes(t *testing.T) {
+	g := &GatewayConfig{Gateway: Gateway{Services: map[string]Service{
+		"billing": {Host: "http://billing:9670", Endpoints: Endpoints{
+			{Path: "/v1/billing/webhooks/stripe", Method: "POST", Public: true, Headerless: true},
+		}},
+	}}}
+
+	assert.NoError(t, g.Validate())
+}
+
+// A headerless route is reached without the target header, and a caller that
+// cannot send a header cannot send a token either.
+func TestValidate_HeaderlessPrivateRoute_IsRefused(t *testing.T) {
+	g := &GatewayConfig{Gateway: Gateway{Services: map[string]Service{
+		"billing": {Host: "http://billing:9670", Endpoints: Endpoints{
+			{Path: "/v1/billing/webhooks/stripe", Method: "POST", Headerless: true},
+		}},
+	}}}
+
+	err := g.Validate()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "POST /v1/billing/webhooks/stripe")
+	assert.Contains(t, err.Error(), "headerless")
+	assert.Contains(t, err.Error(), "public")
+}
+
+// Whether two headerless routes in different services could both claim one
+// request is a pure function of their method and path patterns.
+func TestValidate_HeaderlessRoutesInTwoServices_RefusedWhenTheyCanMatchTheSameRequest(t *testing.T) {
+	cases := []struct {
+		name           string
+		methodA, pathA string
+		methodB, pathB string
+		refused        bool
+	}{
+		{"same literal path", "POST", "/v1/hooks/pay", "POST", "/v1/hooks/pay", true},
+		{"method case differs", "POST", "/v1/hooks/pay", "post", "/v1/hooks/pay", true},
+		{"param against literal", "POST", "/v1/hooks/:provider", "POST", "/v1/hooks/pay", true},
+		{"param against param", "POST", "/v1/payments/:paymentID/3ds", "POST", "/v1/payments/:id/3ds", true},
+		{"wildcard against anything", "POST", "*", "POST", "/v1/hooks/pay", true},
+		{"different literals", "POST", "/v1/hooks/stripe", "POST", "/v1/hooks/craftgate", false},
+		{"different methods", "POST", "/v1/hooks/pay", "GET", "/v1/hooks/pay", false},
+		{"different segment counts", "POST", "/v1/hooks/:provider", "POST", "/v1/hooks/:provider/retry", false},
+		{"param cannot reach a different literal", "POST", "/v1/a/:x", "POST", "/v1/b/pay", false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := &GatewayConfig{Gateway: Gateway{Services: map[string]Service{
+				"billing":  {Host: "http://billing:9670", Endpoints: Endpoints{{Path: c.pathA, Method: c.methodA, Public: true, Headerless: true}}},
+				"payments": {Host: "http://payments:9680", Endpoints: Endpoints{{Path: c.pathB, Method: c.methodB, Public: true, Headerless: true}}},
+			}}}
+
+			err := g.Validate()
+
+			if c.refused {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "billing")
+				assert.Contains(t, err.Error(), "payments")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Within one service the header would name the same upstream either way, so
+// overlapping headerless routes there are not ambiguous.
+func TestValidate_OverlappingHeaderlessRoutesInOneService_Pass(t *testing.T) {
+	g := &GatewayConfig{Gateway: Gateway{Services: map[string]Service{
+		"billing": {Host: "http://billing:9670", Endpoints: Endpoints{
+			{Path: "/v1/billing/webhooks/:provider", Method: "POST", Public: true, Headerless: true},
+			{Path: "/v1/billing/webhooks/stripe", Method: "POST", Public: true, Headerless: true},
+		}},
+	}}}
+
+	assert.NoError(t, g.Validate())
+}
+
+// A headerless route in one service and an ordinary public route with the
+// same path in another are not ambiguous: only headerless routes are
+// considered when the header is missing.
+func TestValidate_HeaderlessAndOrdinaryPublicRouteOnTheSamePath_Pass(t *testing.T) {
+	g := &GatewayConfig{Gateway: Gateway{Services: map[string]Service{
+		"billing":  {Host: "http://billing:9670", Endpoints: Endpoints{{Path: "/v1/hooks/pay", Method: "POST", Public: true, Headerless: true}}},
+		"customer": {Host: "http://customer:9650", Endpoints: Endpoints{{Path: "/v1/hooks/pay", Method: "POST", Public: true}}},
+	}}}
+
+	assert.NoError(t, g.Validate())
+}
+
+func headerlessTable(t *testing.T) *GatewayConfig {
+	t.Helper()
+	g := &GatewayConfig{Gateway: Gateway{Services: map[string]Service{
+		"customer": {Host: "http://customer:9650", Endpoints: Endpoints{
+			{Path: "/v1/auth/login", Method: "POST", Public: true},
+		}},
+		"billing": {Host: "http://billing:9670", Endpoints: Endpoints{
+			{Path: "/v1/billing/webhooks/stripe", Method: "POST", Public: true, Headerless: true},
+			{Path: "/v1/billing/payments/:paymentID/3ds/callback", Method: "POST", Public: true, Headerless: true},
+			{Path: "/v1/billing/payments/:paymentID/3ds/start", Method: "POST", Public: true},
+			{Path: "/v1/teams/:teamID/billing/profile", Method: "GET", Permissions: []string{"billing.read"}},
+		}},
+	}}}
+	require.NoError(t, g.Validate())
+
+	return g
+}
+
+func TestGatewayConfig_HeaderlessService_ResolvesTheOneServiceListingTheRoute(t *testing.T) {
+	g := headerlessTable(t)
+
+	name, ok := g.HeaderlessService("/v1/billing/webhooks/stripe", http.MethodPost)
+	assert.True(t, ok)
+	assert.Equal(t, "billing", name)
+
+	name, ok = g.HeaderlessService("/v1/billing/payments/019a0000-0000-7000-8000-0000000000aa/3ds/callback", http.MethodPost)
+	assert.True(t, ok)
+	assert.Equal(t, "billing", name)
+}
+
+func TestGatewayConfig_HeaderlessService_IgnoresEveryOtherRoute(t *testing.T) {
+	g := headerlessTable(t)
+
+	cases := []struct{ path, method string }{
+		{"/v1/auth/login", http.MethodPost},                    // public, not headerless
+		{"/v1/billing/payments/p1/3ds/start", http.MethodPost}, // public, not headerless
+		{"/v1/teams/t1/billing/profile", http.MethodGet},       // private
+		{"/v1/billing/webhooks/stripe", http.MethodGet},        // headerless path, wrong method
+		{"/v1/billing/webhooks/stripe/extra", http.MethodPost}, // unlisted
+	}
+
+	for _, c := range cases {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			_, ok := g.HeaderlessService(c.path, c.method)
+			assert.False(t, ok)
+		})
+	}
+}

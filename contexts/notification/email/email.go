@@ -22,6 +22,14 @@ const (
 	KindMFAEmailCode           Kind = "mfa_email_code"
 	KindPasswordReset          Kind = "password_reset"
 	KindTeamInvitation         Kind = "team_invitation"
+
+	KindInvoiceIssued               Kind = "invoice_issued"
+	KindPaymentSucceeded            Kind = "payment_succeeded"
+	KindPaymentFailed               Kind = "payment_failed"
+	KindPaymentConfirmationRequired Kind = "payment_confirmation_required"
+	KindTeamSuspended               Kind = "team_suspended"
+	KindDropletsDeletionWarning     Kind = "droplets_deletion_warning"
+	KindCardExpiring                Kind = "card_expiring"
 )
 
 // shared templates carry no copy; per-locale ones do.

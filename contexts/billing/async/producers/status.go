@@ -1,0 +1,38 @@
+package producers
+
+import (
+	"context"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/piggystats/nodera/contexts/billing/async/constants"
+	"github.com/piggystats/nodera/contexts/billing/async/events"
+)
+
+// Timestamps go out in UTC so every consumer reads the same instant whatever
+// zone the database handed back.
+
+type TeamBillingStatusChanged struct{ client OutboxClient }
+
+func NewTeamBillingStatusChanged(client OutboxClient) *TeamBillingStatusChanged {
+	return &TeamBillingStatusChanged{client: client}
+}
+
+func (p *TeamBillingStatusChanged) Publish(ctx context.Context, teamID uuid.UUID, status string, changedAt time.Time) error {
+	return Publish(ctx, p.client, constants.TeamBillingStatusChanged, &events.TeamBillingStatusChangedEvent{
+		Payload: events.TeamBillingStatusChangedBody{TeamID: teamID, Status: status, ChangedAt: changedAt.UTC()},
+	})
+}
+
+type TeamDropletsDeletionRequested struct{ client OutboxClient }
+
+func NewTeamDropletsDeletionRequested(client OutboxClient) *TeamDropletsDeletionRequested {
+	return &TeamDropletsDeletionRequested{client: client}
+}
+
+func (p *TeamDropletsDeletionRequested) Publish(ctx context.Context, teamID uuid.UUID, requestedAt time.Time) error {
+	return Publish(ctx, p.client, constants.TeamDropletsDeletionRequested, &events.TeamDropletsDeletionRequestedEvent{
+		Payload: events.TeamDropletsDeletionRequestedBody{TeamID: teamID, RequestedAt: requestedAt.UTC()},
+	})
+}

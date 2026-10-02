@@ -6,5 +6,12 @@
   "team_invitation_subject": "{{.InviterName}} invited you to join {{.TeamName}} on Nodera",
   "role_owner": "Owner",
   "role_developer": "Developer",
-  "role_finance": "Finance"
+  "role_finance": "Finance",
+  "invoice_issued_subject": "Invoice {{.InvoiceNumber}} for {{.TeamName}} is ready",
+  "payment_succeeded_subject": "Payment received for {{.TeamName}}: {{.Amount}} {{.Currency}}",
+  "payment_failed_subject": "Payment failed for {{.TeamName}}: invoice {{.InvoiceNumber}}",
+  "payment_confirmation_required_subject": "Confirm your payment for {{.TeamName}}",
+  "team_suspended_subject": "{{.TeamName}} has been suspended on Nodera",
+  "droplets_deletion_warning_subject": "Action required: {{.TeamName}} droplets will be deleted",
+  "card_expiring_subject": "Your card ending in {{.Last4}} for {{.TeamName}} is about to expire"
 }

@@ -78,12 +78,18 @@ type TeamInvitationEvent struct {
 }
 
 // Domain events: what another context needs to know a Team, a member or a
-// Project exists. Names never travel; the consumer keys on ids only.
+// Project exists. Consumers key on ids; the Team name and the person's
+// address, name and Locale ride along so billing can invoice and write to
+// them without asking the customer context back.
 
 type TeamCreatedBody struct {
-	TeamID      uuid.UUID `json:"team_id" validate:"required"`
-	OwnerUserID uuid.UUID `json:"owner_user_id" validate:"required"`
-	CreatedAt   time.Time `json:"created_at" validate:"required"`
+	TeamID        uuid.UUID `json:"team_id" validate:"required"`
+	Name          string    `json:"name" validate:"required"`
+	OwnerUserID   uuid.UUID `json:"owner_user_id" validate:"required"`
+	OwnerEmail    string    `json:"owner_email" validate:"required,email"`
+	OwnerFullName string    `json:"owner_full_name"`
+	OwnerLocale   string    `json:"owner_locale" validate:"required"`
+	CreatedAt     time.Time `json:"created_at" validate:"required"`
 }
 
 type TeamCreatedEvent struct {
@@ -91,10 +97,13 @@ type TeamCreatedEvent struct {
 }
 
 type TeamMemberAddedBody struct {
-	TeamID  uuid.UUID `json:"team_id" validate:"required"`
-	UserID  uuid.UUID `json:"user_id" validate:"required"`
-	Role    string    `json:"role" validate:"required"`
-	AddedAt time.Time `json:"added_at" validate:"required"`
+	TeamID   uuid.UUID `json:"team_id" validate:"required"`
+	UserID   uuid.UUID `json:"user_id" validate:"required"`
+	Role     string    `json:"role" validate:"required"`
+	Email    string    `json:"email" validate:"required,email"`
+	FullName string    `json:"full_name"`
+	Locale   string    `json:"locale" validate:"required"`
+	AddedAt  time.Time `json:"added_at" validate:"required"`
 }
 
 type TeamMemberAddedEvent struct {

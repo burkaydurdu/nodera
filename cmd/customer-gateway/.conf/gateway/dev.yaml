@@ -144,3 +144,89 @@ gateway:
           method: POST
         - path: /v1/droplets/:dropletID
           method: DELETE
+    # Selected by X-Target-Server: billing. Team routes carry the Permission
+    # the caller's Role must hold; the billing status is team.read so every
+    # member sees why spending is blocked. Provider webhooks and the 3-D
+    # Secure confirmation link are public: the provider and the cardholder's
+    # bank call them, and the service checks their signature or token.
+    billing:
+      host: http://localhost:9670
+      endpoints:
+        - path: /v1/teams/:teamID/billing/profile
+          method: GET
+          permissions:
+            - billing.read
+        - path: /v1/teams/:teamID/billing/profile
+          method: PUT
+          permissions:
+            - billing.write
+        - path: /v1/teams/:teamID/billing/payment-methods
+          method: GET
+          permissions:
+            - billing.read
+        - path: /v1/teams/:teamID/billing/payment-methods/verify
+          method: POST
+          permissions:
+            - billing.write
+        - path: /v1/teams/:teamID/billing/payment-methods/verify/complete
+          method: POST
+          permissions:
+            - billing.write
+        - path: /v1/teams/:teamID/billing/payment-methods/:methodID/default
+          method: PUT
+          permissions:
+            - billing.write
+        - path: /v1/teams/:teamID/billing/payment-methods/:methodID
+          method: DELETE
+          permissions:
+            - billing.write
+        - path: /v1/teams/:teamID/billing/usage
+          method: GET
+          permissions:
+            - billing.read
+        - path: /v1/teams/:teamID/billing/invoices
+          method: GET
+          permissions:
+            - billing.read
+        - path: /v1/teams/:teamID/billing/invoices/:invoiceID
+          method: GET
+          permissions:
+            - billing.read
+        - path: /v1/teams/:teamID/billing/invoices/:invoiceID/pdf
+          method: GET
+          permissions:
+            - billing.read
+        - path: /v1/teams/:teamID/billing/invoices/:invoiceID/pay
+          method: POST
+          permissions:
+            - billing.write
+        - path: /v1/teams/:teamID/billing/status
+          method: GET
+          permissions:
+            - team.read
+        - path: /v1/billing/payments/:paymentID/confirm
+          method: GET
+          public: true
+        # The web app starts 3-D Secure itself, so it sends the target header.
+        - path: /v1/billing/payments/:paymentID/3ds/start
+          method: POST
+          public: true
+        # Headerless: the card issuer's page posts the 3-D Secure result back
+        # through the browser and cannot add the target header.
+        - path: /v1/billing/payments/:paymentID/3ds/callback
+          method: POST
+          public: true
+          headerless: true
+        # Signed link from the issue email, opened by the web app's download page.
+        - path: /v1/billing/invoices/:invoiceID/pdf
+          method: GET
+          public: true
+        # Headerless: payment providers call these and cannot add the target header.
+        - path: /v1/billing/webhooks/craftgate
+          method: POST
+          public: true
+          headerless: true
+        - path: /v1/billing/webhooks/stripe
+          method: POST
+          public: true
+          headerless: true

@@ -19,3 +19,10 @@ logs/
 
 **/dev.toml
 .local/
+
+# go build ./cmd/<name> from the repo root drops a binary here.
+/customer
+/customer-gateway
+/notification
+/droplet
+/billing

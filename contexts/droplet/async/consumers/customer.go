@@ -1,5 +1,6 @@
-// Package consumers feeds the Project access read model from the customer
-// context's events (docs/adr/0004).
+// Package consumers feeds the read models from other contexts' events: Project
+// access from the customer context (docs/adr/0004) and Billing status from
+// the billing context (docs/adr/0006).
 package consumers
 
 import (
@@ -11,6 +12,7 @@ import (
 	"github.com/piggystats/rabbitmq"
 
 	"github.com/piggystats/nodera/contexts/droplet/aggregates/access"
+	"github.com/piggystats/nodera/contexts/droplet/aggregates/billing"
 	"github.com/piggystats/nodera/contexts/droplet/async/constants"
 	"github.com/piggystats/nodera/contexts/droplet/async/events"
 	"github.com/piggystats/nodera/pkg/authz"
@@ -112,6 +114,14 @@ func (c *CustomerEvents) Consume(message *rabbitmq.Message) error {
 func decode(message *rabbitmq.Message, into any) error {
 	if err := json.Unmarshal(message.Payload, into); err != nil {
 		return access.ErrorMalformedEvent.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+func decodeBilling(message *rabbitmq.Message, into any) error {
+	if err := json.Unmarshal(message.Payload, into); err != nil {
+		return billing.ErrorMalformedEvent.Copy().SetError(err)
 	}
 
 	return nil

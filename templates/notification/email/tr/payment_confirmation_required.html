@@ -1,0 +1,28 @@
+{{ define "payment_confirmation_required" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.TeamName}} için ödemeni onayla</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, bankan {{.InvoiceNumber}} numaralı fatura için <strong>{{.Amount}} {{.Currency}}</strong> tutarındaki çekimi tamamlamadan önce senin onayını istiyor.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.ConfirmURL}}">Ödemeyi onayla</a></td></tr>
+              </table>
+              <p class="subtitle">Ödeme onaylanana kadar fatura açık kalır ve olağan hatırlatmalar devam eder.</p>
+              <p class="subtitle">Bu e-posta {{.TeamName}} takımının fatura iletişim adresi olduğu için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

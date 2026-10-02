@@ -56,6 +56,21 @@ func (mr *MockIDropletServiceMockRecorder) Create(ctx, d any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIDropletService)(nil).Create), ctx, d)
 }
 
+// FindBilled mocks base method.
+func (m *MockIDropletService) FindBilled(ctx context.Context) (droplet.Droplets, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindBilled", ctx)
+	ret0, _ := ret[0].(droplet.Droplets)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindBilled indicates an expected call of FindBilled.
+func (mr *MockIDropletServiceMockRecorder) FindBilled(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBilled", reflect.TypeOf((*MockIDropletService)(nil).FindBilled), ctx)
+}
+
 // FindByID mocks base method.
 func (m *MockIDropletService) FindByID(ctx context.Context, id uuid.UUID) (*droplet.Droplet, error) {
 	m.ctrl.T.Helper()
@@ -99,6 +114,21 @@ func (m *MockIDropletService) FindByProjectID(ctx context.Context, projectID uui
 func (mr *MockIDropletServiceMockRecorder) FindByProjectID(ctx, projectID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByProjectID", reflect.TypeOf((*MockIDropletService)(nil).FindByProjectID), ctx, projectID)
+}
+
+// FindByTeamID mocks base method.
+func (m *MockIDropletService) FindByTeamID(ctx context.Context, teamID uuid.UUID) (droplet.Droplets, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByTeamID", ctx, teamID)
+	ret0, _ := ret[0].(droplet.Droplets)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByTeamID indicates an expected call of FindByTeamID.
+func (mr *MockIDropletServiceMockRecorder) FindByTeamID(ctx, teamID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByTeamID", reflect.TypeOf((*MockIDropletService)(nil).FindByTeamID), ctx, teamID)
 }
 
 // FindTransitional mocks base method.

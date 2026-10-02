@@ -63,6 +63,21 @@ follows the newest event by its own time, and a removed member is remembered as 
 rather than deleted, so a late copy of an older event cannot bring them back.
 _Avoid_: membership (the customer context's word), permission
 
+### Billing
+
+**Billing status**:
+What the billing context last said about a Team: `no_payment_method` (the default for a Team
+never heard about), `active` or `suspended`. Learned from events, never queried. No payment
+method refuses creating a Droplet; suspended refuses creating and powering on, and powers off
+the Team's running Droplets until the status is `active` again.
+_Avoid_: account status, subscription, plan (that is the catalog's word)
+
+**Meter**:
+The usage interval the billing context charges a Droplet for: it starts the first time the
+Droplet is `active` and stops when its deletion is requested, or when it fails after having
+run. Each boundary is announced to the billing context exactly once.
+_Avoid_: uptime, billing period (that is the billing context's word)
+
 ### Providers
 
 **Provider**:

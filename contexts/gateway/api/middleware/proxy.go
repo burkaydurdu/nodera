@@ -52,13 +52,20 @@ func SetupProxies(gateway *config.GatewayConfig, newProxy NewReverseProxy) (Prox
 // route table. The header value is the block's key; a name the table does
 // not know is an unlisted target and fails like an unlisted route, before any
 // session is looked at. A missing header is a client that does not speak the
-// gateway's protocol at all.
+// gateway's protocol at all, unless the route is one of the few headerless
+// ones whose callers (payment providers, the card issuer) cannot be taught it;
+// those name their service by path alone. A header that is present always
+// wins, so a headerless route gains nothing from a wrong one.
 func TargetHost(routeTable *config.GatewayConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			targetServer := c.Request().Header.Get(constants.TargetServerHeader)
 			if str.IsEmpty(targetServer) {
-				return echo.ErrUnauthorized
+				service, ok := routeTable.HeaderlessService(c.Request().URL.Path, c.Request().Method)
+				if !ok {
+					return echo.ErrUnauthorized
+				}
+				targetServer = service
 			}
 
 			if _, ok := routeTable.Service(targetServer); !ok {

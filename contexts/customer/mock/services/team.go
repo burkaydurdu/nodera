@@ -87,10 +87,10 @@ func (mr *MockITeamServiceMockRecorder) Create(ctx, arg1 any) *gomock.Call {
 }
 
 // FindAll mocks base method.
-func (m *MockITeamService) FindAll(ctx context.Context) (team.Teams, error) {
+func (m *MockITeamService) FindAll(ctx context.Context) (team.TeamDetails, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindAll", ctx)
-	ret0, _ := ret[0].(team.Teams)
+	ret0, _ := ret[0].(team.TeamDetails)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -102,10 +102,10 @@ func (mr *MockITeamServiceMockRecorder) FindAll(ctx any) *gomock.Call {
 }
 
 // FindAllMembers mocks base method.
-func (m *MockITeamService) FindAllMembers(ctx context.Context) (team.Members, error) {
+func (m *MockITeamService) FindAllMembers(ctx context.Context) (team.MemberDetails, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindAllMembers", ctx)
-	ret0, _ := ret[0].(team.Members)
+	ret0, _ := ret[0].(team.MemberDetails)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

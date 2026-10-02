@@ -26,7 +26,8 @@ func NewRepository(queries *postgresql.Queries) *Repository {
 const columns = `
 	id, project_id, team_id, plan_id, plan_code, region_code, image_code, hostname, hourly_price::text, monthly_cap_hours,
 	status, provider_id, provider_ref, ipv4, ipv6, ssh_keys, pending_action, failure_reason, created_by,
-	created_at, updated_at, active_at, deletion_requested_at, deleted_at`
+	created_at, updated_at, active_at, deletion_requested_at, deleted_at, failed_at,
+	billing_started_published_at, billing_stopped_published_at, suspended_power_off_at`
 
 // Create inserts the Droplet and its creating history row. It runs inside the
 // caller's transaction so the row and its first history entry commit together.
@@ -108,6 +109,36 @@ func (r *Repository) FindTransitional(ctx context.Context) (Droplets, error) {
 	return scanAll(rows)
 }
 
+// FindByTeamID answers the Team's Droplets that exist, oldest first, so a
+// Team-wide reaction walks them in a stable order.
+func (r *Repository) FindByTeamID(ctx context.Context, teamID uuid.UUID) (Droplets, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `
+		SELECT `+columns+` FROM droplets
+		WHERE team_id = $1 AND status <> 'deleted'
+		ORDER BY created_at`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanAll(rows)
+}
+
+// FindBilled answers every Droplet that was ever active, deleted ones
+// included: each of them has usage the billing context must know about.
+func (r *Repository) FindBilled(ctx context.Context) (Droplets, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `
+		SELECT `+columns+` FROM droplets
+		WHERE active_at IS NOT NULL
+		ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanAll(rows)
+}
+
 // Save persists every column a Droplet changes after creation.
 func (r *Repository) Save(ctx context.Context, d *Droplet) error {
 	var pending *string
@@ -119,10 +150,13 @@ func (r *Repository) Save(ctx context.Context, d *Droplet) error {
 	_, err := r.queries.Executor(ctx).Exec(ctx, `
 		UPDATE droplets
 		SET status = $2, provider_ref = $3, ipv4 = $4, ipv6 = $5, pending_action = $6, failure_reason = $7,
-		    active_at = $8, deletion_requested_at = $9, deleted_at = $10, updated_at = now()
+		    active_at = $8, deletion_requested_at = $9, deleted_at = $10, failed_at = $11,
+		    billing_started_published_at = $12, billing_stopped_published_at = $13, suspended_power_off_at = $14,
+		    updated_at = now()
 		WHERE id = $1`,
 		d.ID, string(d.Status), d.ProviderRef, d.IPv4, d.IPv6, pending, d.FailureReason,
-		d.ActiveAt, d.DeletionRequest, d.DeletedAt)
+		d.ActiveAt, d.DeletionRequest, d.DeletedAt, d.FailedAt,
+		d.BillingStartedPublishedAt, d.BillingStoppedPublishedAt, d.SuspendedPowerOffAt)
 	if err != nil {
 		return ErrorCannotUpdate.Copy().SetError(err)
 	}
@@ -203,7 +237,8 @@ func scan(row pgx.Row) (*Droplet, error) {
 	err := row.Scan(
 		&d.ID, &d.ProjectID, &d.TeamID, &d.PlanID, &d.PlanCode, &d.RegionCode, &d.ImageCode, &d.Hostname, &price, &d.MonthlyCapHours,
 		&status, &d.ProviderID, &d.ProviderRef, &d.IPv4, &d.IPv6, &keys, &pending, &d.FailureReason, &d.CreatedBy,
-		&d.CreatedAt, &d.UpdatedAt, &d.ActiveAt, &d.DeletionRequest, &d.DeletedAt,
+		&d.CreatedAt, &d.UpdatedAt, &d.ActiveAt, &d.DeletionRequest, &d.DeletedAt, &d.FailedAt,
+		&d.BillingStartedPublishedAt, &d.BillingStoppedPublishedAt, &d.SuspendedPowerOffAt,
 	)
 	if err != nil {
 		return nil, err
@@ -228,4 +263,6 @@ func scan(row pgx.Row) (*Droplet, error) {
 }
 
 // Now is the clock the repository stamps transitions with; tests may swap it.
-var Now = time.Now
+// It is truncated to microseconds, PostgreSQL's precision, so the instant a
+// handler publishes after the commit is the one a later read answers.
+var Now = func() time.Time { return time.Now().Truncate(time.Microsecond) }

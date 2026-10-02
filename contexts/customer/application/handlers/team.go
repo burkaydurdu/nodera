@@ -8,6 +8,7 @@ import (
 
 	"github.com/piggystats/nodera/contexts/customer/aggregates/project"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/user"
 	"github.com/piggystats/nodera/contexts/customer/application/dto"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/logger"
@@ -20,12 +21,12 @@ import (
 
 //go:generate mockgen -destination=../../mock/producers/team_created.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers ITeamCreatedProducer
 type ITeamCreatedProducer interface {
-	Publish(ctx context.Context, t *team.Team) error
+	Publish(ctx context.Context, t *team.Team, owner team.Person) error
 }
 
 //go:generate mockgen -destination=../../mock/producers/team_member_added.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers ITeamMemberAddedProducer
 type ITeamMemberAddedProducer interface {
-	Publish(ctx context.Context, m *team.Member) error
+	Publish(ctx context.Context, m *team.Member, person team.Person) error
 }
 
 //go:generate mockgen -destination=../../mock/producers/team_member_role_changed.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers ITeamMemberRoleChangedProducer
@@ -54,6 +55,7 @@ type IPermissionVersions interface {
 
 type Team struct {
 	log            logger.ILog
+	users          user.IService
 	teams          team.IService
 	projects       project.IService
 	transactions   postgresql.ITransactionManager
@@ -67,6 +69,7 @@ type Team struct {
 
 func NewTeam(
 	log logger.ILog,
+	users user.IService,
 	teams team.IService,
 	projects project.IService,
 	transactions postgresql.ITransactionManager,
@@ -79,6 +82,7 @@ func NewTeam(
 ) *Team {
 	return &Team{
 		log:            log,
+		users:          users,
 		teams:          teams,
 		projects:       projects,
 		transactions:   transactions,
@@ -95,6 +99,11 @@ func NewTeam(
 // with the membership so a Team can never exist without a member.
 func (h *Team) Create(ctx context.Context, req *team.CreateRequest) (*dto.Team, error) {
 	userID := contextutil.CurrentUserID(ctx)
+	// The event names the owner, and the session only carries their id.
+	owner, err := h.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
 	txCtx, err := h.transactions.Begin(ctx)
 	if err != nil {
@@ -107,7 +116,7 @@ func (h *Team) Create(ctx context.Context, req *team.CreateRequest) (*dto.Team, 
 
 		return nil, err
 	}
-	owner, err := h.teams.AddMember(txCtx, newTeam.ID, userID, team.RoleOwner)
+	seat, err := h.teams.AddMember(txCtx, newTeam.ID, userID, team.RoleOwner)
 	if err != nil {
 		_ = h.transactions.Rollback(txCtx)
 
@@ -117,7 +126,7 @@ func (h *Team) Create(ctx context.Context, req *team.CreateRequest) (*dto.Team, 
 		return nil, err
 	}
 
-	publishTeamOpened(ctx, h.log, h.teamCreated, h.memberAdded, newTeam, owner)
+	publishTeamOpened(ctx, h.log, h.teamCreated, h.memberAdded, newTeam, seat, owner)
 	bumpPermissionVersion(ctx, h.log, h.permVersions, userID)
 
 	return dto.ToTeam(&team.Membership{Team: *newTeam, Role: team.RoleOwner}), nil
@@ -329,13 +338,17 @@ func requirePermission(ctx context.Context, teams team.IService, rawTeamID strin
 // publishTeamOpened announces a new Team and its owner. The rows are already
 // committed, so a failed publish is logged rather than turned into an error
 // the caller cannot act on; `replay-projects` is the recovery path.
-func publishTeamOpened(ctx context.Context, log logger.ILog, teamCreated ITeamCreatedProducer, memberAdded ITeamMemberAddedProducer, t *team.Team, owner *team.Member) {
-	if err := teamCreated.Publish(ctx, t); err != nil {
+func publishTeamOpened(ctx context.Context, log logger.ILog, teamCreated ITeamCreatedProducer, memberAdded ITeamMemberAddedProducer, t *team.Team, seat *team.Member, owner *user.User) {
+	if err := teamCreated.Publish(ctx, t, personOf(owner)); err != nil {
 		log.Error(err)
 	}
-	if err := memberAdded.Publish(ctx, owner); err != nil {
+	if err := memberAdded.Publish(ctx, seat, personOf(owner)); err != nil {
 		log.Error(err)
 	}
+}
+
+func personOf(u *user.User) team.Person {
+	return team.Person{Email: u.Email, FullName: u.FullName, Locale: string(u.Locale)}
 }
 
 // bumpPermissionVersion follows a committed membership change. A Redis miss

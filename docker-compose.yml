@@ -51,6 +51,13 @@ services:
       - "${MAILHOG_SMTP_HOST_PORT:-1025}:1025"
       - "${MAILHOG_WEB_HOST_PORT:-8025}:8025"
 
+  # Renders Invoice PDFs from HTML for the billing service.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: always
+    ports:
+      - "${GOTENBERG_HOST_PORT:-3300}:3000"
+
 volumes:
   postgres-data:
   redis-data:

@@ -78,7 +78,7 @@ func (j *Joiner) Accept(ctx context.Context, inv *invitation.Invitation, u *user
 	}
 
 	bumpPermissionVersion(ctx, j.log, j.permVersions, u.ID)
-	if err := j.memberAdded.Publish(ctx, member); err != nil {
+	if err := j.memberAdded.Publish(ctx, member, personOf(u)); err != nil {
 		j.log.Error(err)
 	}
 

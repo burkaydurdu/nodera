@@ -115,7 +115,7 @@ func BuildServer(
 		memberAdded,
 	)
 	userHandler := handlers.NewUser(userService, teamService, sessions)
-	teamHandler := handlers.NewTeam(log, teamService, projectService, transactions, permVersions, teamCreated, memberAdded, roleChanged, memberRemoved, projectCreated)
+	teamHandler := handlers.NewTeam(log, userService, teamService, projectService, transactions, permVersions, teamCreated, memberAdded, roleChanged, memberRemoved, projectCreated)
 	sshKeyHandler := handlers.NewSSHKey(teamService, sshKeyService)
 	invitationHandler := handlers.NewInvitation(log, authConfig, userService, teamService, invitationService, limiter, joiner, producers.NewTeamInvitation(outboxClient))
 

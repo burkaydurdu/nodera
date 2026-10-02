@@ -204,7 +204,7 @@ func (h *Auth) Register(ctx context.Context, req *user.RegisterRequest) error {
 		return err
 	}
 
-	publishTeamOpened(ctx, h.log, h.teamCreated, h.memberAdded, newTeam, owner)
+	publishTeamOpened(ctx, h.log, h.teamCreated, h.memberAdded, newTeam, owner, newUser)
 	bumpPermissionVersion(ctx, h.log, h.permVersions, newUser.ID)
 
 	return h.sendVerificationCode(ctx, newUser, true)

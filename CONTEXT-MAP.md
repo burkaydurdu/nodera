@@ -16,6 +16,8 @@ is first written down, so this list grows as terms are settled.
 - Notification (`contexts/notification/`): the emails the platform sends.
 - [Droplet](./contexts/droplet/CONTEXT.md): the catalog (Regions, Plans, Offers, Commission),
   the Providers behind it and the Droplets rented through them.
+- [Billing](./contexts/billing/CONTEXT.md): what a Team owes for its Droplet hours, how it pays and
+  what it is told; Payment providers behind it (ADR-0006).
 - Admin (planned): the operator-facing side. Not started.
 
 ## Relationships
@@ -29,5 +31,13 @@ is first written down, so this list grows as terms are settled.
   project created); droplet keeps a Project access read model from them (ADR-0004).
 - **Droplet → Customer**: a Droplet references a Project by identifier only; the droplet context
   never reads Teams or Users.
+- **Droplet → Billing**: droplet emits usage events (billing started/stopped per Droplet with the
+  Locked price); billing meters them.
+- **Billing → Droplet**: billing emits a Team's Billing status; droplet refuses creation without
+  a Payment method and stops Droplets of a suspended Team.
+- **Customer → Billing**: billing learns Teams and their members from the customer events, like
+  droplet does (ADR-0004), to authorize `billing.*` and to address invoice emails to owners.
+- **Billing → Notification**: invoice, payment and dunning emails.
+- **Customer gateway → Billing**: the gateway fronts the billing service as a third target.
 - **Customer gateway → Droplet**: the same gateway fronts the droplet service under a second
   target; a droplet route absent from its config does not exist.

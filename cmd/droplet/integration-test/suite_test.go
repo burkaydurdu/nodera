@@ -20,9 +20,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/piggystats/outbox"
 	"github.com/piggystats/rabbitmq"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/suite"
+	"go.mongodb.org/mongo-driver/bson"
+	mongoDriver "go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/piggystats/nodera/cmd/droplet/app"
 	"github.com/piggystats/nodera/cmd/droplet/config"
@@ -53,19 +58,30 @@ const (
 	testKey2 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC1XxvJ0m2aH4b7vK9fXfM0wq3Ycp8rZ4QbQyJ8oV2mN second@nodera"
 )
 
+// noopPublisher lets the outbox accept writes without a broker: the suite
+// observes the meter's events as outbox documents, never by relaying them.
+type noopPublisher struct{}
+
+func (noopPublisher) Publish(context.Context, string, string, any) error { return nil }
+
 type dropletSuite struct {
 	suite.Suite
 	pool             *dockertest.Pool
 	postgresResource *dockertest.Resource
 	redisResource    *dockertest.Resource
+	mongoResource    *dockertest.Resource
 
 	server   *echo.Echo
 	pgPool   *pgxpool.Pool
+	mongoDB  *mongoDriver.Database
 	redis    redis.IService
 	rawRedis *goredis.Client
 	fake     *fake.Fake
+	registry *providers.Registry
+	outbox   *outbox.Outbox
 	jobs     *jobs.Jobs
-	consumer *consumers.CustomerEvents
+	customer *consumers.CustomerEvents
+	billing  *consumers.BillingEvents
 }
 
 func TestDropletSuite(t *testing.T) {
@@ -85,9 +101,11 @@ func (s *dropletSuite) SetupSuite() {
 
 	s.postgresResource = s.run("postgres", "18", []string{"POSTGRES_USER=testuser", "POSTGRES_PASSWORD=testpassword", "POSTGRES_DB=testdb"})
 	s.redisResource = s.run("redis", "8.2", nil)
+	s.mongoResource = s.run("mongo", "8.2", nil)
 
 	pgPort, _ := strconv.Atoi(s.postgresResource.GetPort("5432/tcp"))
 	redisPort, _ := strconv.Atoi(s.redisResource.GetPort("6379/tcp"))
+	mongoPort, _ := strconv.Atoi(s.mongoResource.GetPort("27017/tcp"))
 	postgresURI := fmt.Sprintf("postgres://testuser:testpassword@127.0.0.1:%d/testdb?sslmode=disable", pgPort)
 
 	s.Require().NoError(s.pool.Retry(func() error {
@@ -99,6 +117,19 @@ func (s *dropletSuite) SetupSuite() {
 			return err
 		}
 		s.pgPool = pool
+
+		return nil
+	}))
+
+	s.Require().NoError(s.pool.Retry(func() error {
+		client, err := mongoDriver.Connect(context.Background(), options.Client().ApplyURI(fmt.Sprintf("mongodb://127.0.0.1:%d/?directConnection=true", mongoPort)))
+		if err != nil {
+			return err
+		}
+		if err := client.Ping(context.Background(), readpref.Primary()); err != nil {
+			return err
+		}
+		s.mongoDB = client.Database("testdb")
 
 		return nil
 	}))
@@ -122,7 +153,11 @@ func (s *dropletSuite) SetupSuite() {
 	s.redis = redis.NewService(redisClient)
 
 	s.fake = fake.New(providerCode)
-	registry := providers.NewRegistry(s.fake)
+	s.registry = providers.NewRegistry(s.fake)
+
+	outboxInstance, err := outbox.New(s.mongoDB.Client(), s.mongoDB, noopPublisher{}, log, "correlationID")
+	s.Require().NoError(err)
+	s.outbox = outboxInstance
 
 	conf := &config.Config{
 		Environment: "dev",
@@ -131,16 +166,17 @@ func (s *dropletSuite) SetupSuite() {
 	}
 
 	const unlimited = 1_000_000
-	s.server = app.BuildServer(log, conf, s.pgPool, s.redis, registry, unlimited)
-	s.jobs = app.BuildJobs(log, s.pgPool, registry)
-	s.consumer = app.BuildCustomerConsumer(s.pgPool)
+	s.server = app.BuildServer(log, conf, s.pgPool, s.redis, s.registry, outboxInstance, unlimited)
+	s.jobs = app.BuildJobs(log, s.pgPool, s.registry, outboxInstance)
+	s.customer = app.BuildCustomerConsumer(s.pgPool)
+	s.billing = app.BuildBillingConsumer(log, s.pgPool, s.registry, outboxInstance)
 }
 
 func (s *dropletSuite) TearDownSuite() {
 	if s.pgPool != nil {
 		s.pgPool.Close()
 	}
-	for _, r := range []*dockertest.Resource{s.postgresResource, s.redisResource} {
+	for _, r := range []*dockertest.Resource{s.postgresResource, s.redisResource, s.mongoResource} {
 		if r != nil {
 			_ = s.pool.Purge(r)
 		}
@@ -161,6 +197,8 @@ func (s *dropletSuite) TearDownTest() {
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM droplets`)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM project_access`)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM team_access`)
+	_, _ = s.pgPool.Exec(ctx, `DELETE FROM team_billing`)
+	_, _ = s.mongoDB.Collection("outbox").DeleteMany(ctx, bson.M{})
 	s.deleteByPattern("session:*")
 	s.deleteByPattern("ratelimit:*")
 }
@@ -254,13 +292,30 @@ func (s *dropletSuite) consume(routingKey, payload string) {
 	s.Require().NoError(s.consumeErr(routingKey, payload))
 }
 
+// consumeErr hands the message to the consumer whose queue it would land on.
 func (s *dropletSuite) consumeErr(routingKey, payload string) error {
-	return s.consumer.Consume(&rabbitmq.Message{RoutingKey: routingKey, Payload: []byte(payload)})
+	message := &rabbitmq.Message{RoutingKey: routingKey, Payload: []byte(payload), CorrelationID: uuid.NewString()}
+	switch routingKey {
+	case constants.TeamBillingStatusChanged, constants.TeamDropletsDeletionRequested:
+		return s.billing.Consume(message)
+	default:
+		return s.customer.Consume(message)
+	}
 }
 
-// grantProject replays the customer events that make a Project known: the
-// owner's Team, their membership, and the Project.
+// grantProject replays the events that make a Project usable: the owner's
+// Team, their membership and the Project from the customer context, and the
+// Team's payment method from the billing context.
 func (s *dropletSuite) grantProject(owner user) (teamID, projectID uuid.UUID) {
+	teamID, projectID = s.grantProjectWithoutBilling(owner)
+	s.setBilling(teamID, "active", time.Now())
+
+	return teamID, projectID
+}
+
+// grantProjectWithoutBilling is a Project whose Team the billing context has
+// said nothing about yet.
+func (s *dropletSuite) grantProjectWithoutBilling(owner user) (teamID, projectID uuid.UUID) {
 	teamID, projectID = uuid.New(), uuid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	s.consume(constants.TeamCreated, fmt.Sprintf(`{"payload":{"team_id":%q,"owner_user_id":%q,"created_at":%q}}`, teamID, owner.ID, now))
@@ -268,6 +323,15 @@ func (s *dropletSuite) grantProject(owner user) (teamID, projectID uuid.UUID) {
 	s.consume(constants.ProjectCreated, fmt.Sprintf(`{"payload":{"project_id":%q,"team_id":%q,"created_at":%q}}`, projectID, teamID, now))
 
 	return teamID, projectID
+}
+
+// setBilling is the billing context announcing a Team's status as of at.
+func (s *dropletSuite) setBilling(teamID uuid.UUID, status string, at time.Time) {
+	s.consume(constants.TeamBillingStatusChanged, fmt.Sprintf(`{"payload":{"team_id":%q,"status":%q,"changed_at":%q}}`, teamID, status, at.UTC().Format(time.RFC3339Nano)))
+}
+
+func (s *dropletSuite) requestTeamDeletion(teamID uuid.UUID) {
+	s.consume(constants.TeamDropletsDeletionRequested, fmt.Sprintf(`{"payload":{"team_id":%q,"requested_at":%q}}`, teamID, time.Now().UTC().Format(time.RFC3339Nano)))
 }
 
 // ---------------------------------------------------------------------------
@@ -385,4 +449,76 @@ func (s *dropletSuite) poll() {
 
 func (s *dropletSuite) sync() {
 	s.Require().NoError(s.jobs.SyncCatalog(context.Background()))
+}
+
+// ---------------------------------------------------------------------------
+// Outbox
+// ---------------------------------------------------------------------------
+
+func (s *dropletSuite) outboxCount(routingKey string) int64 {
+	n, err := s.mongoDB.Collection("outbox").CountDocuments(context.Background(), bson.M{"routing_key": routingKey})
+	s.Require().NoError(err)
+
+	return n
+}
+
+// outboxPayloads answers the payload of every document under routingKey, in
+// the order they were written.
+func (s *dropletSuite) outboxPayloads(routingKey string) []map[string]any {
+	opts := options.Find().SetSort(bson.M{"created_at": 1})
+	cursor, err := s.mongoDB.Collection("outbox").Find(context.Background(), bson.M{"routing_key": routingKey}, opts)
+	s.Require().NoError(err)
+	defer func() { _ = cursor.Close(context.Background()) }()
+
+	payloads := make([]map[string]any, 0)
+	for cursor.Next(context.Background()) {
+		var doc struct {
+			Payload string `bson:"payload"`
+		}
+		s.Require().NoError(cursor.Decode(&doc))
+		var event map[string]any
+		s.Require().NoError(json.Unmarshal([]byte(doc.Payload), &event))
+		payload, _ := event["payload"].(map[string]any)
+		payloads = append(payloads, payload)
+	}
+
+	return payloads
+}
+
+// outboxPayload answers the one payload under routingKey for the Droplet.
+func (s *dropletSuite) outboxPayload(routingKey, dropletID string) map[string]any {
+	var found map[string]any
+	for _, payload := range s.outboxPayloads(routingKey) {
+		if payload["droplet_id"] == dropletID {
+			s.Require().Nil(found, "%s was published more than once for %s", routingKey, dropletID)
+			found = payload
+		}
+	}
+	s.Require().NotNil(found, "%s was not published for %s", routingKey, dropletID)
+
+	return found
+}
+
+func (s *dropletSuite) clearOutbox() {
+	_, err := s.mongoDB.Collection("outbox").DeleteMany(context.Background(), bson.M{})
+	s.Require().NoError(err)
+}
+
+// sameInstant compares two RFC 3339 timestamps as instants; the API answers
+// in the database's zone, the events in UTC.
+func (s *dropletSuite) sameInstant(expected, actual any) {
+	e, err := time.Parse(time.RFC3339Nano, fmt.Sprint(expected))
+	s.Require().NoError(err, expected)
+	a, err := time.Parse(time.RFC3339Nano, fmt.Sprint(actual))
+	s.Require().NoError(err, actual)
+	s.True(e.Equal(a), "expected %s, got %s", e, a)
+}
+
+// isRFC3339UTC holds the contract's timestamp shape: RFC 3339 in UTC.
+func (s *dropletSuite) isRFC3339UTC(value any) {
+	raw, _ := value.(string)
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	s.Require().NoError(err, raw)
+	s.True(strings.HasSuffix(raw, "Z"), "timestamp is not UTC: %s", raw)
+	s.False(parsed.IsZero())
 }

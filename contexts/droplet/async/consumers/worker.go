@@ -18,8 +18,8 @@ type Worker struct {
 // NewWorker binds one consumer per routing key on the common exchange, each
 // on its own queue so the events fan out to this context regardless of who
 // else listens.
-func NewWorker(client rabbitmq.IClient, log logger.ILog, consumer rabbitmq.IConsumer) *Worker {
-	bind := func(routingKey string) *rabbitmq.ConsumerItem {
+func NewWorker(client rabbitmq.IClient, log logger.ILog, customer rabbitmq.IConsumer, billing rabbitmq.IConsumer) *Worker {
+	bind := func(consumer rabbitmq.IConsumer, routingKey string) *rabbitmq.ConsumerItem {
 		return &rabbitmq.ConsumerItem{
 			Consumer: consumer,
 			Config: rabbitmq.ConsumerConfig{
@@ -34,11 +34,13 @@ func NewWorker(client rabbitmq.IClient, log logger.ILog, consumer rabbitmq.ICons
 		client: client,
 		log:    log,
 		items: rabbitmq.ConsumerItems{
-			bind(constants.TeamCreated),
-			bind(constants.TeamMemberAdded),
-			bind(constants.TeamMemberRoleChanged),
-			bind(constants.TeamMemberRemoved),
-			bind(constants.ProjectCreated),
+			bind(customer, constants.TeamCreated),
+			bind(customer, constants.TeamMemberAdded),
+			bind(customer, constants.TeamMemberRoleChanged),
+			bind(customer, constants.TeamMemberRemoved),
+			bind(customer, constants.ProjectCreated),
+			bind(billing, constants.TeamBillingStatusChanged),
+			bind(billing, constants.TeamDropletsDeletionRequested),
 		},
 	}
 }
@@ -51,5 +53,5 @@ func (w *Worker) Consume(_ context.Context) {
 			HandleConsumer(item.Consumer.Consume)
 	}
 
-	w.log.Info("droplet customer-events consumer has started")
+	w.log.Info("droplet customer-events and billing-events consumers have started")
 }
