@@ -59,6 +59,14 @@ definitions:
         type: string
       deletion_requested_at:
         type: string
+      failure_code:
+        enum:
+        - rejected
+        - unavailable
+        - timed_out
+        - server_gone
+        - provider_failed
+        type: string
       failure_reason:
         type: string
       history:

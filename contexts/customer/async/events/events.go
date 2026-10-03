@@ -64,13 +64,18 @@ type InvitationRecipient struct {
 	Locale   string    `json:"locale" validate:"required"`
 }
 
+// TeamInvitationBody names the Invitation and the moment of this sending, so
+// a resend is told again while a redelivery is not.
 type TeamInvitationBody struct {
-	Recipient   InvitationRecipient `json:"recipient" validate:"required"`
-	TeamName    string              `json:"team_name" validate:"required"`
-	Role        string              `json:"role" validate:"required"`
-	InviterName string              `json:"inviter_name" validate:"required"`
-	AcceptURL   string              `json:"accept_url" validate:"required,url"`
-	ExpiresAt   time.Time           `json:"expires_at" validate:"required"`
+	InvitationID uuid.UUID           `json:"invitation_id" validate:"required"`
+	TeamID       uuid.UUID           `json:"team_id" validate:"required"`
+	SentAt       time.Time           `json:"sent_at" validate:"required"`
+	Recipient    InvitationRecipient `json:"recipient" validate:"required"`
+	TeamName     string              `json:"team_name" validate:"required"`
+	Role         string              `json:"role" validate:"required"`
+	InviterName  string              `json:"inviter_name" validate:"required"`
+	AcceptURL    string              `json:"accept_url" validate:"required,url"`
+	ExpiresAt    time.Time           `json:"expires_at" validate:"required"`
 }
 
 type TeamInvitationEvent struct {
@@ -110,25 +115,44 @@ type TeamMemberAddedEvent struct {
 	Payload TeamMemberAddedBody `json:"payload" validate:"required"`
 }
 
+// TeamMemberRoleChangedBody names who made the change, so the member is told
+// only of a change someone else made.
 type TeamMemberRoleChangedBody struct {
 	TeamID    uuid.UUID `json:"team_id" validate:"required"`
 	UserID    uuid.UUID `json:"user_id" validate:"required"`
 	Role      string    `json:"role" validate:"required"`
 	ChangedAt time.Time `json:"changed_at" validate:"required"`
+	ChangedBy uuid.UUID `json:"changed_by" validate:"required"`
 }
 
 type TeamMemberRoleChangedEvent struct {
 	Payload TeamMemberRoleChangedBody `json:"payload" validate:"required"`
 }
 
+// TeamMemberRemovedBody names who removed the member; leaving is removing
+// oneself.
 type TeamMemberRemovedBody struct {
 	TeamID    uuid.UUID `json:"team_id" validate:"required"`
 	UserID    uuid.UUID `json:"user_id" validate:"required"`
 	RemovedAt time.Time `json:"removed_at" validate:"required"`
+	RemovedBy uuid.UUID `json:"removed_by" validate:"required"`
 }
 
 type TeamMemberRemovedEvent struct {
 	Payload TeamMemberRemovedBody `json:"payload" validate:"required"`
+}
+
+// UserProfileUpdatedBody is a person's name and Locale as of updated_at, for
+// the read models that write to them (docs/adr/0008).
+type UserProfileUpdatedBody struct {
+	UserID    uuid.UUID `json:"user_id" validate:"required"`
+	FullName  string    `json:"full_name"`
+	Locale    string    `json:"locale" validate:"required"`
+	UpdatedAt time.Time `json:"updated_at" validate:"required"`
+}
+
+type UserProfileUpdatedEvent struct {
+	Payload UserProfileUpdatedBody `json:"payload" validate:"required"`
 }
 
 type ProjectCreatedBody struct {

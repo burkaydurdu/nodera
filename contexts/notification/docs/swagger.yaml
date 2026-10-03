@@ -1,0 +1,123 @@
+basePath: /
+definitions:
+  github_com_piggystats_nodera_contexts_notification_application_dto.Notification:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+      read_at:
+        type: string
+      team_id:
+        type: string
+      type:
+        enum:
+        - droplet_active
+        - droplet_failed
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_notification_application_dto.ReadAll:
+    properties:
+      count:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_notification_application_dto.UnreadCount:
+    properties:
+      count:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: 'The signed-in User''s Inbox: the In-app Notifications of every Team
+    they are in.'
+  title: Nodera Notification API
+  version: "1.0"
+paths:
+  /v1/notifications:
+    get:
+      description: A Team's Notifications show only while the caller is a member.
+        Page with before = the last id of the previous page; a page shorter than limit
+        is the last.
+      parameters:
+      - description: Id of the last Notification of the previous page
+        in: query
+        name: before
+        type: string
+      - description: Page size, 1 to 50, default 20
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_notification_application_dto.Notification'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The caller's Inbox across every Team they are in, newest first
+      tags:
+      - notifications
+  /v1/notifications/{notificationID}/read:
+    put:
+      description: Reading it again keeps the first time. 404 for a Notification that
+        is not the caller's or no longer visible to them. The caller's other tabs
+        learn it live.
+      parameters:
+      - description: Notification id
+        in: path
+        name: notificationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_notification_application_dto.Notification'
+      security:
+      - BearerAuth: []
+      summary: Mark one Notification read
+      tags:
+      - notifications
+  /v1/notifications/read-all:
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_notification_application_dto.ReadAll'
+      security:
+      - BearerAuth: []
+      summary: Mark every Notification in the caller's Inbox read
+      tags:
+      - notifications
+  /v1/notifications/unread-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_notification_application_dto.UnreadCount'
+      security:
+      - BearerAuth: []
+      summary: How many Notifications in the caller's Inbox are unread
+      tags:
+      - notifications
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

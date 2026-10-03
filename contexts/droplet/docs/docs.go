@@ -380,6 +380,16 @@ const docTemplate = `{
                 "deletion_requested_at": {
                     "type": "string"
                 },
+                "failure_code": {
+                    "type": "string",
+                    "enum": [
+                        "rejected",
+                        "unavailable",
+                        "timed_out",
+                        "server_gone",
+                        "provider_failed"
+                    ]
+                },
                 "failure_reason": {
                     "type": "string"
                 },

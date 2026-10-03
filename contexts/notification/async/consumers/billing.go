@@ -2,216 +2,179 @@ package consumers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"maps"
-	"net/mail"
+	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/piggystats/rabbitmq"
 
-	"github.com/piggystats/nodera/contexts/notification/email"
+	"github.com/piggystats/nodera/contexts/notification/aggregates/notification"
+	"github.com/piggystats/nodera/contexts/notification/application/handlers"
+	"github.com/piggystats/nodera/contexts/notification/async/constants"
 	"github.com/piggystats/nodera/contexts/notification/events"
-	"github.com/piggystats/nodera/logger"
 )
 
-// billing is what the billing consumers share: a billing event names several
-// readers (the invoice email and every owner), each of whom gets their own
-// email in their own locale.
-type billing struct {
-	sender ISender
-	log    logger.ILog
+// BillingEvents makes a Notification of everything the billing context tells
+// a Team about its money. Params are what the web app words it from; the
+// email's own params keep the names the templates read, links included, and
+// are never recorded.
+type BillingEvents struct {
+	notifier INotifier
 }
 
-// fanOut sends kind to every recipient. One unusable address is skipped and
-// logged rather than failing the message: the payload would carry the same
-// address on every redelivery, and the other readers still need their copy.
-// A delivery failure is reported after every recipient has been tried, so
-// the broker retries the whole message and nobody is left out.
-func (b billing) fanOut(kind email.Kind, recipients []events.Recipient, shared map[string]any) error {
-	var first error
-	for _, r := range recipients {
-		if _, err := mail.ParseAddress(r.Email); err != nil {
-			b.log.WarnWithFields("billing email skipped: invalid recipient address", logger.NewFields().
-				Add("kind", string(kind)).Add("user_id", r.UserID.String()))
+func NewBillingEvents(notifier INotifier) *BillingEvents {
+	return &BillingEvents{notifier: notifier}
+}
 
-			continue
+func (c *BillingEvents) RoutingKeys() []string {
+	return []string{
+		constants.InvoiceIssued, constants.PaymentSucceeded, constants.PaymentFailed, constants.PaymentConfirmationRequired,
+		constants.TeamSuspended, constants.DropletsDeletionWarning, constants.CardExpiring,
+	}
+}
+
+func (c *BillingEvents) Consume(message *rabbitmq.Message) error {
+	event, err := billingEvent(message)
+	if err != nil {
+		return err
+	}
+	if event == nil {
+		return nil
+	}
+
+	return c.notifier.NotifyTeam(context.Background(), *event)
+}
+
+// billingEvent answers nil for a routing key this consumer does not handle.
+func billingEvent(message *rabbitmq.Message) (*handlers.TeamEvent, error) {
+	switch message.RoutingKey {
+	case constants.InvoiceIssued:
+		var e events.InvoiceIssuedEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
+		}
+		p := e.Payload
+		params := invoiceParams(p.InvoiceID, p.InvoiceNumber)
+		params["total_due"], params["currency"] = string(p.TotalDue), p.Currency
+		params["period_start"], params["period_end"] = p.PeriodStart.UTC(), p.PeriodEnd.UTC()
+
+		return teamEvent(p.Billing, notification.TypeInvoiceIssued, p.InvoiceID.String(), params, map[string]any{
+			"InvoiceNumber": p.InvoiceNumber, "PeriodStart": p.PeriodStart, "PeriodEnd": p.PeriodEnd,
+			"TotalDue": p.TotalDue, "Currency": p.Currency, "SettlementAmount": p.SettlementAmount,
+			"SettlementCurrency": p.SettlementCurrency, "PdfURL": p.PdfURL,
+		})
+	case constants.PaymentSucceeded:
+		var e events.PaymentSucceededEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
+		}
+		p := e.Payload
+		params := invoiceParams(p.InvoiceID, p.InvoiceNumber)
+		params["amount"], params["currency"] = string(p.Amount), p.Currency
+
+		return teamEvent(p.Billing, notification.TypePaymentSucceeded, p.PaymentID.String(), params, map[string]any{
+			"InvoiceNumber": p.InvoiceNumber, "Amount": p.Amount, "Currency": p.Currency, "PaidAt": p.PaidAt,
+		})
+	case constants.PaymentFailed:
+		var e events.PaymentFailedEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
+		}
+		p := e.Payload
+		params := invoiceParams(p.InvoiceID, p.InvoiceNumber)
+		params["amount"], params["currency"], params["attempt"] = string(p.Amount), p.Currency, p.Attempt
+		emailParams := map[string]any{
+			"InvoiceNumber": p.InvoiceNumber, "Amount": p.Amount, "Currency": p.Currency,
+			"FailureReason": p.FailureReason, "Attempt": p.Attempt,
+		}
+		// A nil *time.Time is still truthy to html/template's "if"; the
+		// template must see a plain value or nothing at all.
+		if p.NextRetryAt != nil {
+			params["next_retry_at"] = p.NextRetryAt.UTC()
+			emailParams["NextRetryAt"] = *p.NextRetryAt
 		}
 
-		params := recipientParams(r)
-		maps.Copy(params, shared)
-
-		if err := b.sender.Send(context.Background(), kind, r.Email, r.Locale, params); err != nil && first == nil {
-			first = err
+		return teamEvent(p.Billing, notification.TypePaymentFailed, p.PaymentID.String(), params, emailParams)
+	case constants.PaymentConfirmationRequired:
+		var e events.PaymentConfirmationRequiredEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
 		}
+		p := e.Payload
+		params := invoiceParams(p.InvoiceID, p.InvoiceNumber)
+		params["amount"], params["currency"] = string(p.Amount), p.Currency
+
+		return teamEvent(p.Billing, notification.TypePaymentConfirmationRequired, p.PaymentID.String(), params, map[string]any{
+			"InvoiceNumber": p.InvoiceNumber, "Amount": p.Amount, "Currency": p.Currency, "ConfirmURL": p.ConfirmURL,
+		})
+	case constants.TeamSuspended:
+		var e events.TeamSuspendedEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
+		}
+		p := e.Payload
+
+		return teamEvent(p.Billing, notification.TypeTeamSuspended, p.InvoiceID.String(), invoiceParams(p.InvoiceID, p.InvoiceNumber), map[string]any{
+			"InvoiceNumber": p.InvoiceNumber, "PayURL": p.PayURL,
+		})
+	case constants.DropletsDeletionWarning:
+		var e events.DropletsDeletionWarningEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
+		}
+		p := e.Payload
+		params := invoiceParams(p.InvoiceID, p.InvoiceNumber)
+		params["deletion_at"] = p.DeletionAt.UTC()
+
+		return teamEvent(p.Billing, notification.TypeDropletsDeletionWarning, p.InvoiceID.String()+":"+strconv.Itoa(p.DunningDay), params, map[string]any{
+			"InvoiceNumber": p.InvoiceNumber, "DeletionAt": p.DeletionAt, "PayURL": p.PayURL,
+		})
+	case constants.CardExpiring:
+		var e events.CardExpiringEvent
+		if err := decodeEvent(message, &e); err != nil {
+			return nil, err
+		}
+		p := e.Payload
+		params := map[string]any{"brand": p.Brand, "last4": p.Last4, "exp_month": p.ExpMonth, "exp_year": p.ExpYear}
+
+		return teamEvent(p.Billing, notification.TypeCardExpiring, fmt.Sprintf("%s:%04d-%02d", p.PaymentMethodID, p.ExpYear, p.ExpMonth), params, map[string]any{
+			"Brand": p.Brand, "Last4": p.Last4,
+			// Card expiry is printed the way the card itself prints it.
+			"Expires": fmt.Sprintf("%02d/%d", p.ExpMonth, p.ExpYear),
+		})
+	default:
+		return nil, nil
+	}
+}
+
+// teamEvent names the occasion by its type and the billing record it is
+// about, so a redelivered event records and sends nothing twice.
+func teamEvent(b events.Billing, t notification.Type, occasion string, params, emailParams map[string]any) (*handlers.TeamEvent, error) {
+	if b.TeamID == uuid.Nil {
+		return nil, notification.ErrorMalformedEvent.Copy().SetMessage("event payload is missing the team")
 	}
 
-	return first
-}
-
-type InvoiceIssued struct{ billing }
-
-func NewInvoiceIssued(sender ISender, log logger.ILog) *InvoiceIssued {
-	return &InvoiceIssued{billing{sender: sender, log: log}}
-}
-
-func (c *InvoiceIssued) Consume(message *rabbitmq.Message) error {
-	var event events.InvoiceIssuedEvent
-	if err := decode(message, &event); err != nil {
-		return err
+	event := &handlers.TeamEvent{
+		SourceKey: string(t) + ":" + occasion, Type: t, TeamID: b.TeamID, Params: params, EmailParams: emailParams,
+	}
+	if b.InvoiceAddress != nil {
+		event.Also = []notification.Recipient{{Email: b.InvoiceAddress.Email, FullName: b.InvoiceAddress.FullName, Locale: b.InvoiceAddress.Locale}}
 	}
 
-	p := event.Payload
-
-	return c.fanOut(email.KindInvoiceIssued, p.Recipients, map[string]any{
-		"TeamName":           p.TeamName,
-		"InvoiceNumber":      p.InvoiceNumber,
-		"PeriodStart":        p.PeriodStart,
-		"PeriodEnd":          p.PeriodEnd,
-		"TotalDue":           p.TotalDue,
-		"Currency":           p.Currency,
-		"SettlementAmount":   p.SettlementAmount,
-		"SettlementCurrency": p.SettlementCurrency,
-		"PdfURL":             p.PdfURL,
-	})
+	return event, nil
 }
 
-type PaymentSucceeded struct{ billing }
-
-func NewPaymentSucceeded(sender ISender, log logger.ILog) *PaymentSucceeded {
-	return &PaymentSucceeded{billing{sender: sender, log: log}}
+func invoiceParams(invoiceID uuid.UUID, number string) map[string]any {
+	return map[string]any{"invoice_id": invoiceID.String(), "invoice_number": number}
 }
 
-func (c *PaymentSucceeded) Consume(message *rabbitmq.Message) error {
-	var event events.PaymentSucceededEvent
-	if err := decode(message, &event); err != nil {
-		return err
+// decodeEvent wraps a malformed payload into a domain error: the plain
+// unmarshal error says nothing about which event was refused.
+func decodeEvent(message *rabbitmq.Message, into any) error {
+	if err := json.Unmarshal(message.Payload, into); err != nil {
+		return notification.ErrorMalformedEvent.Copy().SetError(err)
 	}
 
-	p := event.Payload
-
-	return c.fanOut(email.KindPaymentSucceeded, p.Recipients, map[string]any{
-		"TeamName":      p.TeamName,
-		"InvoiceNumber": p.InvoiceNumber,
-		"Amount":        p.Amount,
-		"Currency":      p.Currency,
-		"PaidAt":        p.PaidAt,
-	})
-}
-
-type PaymentFailed struct{ billing }
-
-func NewPaymentFailed(sender ISender, log logger.ILog) *PaymentFailed {
-	return &PaymentFailed{billing{sender: sender, log: log}}
-}
-
-func (c *PaymentFailed) Consume(message *rabbitmq.Message) error {
-	var event events.PaymentFailedEvent
-	if err := decode(message, &event); err != nil {
-		return err
-	}
-
-	p := event.Payload
-	params := map[string]any{
-		"TeamName":      p.TeamName,
-		"InvoiceNumber": p.InvoiceNumber,
-		"Amount":        p.Amount,
-		"Currency":      p.Currency,
-		"FailureReason": p.FailureReason,
-		"Attempt":       p.Attempt,
-	}
-	// A nil *time.Time is still truthy to html/template's "if"; the template
-	// must see a plain value or nothing at all.
-	if p.NextRetryAt != nil {
-		params["NextRetryAt"] = *p.NextRetryAt
-	}
-
-	return c.fanOut(email.KindPaymentFailed, p.Recipients, params)
-}
-
-type PaymentConfirmationRequired struct{ billing }
-
-func NewPaymentConfirmationRequired(sender ISender, log logger.ILog) *PaymentConfirmationRequired {
-	return &PaymentConfirmationRequired{billing{sender: sender, log: log}}
-}
-
-func (c *PaymentConfirmationRequired) Consume(message *rabbitmq.Message) error {
-	var event events.PaymentConfirmationRequiredEvent
-	if err := decode(message, &event); err != nil {
-		return err
-	}
-
-	p := event.Payload
-
-	return c.fanOut(email.KindPaymentConfirmationRequired, p.Recipients, map[string]any{
-		"TeamName":      p.TeamName,
-		"InvoiceNumber": p.InvoiceNumber,
-		"Amount":        p.Amount,
-		"Currency":      p.Currency,
-		"ConfirmURL":    p.ConfirmURL,
-	})
-}
-
-type TeamSuspended struct{ billing }
-
-func NewTeamSuspended(sender ISender, log logger.ILog) *TeamSuspended {
-	return &TeamSuspended{billing{sender: sender, log: log}}
-}
-
-func (c *TeamSuspended) Consume(message *rabbitmq.Message) error {
-	var event events.TeamSuspendedEvent
-	if err := decode(message, &event); err != nil {
-		return err
-	}
-
-	p := event.Payload
-
-	return c.fanOut(email.KindTeamSuspended, p.Recipients, map[string]any{
-		"TeamName":      p.TeamName,
-		"InvoiceNumber": p.InvoiceNumber,
-		"PayURL":        p.PayURL,
-	})
-}
-
-type DropletsDeletionWarning struct{ billing }
-
-func NewDropletsDeletionWarning(sender ISender, log logger.ILog) *DropletsDeletionWarning {
-	return &DropletsDeletionWarning{billing{sender: sender, log: log}}
-}
-
-func (c *DropletsDeletionWarning) Consume(message *rabbitmq.Message) error {
-	var event events.DropletsDeletionWarningEvent
-	if err := decode(message, &event); err != nil {
-		return err
-	}
-
-	p := event.Payload
-
-	return c.fanOut(email.KindDropletsDeletionWarning, p.Recipients, map[string]any{
-		"TeamName":      p.TeamName,
-		"InvoiceNumber": p.InvoiceNumber,
-		"DeletionAt":    p.DeletionAt,
-		"PayURL":        p.PayURL,
-	})
-}
-
-type CardExpiring struct{ billing }
-
-func NewCardExpiring(sender ISender, log logger.ILog) *CardExpiring {
-	return &CardExpiring{billing{sender: sender, log: log}}
-}
-
-func (c *CardExpiring) Consume(message *rabbitmq.Message) error {
-	var event events.CardExpiringEvent
-	if err := decode(message, &event); err != nil {
-		return err
-	}
-
-	p := event.Payload
-
-	return c.fanOut(email.KindCardExpiring, p.Recipients, map[string]any{
-		"TeamName": p.TeamName,
-		"Brand":    p.Brand,
-		"Last4":    p.Last4,
-		// Card expiry is printed the way the card itself prints it.
-		"Expires": fmt.Sprintf("%02d/%d", p.ExpMonth, p.ExpYear),
-	})
+	return nil
 }

@@ -13,5 +13,11 @@
   "payment_confirmation_required_subject": "{{.TeamName}} için ödemeni onayla",
   "team_suspended_subject": "{{.TeamName}} Nodera'da askıya alındı",
   "droplets_deletion_warning_subject": "İşlem gerekli: {{.TeamName}} droplet'leri silinecek",
-  "card_expiring_subject": "{{.TeamName}} için {{.Last4}} ile biten kartının süresi dolmak üzere"
+  "card_expiring_subject": "{{.TeamName}} için {{.Last4}} ile biten kartının süresi dolmak üzere",
+  "droplet_failed_subject": "{{.Hostname}} oluşturulamadı",
+  "droplet_failure_rejected": "sipariş reddedildi",
+  "droplet_failure_unavailable": "sunucu şu anda sipariş edilemedi",
+  "droplet_failure_timed_out": "sunucu zamanında teslim edilmedi",
+  "droplet_failure_server_gone": "sunucu artık mevcut değil",
+  "droplet_failure_provider_failed": "sunucu çalışmayı durdurdu"
 }

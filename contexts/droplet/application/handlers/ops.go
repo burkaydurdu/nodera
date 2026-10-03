@@ -20,7 +20,7 @@ const (
 // dropletOps is what every change to a Droplet goes through, whether a
 // customer, the billing context or a replay asked for it: one locked
 // read-modify-write that also claims the meter's boundaries in the same
-// transaction and announces them after the commit.
+// transaction and, after the commit, announces them and any change of status.
 type dropletOps struct {
 	log          logger.ILog
 	droplets     droplet.IService
@@ -28,6 +28,19 @@ type dropletOps struct {
 	registry     ProviderRegistry
 	transactions postgresql.ITransactionManager
 	meter        *Meter
+	status       *StatusAnnouncer
+}
+
+func newDropletOps(
+	log logger.ILog,
+	droplets droplet.IService,
+	providerService provider.IService,
+	registry ProviderRegistry,
+	transactions postgresql.ITransactionManager,
+	meter *Meter,
+	status *StatusAnnouncer,
+) *dropletOps {
+	return &dropletOps{log: log, droplets: droplets, providers: providerService, registry: registry, transactions: transactions, meter: meter, status: status}
 }
 
 // update locks the row for the transaction, lets mutate see the current row
@@ -45,6 +58,7 @@ func (o *dropletOps) update(ctx context.Context, id uuid.UUID, mutate func(ctx c
 
 		return err
 	}
+	from := current.Status
 	if err := mutate(txCtx, current); err != nil {
 		_ = o.transactions.Rollback(txCtx)
 
@@ -64,6 +78,7 @@ func (o *dropletOps) update(ctx context.Context, id uuid.UUID, mutate func(ctx c
 		return err
 	}
 	o.meter.Publish(ctx, current, claimed)
+	o.status.Announce(ctx, current, &from)
 
 	return nil
 }

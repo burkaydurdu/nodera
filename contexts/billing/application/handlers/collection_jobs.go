@@ -154,14 +154,14 @@ func (c *Collection) dun(ctx context.Context, inv *invoice.Invoice, at time.Time
 		return c.requestDeletion(ctx, inv.TeamID, at)
 	}
 
-	recipients, teamName, err := c.recipients(ctx, inv.TeamID)
+	address, err := c.invoiceAddress(ctx, inv.TeamID)
 	if err != nil {
 		return err
 	}
 
 	return c.Notifier.DropletsDeletionWarning(ctx, events.DropletsDeletionWarningBody{
-		Recipients: recipients, TeamName: teamName, InvoiceNumber: inv.Number,
-		DeletionAt: invoice.DeletionAt(*inv.FailedAt).UTC(), PayURL: c.payURL(inv.TeamID, inv.ID),
+		TeamID: inv.TeamID, InvoiceID: inv.ID, InvoiceAddress: address, InvoiceNumber: inv.Number,
+		DeletionAt: invoice.DeletionAt(*inv.FailedAt).UTC(), DunningDay: invoice.StepDay(due), PayURL: c.payURL(inv.TeamID, inv.ID),
 	})
 }
 
@@ -483,12 +483,13 @@ func (c *Collection) expiring(ctx context.Context, m *paymentmethod.PaymentMetho
 }
 
 func (c *Collection) warnExpiring(ctx context.Context, m *paymentmethod.PaymentMethod, at time.Time) error {
-	recipients, teamName, err := c.recipients(ctx, m.TeamID)
+	address, err := c.invoiceAddress(ctx, m.TeamID)
 	if err != nil {
 		return err
 	}
 	if err := c.Notifier.CardExpiring(ctx, events.CardExpiringBody{
-		Recipients: recipients, TeamName: teamName, Brand: m.Brand, Last4: m.Last4, ExpMonth: m.ExpMonth, ExpYear: m.ExpYear,
+		TeamID: m.TeamID, PaymentMethodID: m.ID, InvoiceAddress: address,
+		Brand: m.Brand, Last4: m.Last4, ExpMonth: m.ExpMonth, ExpYear: m.ExpYear,
 	}); err != nil {
 		return err
 	}

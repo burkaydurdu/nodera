@@ -13,6 +13,7 @@ import (
 	"github.com/piggystats/nodera/contexts/droplet/async/events"
 	"github.com/piggystats/nodera/pkg/apperror"
 	contextConstants "github.com/piggystats/nodera/pkg/constants"
+	"github.com/piggystats/nodera/pkg/realtime"
 	"github.com/piggystats/nodera/utils/str"
 )
 
@@ -37,6 +38,8 @@ func (p *Producer) AddPublisher(ctx context.Context) {
 		rabbitmq.Topic,
 		events.DropletBillingStartedEvent{},
 		events.DropletBillingStoppedEvent{},
+		events.DropletStatusChangedEvent{},
+		realtime.Message{},
 	)
 }
 

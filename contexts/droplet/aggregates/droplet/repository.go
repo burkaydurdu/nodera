@@ -25,7 +25,7 @@ func NewRepository(queries *postgresql.Queries) *Repository {
 
 const columns = `
 	id, project_id, team_id, plan_id, plan_code, region_code, image_code, hostname, hourly_price::text, monthly_cap_hours,
-	status, provider_id, provider_ref, ipv4, ipv6, ssh_keys, pending_action, failure_reason, created_by,
+	status, provider_id, provider_ref, ipv4, ipv6, ssh_keys, pending_action, failure_reason, failure_code, created_by,
 	created_at, updated_at, active_at, deletion_requested_at, deleted_at, failed_at,
 	billing_started_published_at, billing_stopped_published_at, suspended_power_off_at`
 
@@ -152,11 +152,11 @@ func (r *Repository) Save(ctx context.Context, d *Droplet) error {
 		SET status = $2, provider_ref = $3, ipv4 = $4, ipv6 = $5, pending_action = $6, failure_reason = $7,
 		    active_at = $8, deletion_requested_at = $9, deleted_at = $10, failed_at = $11,
 		    billing_started_published_at = $12, billing_stopped_published_at = $13, suspended_power_off_at = $14,
-		    updated_at = now()
+		    failure_code = $15, updated_at = now()
 		WHERE id = $1`,
 		d.ID, string(d.Status), d.ProviderRef, d.IPv4, d.IPv6, pending, d.FailureReason,
 		d.ActiveAt, d.DeletionRequest, d.DeletedAt, d.FailedAt,
-		d.BillingStartedPublishedAt, d.BillingStoppedPublishedAt, d.SuspendedPowerOffAt)
+		d.BillingStartedPublishedAt, d.BillingStoppedPublishedAt, d.SuspendedPowerOffAt, d.FailureCode)
 	if err != nil {
 		return ErrorCannotUpdate.Copy().SetError(err)
 	}
@@ -236,7 +236,7 @@ func scan(row pgx.Row) (*Droplet, error) {
 	)
 	err := row.Scan(
 		&d.ID, &d.ProjectID, &d.TeamID, &d.PlanID, &d.PlanCode, &d.RegionCode, &d.ImageCode, &d.Hostname, &price, &d.MonthlyCapHours,
-		&status, &d.ProviderID, &d.ProviderRef, &d.IPv4, &d.IPv6, &keys, &pending, &d.FailureReason, &d.CreatedBy,
+		&status, &d.ProviderID, &d.ProviderRef, &d.IPv4, &d.IPv6, &keys, &pending, &d.FailureReason, &d.FailureCode, &d.CreatedBy,
 		&d.CreatedAt, &d.UpdatedAt, &d.ActiveAt, &d.DeletionRequest, &d.DeletedAt, &d.FailedAt,
 		&d.BillingStartedPublishedAt, &d.BillingStoppedPublishedAt, &d.SuspendedPowerOffAt,
 	)

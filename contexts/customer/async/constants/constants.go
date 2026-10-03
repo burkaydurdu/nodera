@@ -13,5 +13,7 @@ const (
 	TeamMemberAdded       = "TeamMemberAdded"
 	TeamMemberRoleChanged = "TeamMemberRoleChanged"
 	TeamMemberRemoved     = "TeamMemberRemoved"
-	ProjectCreated        = "ProjectCreated"
+	// UserProfileUpdated tells the read models a person's name and Locale changed.
+	UserProfileUpdated = "UserProfileUpdated"
+	ProjectCreated     = "ProjectCreated"
 )

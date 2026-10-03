@@ -86,13 +86,13 @@ type DropletBillingStoppedEvent struct {
 // Published
 // ---------------------------------------------------------------------------
 
-// Recipient is who an email goes to and in which Locale. UserID is nil for
-// the profile's invoice address, which may name nobody.
-type Recipient struct {
-	UserID   uuid.UUID `json:"user_id"`
-	Email    string    `json:"email"`
-	FullName string    `json:"full_name"`
-	Locale   string    `json:"locale"`
+// Address is the billing profile's invoice address: told about the Team's
+// money matters although no member holds it, in the Locale the profile's
+// country writes Invoices in.
+type Address struct {
+	Email    string `json:"email"`
+	FullName string `json:"full_name"`
+	Locale   string `json:"locale"`
 }
 
 type TeamBillingStatusChangedBody struct {
@@ -114,20 +114,24 @@ type TeamDropletsDeletionRequestedEvent struct {
 	Payload TeamDropletsDeletionRequestedBody `json:"payload"`
 }
 
-// The email events below are published by collection (invoices, payments,
-// dunning); their bodies follow the phase 4 contract.
+// The events below are published by collection (invoices, payments, dunning)
+// for the notification context. They say what happened to which Team and name
+// the thing it happened to; who among the members is told is the notification
+// context's decision (docs/adr/0008). The links are signed or personal, so
+// they ride only here, for the email, and are never recorded.
 
 type InvoiceIssuedBody struct {
-	Recipients       []Recipient `json:"recipients"`
-	TeamName         string      `json:"team_name"`
-	InvoiceNumber    string      `json:"invoice_number"`
-	PeriodStart      time.Time   `json:"period_start"`
-	PeriodEnd        time.Time   `json:"period_end"`
-	TotalDue         string      `json:"total_due"`
-	Currency         string      `json:"currency"`
-	SettlementAmount *string     `json:"settlement_amount,omitempty"`
-	SettlementCurr   *string     `json:"settlement_currency,omitempty"`
-	PDFURL           string      `json:"pdf_url"`
+	TeamID           uuid.UUID `json:"team_id"`
+	InvoiceID        uuid.UUID `json:"invoice_id"`
+	InvoiceAddress   *Address  `json:"invoice_address,omitempty"`
+	InvoiceNumber    string    `json:"invoice_number"`
+	PeriodStart      time.Time `json:"period_start"`
+	PeriodEnd        time.Time `json:"period_end"`
+	TotalDue         string    `json:"total_due"`
+	Currency         string    `json:"currency"`
+	SettlementAmount *string   `json:"settlement_amount,omitempty"`
+	SettlementCurr   *string   `json:"settlement_currency,omitempty"`
+	PDFURL           string    `json:"pdf_url"`
 }
 
 type InvoiceIssuedEvent struct {
@@ -135,12 +139,14 @@ type InvoiceIssuedEvent struct {
 }
 
 type PaymentSucceededBody struct {
-	Recipients    []Recipient `json:"recipients"`
-	TeamName      string      `json:"team_name"`
-	InvoiceNumber string      `json:"invoice_number"`
-	Amount        string      `json:"amount"`
-	Currency      string      `json:"currency"`
-	PaidAt        time.Time   `json:"paid_at"`
+	TeamID         uuid.UUID `json:"team_id"`
+	InvoiceID      uuid.UUID `json:"invoice_id"`
+	PaymentID      uuid.UUID `json:"payment_id"`
+	InvoiceAddress *Address  `json:"invoice_address,omitempty"`
+	InvoiceNumber  string    `json:"invoice_number"`
+	Amount         string    `json:"amount"`
+	Currency       string    `json:"currency"`
+	PaidAt         time.Time `json:"paid_at"`
 }
 
 type PaymentSucceededEvent struct {
@@ -148,14 +154,16 @@ type PaymentSucceededEvent struct {
 }
 
 type PaymentFailedBody struct {
-	Recipients    []Recipient `json:"recipients"`
-	TeamName      string      `json:"team_name"`
-	InvoiceNumber string      `json:"invoice_number"`
-	Amount        string      `json:"amount"`
-	Currency      string      `json:"currency"`
-	FailureReason string      `json:"failure_reason"`
-	Attempt       int         `json:"attempt"`
-	NextRetryAt   *time.Time  `json:"next_retry_at,omitempty"`
+	TeamID         uuid.UUID  `json:"team_id"`
+	InvoiceID      uuid.UUID  `json:"invoice_id"`
+	PaymentID      uuid.UUID  `json:"payment_id"`
+	InvoiceAddress *Address   `json:"invoice_address,omitempty"`
+	InvoiceNumber  string     `json:"invoice_number"`
+	Amount         string     `json:"amount"`
+	Currency       string     `json:"currency"`
+	FailureReason  string     `json:"failure_reason"`
+	Attempt        int        `json:"attempt"`
+	NextRetryAt    *time.Time `json:"next_retry_at,omitempty"`
 }
 
 type PaymentFailedEvent struct {
@@ -163,12 +171,14 @@ type PaymentFailedEvent struct {
 }
 
 type PaymentConfirmationRequiredBody struct {
-	Recipients    []Recipient `json:"recipients"`
-	TeamName      string      `json:"team_name"`
-	InvoiceNumber string      `json:"invoice_number"`
-	Amount        string      `json:"amount"`
-	Currency      string      `json:"currency"`
-	ConfirmURL    string      `json:"confirm_url"`
+	TeamID         uuid.UUID `json:"team_id"`
+	InvoiceID      uuid.UUID `json:"invoice_id"`
+	PaymentID      uuid.UUID `json:"payment_id"`
+	InvoiceAddress *Address  `json:"invoice_address,omitempty"`
+	InvoiceNumber  string    `json:"invoice_number"`
+	Amount         string    `json:"amount"`
+	Currency       string    `json:"currency"`
+	ConfirmURL     string    `json:"confirm_url"`
 }
 
 type PaymentConfirmationRequiredEvent struct {
@@ -176,10 +186,11 @@ type PaymentConfirmationRequiredEvent struct {
 }
 
 type TeamSuspendedBody struct {
-	Recipients    []Recipient `json:"recipients"`
-	TeamName      string      `json:"team_name"`
-	InvoiceNumber string      `json:"invoice_number"`
-	PayURL        string      `json:"pay_url"`
+	TeamID         uuid.UUID `json:"team_id"`
+	InvoiceID      uuid.UUID `json:"invoice_id"`
+	InvoiceAddress *Address  `json:"invoice_address,omitempty"`
+	InvoiceNumber  string    `json:"invoice_number"`
+	PayURL         string    `json:"pay_url"`
 }
 
 type TeamSuspendedEvent struct {
@@ -187,11 +198,14 @@ type TeamSuspendedEvent struct {
 }
 
 type DropletsDeletionWarningBody struct {
-	Recipients    []Recipient `json:"recipients"`
-	TeamName      string      `json:"team_name"`
-	InvoiceNumber string      `json:"invoice_number"`
-	DeletionAt    time.Time   `json:"deletion_at"`
-	PayURL        string      `json:"pay_url"`
+	TeamID         uuid.UUID `json:"team_id"`
+	InvoiceID      uuid.UUID `json:"invoice_id"`
+	InvoiceAddress *Address  `json:"invoice_address,omitempty"`
+	// DunningDay tells the two warnings of one Invoice apart.
+	DunningDay    int       `json:"dunning_day"`
+	InvoiceNumber string    `json:"invoice_number"`
+	DeletionAt    time.Time `json:"deletion_at"`
+	PayURL        string    `json:"pay_url"`
 }
 
 type DropletsDeletionWarningEvent struct {
@@ -199,12 +213,13 @@ type DropletsDeletionWarningEvent struct {
 }
 
 type CardExpiringBody struct {
-	Recipients []Recipient `json:"recipients"`
-	TeamName   string      `json:"team_name"`
-	Brand      string      `json:"brand"`
-	Last4      string      `json:"last4"`
-	ExpMonth   int         `json:"exp_month"`
-	ExpYear    int         `json:"exp_year"`
+	TeamID          uuid.UUID `json:"team_id"`
+	PaymentMethodID uuid.UUID `json:"payment_method_id"`
+	InvoiceAddress  *Address  `json:"invoice_address,omitempty"`
+	Brand           string    `json:"brand"`
+	Last4           string    `json:"last4"`
+	ExpMonth        int       `json:"exp_month"`
+	ExpYear         int       `json:"exp_year"`
 }
 
 type CardExpiringEvent struct {

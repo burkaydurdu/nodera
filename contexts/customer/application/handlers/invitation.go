@@ -314,12 +314,15 @@ func (h *Invitation) sendEmail(ctx context.Context, inv *invitation.Invitation, 
 	}
 
 	err = h.mailer.Publish(ctx, events.TeamInvitationBody{
-		Recipient:   recipient,
-		TeamName:    inv.TeamName,
-		Role:        string(inv.Role),
-		InviterName: inv.InviterName,
-		AcceptURL:   fmt.Sprintf("%s/invitations/accept?token=%s", h.config.FrontURL, rawToken),
-		ExpiresAt:   inv.ExpiresAt,
+		InvitationID: inv.ID,
+		TeamID:       inv.TeamID,
+		SentAt:       time.Now().UTC(),
+		Recipient:    recipient,
+		TeamName:     inv.TeamName,
+		Role:         string(inv.Role),
+		InviterName:  inv.InviterName,
+		AcceptURL:    fmt.Sprintf("%s/invitations/accept?token=%s", h.config.FrontURL, rawToken),
+		ExpiresAt:    inv.ExpiresAt,
 	})
 	if err != nil {
 		h.log.Error(err)

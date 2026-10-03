@@ -29,9 +29,10 @@ func NewReplayBilling(
 	registry ProviderRegistry,
 	transactions postgresql.ITransactionManager,
 	meter *Meter,
+	status *StatusAnnouncer,
 ) *ReplayBilling {
 	return &ReplayBilling{
-		dropletOps: &dropletOps{log: log, droplets: droplets, providers: providerService, registry: registry, transactions: transactions, meter: meter},
+		dropletOps: newDropletOps(log, droplets, providerService, registry, transactions, meter, status),
 	}
 }
 

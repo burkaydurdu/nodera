@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -229,43 +228,19 @@ func localeFor(country string) string {
 	return locale.Default
 }
 
-// recipients addresses a billing email: the profile's invoice address and
-// every owner, each once by address, an owner keeping their own Locale.
-func (c *Collection) recipients(ctx context.Context, teamID uuid.UUID) ([]events.Recipient, string, error) {
+// invoiceAddress is the billing profile's invoice email, told about the
+// Team's money matters besides the members the notification context picks
+// (docs/adr/0008); nil when the profile names none.
+func (c *Collection) invoiceAddress(ctx context.Context, teamID uuid.UUID) (*events.Address, error) {
 	p, err := c.profileOf(ctx, teamID)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	owners, err := c.Access.OwnersOf(ctx, teamID)
-	if err != nil {
-		return nil, "", err
-	}
-	team, err := c.Access.FindTeam(ctx, teamID)
-	if err != nil {
-		return nil, "", err
+	if p == nil || str.IsBlank(p.InvoiceEmail) {
+		return nil, nil
 	}
 
-	seen := make(map[string]bool, len(owners)+1)
-	out := make([]events.Recipient, 0, len(owners)+1)
-	for _, o := range owners {
-		key := strings.ToLower(strings.TrimSpace(o.Email))
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, events.Recipient{UserID: o.UserID, Email: o.Email, FullName: o.FullName, Locale: locale.Resolve(o.Locale)})
-	}
-	if p != nil && str.IsNotEmpty(p.InvoiceEmail) && !seen[strings.ToLower(strings.TrimSpace(p.InvoiceEmail))] {
-		invoiceAddress := events.Recipient{Email: p.InvoiceEmail, FullName: p.LegalName, Locale: localeFor(p.Country)}
-		out = append([]events.Recipient{invoiceAddress}, out...)
-	}
-
-	teamName := ""
-	if team != nil {
-		teamName = team.Name
-	}
-
-	return out, teamName, nil
+	return &events.Address{Email: p.InvoiceEmail, FullName: p.LegalName, Locale: localeFor(p.Country)}, nil
 }
 
 func (c *Collection) payURL(teamID, invoiceID uuid.UUID) string {

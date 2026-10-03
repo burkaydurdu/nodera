@@ -162,6 +162,7 @@ func (s *dropletSuite) TestCreate_ProviderRefusalFailsTheDropletWithASafeReason(
 	detail := s.get("/v1/droplets/"+created.str("id"), u.Token)
 	s.Equal("failed", detail.str("status"))
 	s.Equal(provider.ErrorRejected.Message, detail.str("failure_reason"))
+	s.Equal("rejected", detail.str("failure_code"), "the web app words the reason in the reader's language")
 	s.NotContains(detail.Raw, "cherry", "the raw Provider message stays in the log")
 	s.NotContains(detail.Raw, "balance")
 	history, _ := detail.Body["history"].([]any)
@@ -179,6 +180,7 @@ func (s *dropletSuite) TestCreate_UnknownProviderErrorIsGenericToTheCustomer() {
 	detail := s.get("/v1/droplets/"+created.str("id"), u.Token)
 	s.Equal("failed", detail.str("status"))
 	s.Equal(provider.ErrorUnavailable.Message, detail.str("failure_reason"))
+	s.Equal("unavailable", detail.str("failure_code"))
 }
 
 // ── Power actions ────────────────────────────────────────────────────────────
@@ -394,6 +396,7 @@ func (s *dropletSuite) TestPoll_ProvisioningTimeoutFailsTheDropletAndReleasesThe
 	detail := s.get("/v1/droplets/"+created.str("id"), u.Token)
 	s.Equal("failed", detail.str("status"))
 	s.Equal(droplet.ErrorProvisioningTimedOut.Message, detail.str("failure_reason"))
+	s.Equal("timed_out", detail.str("failure_code"))
 	s.NotContains(detail.Raw, "cherry")
 	server, ok := s.fake.Server(ref)
 	s.Require().True(ok)

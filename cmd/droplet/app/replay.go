@@ -22,7 +22,7 @@ func ReplayBilling(ctx context.Context, log logger.ILog, pool *pgxpool.Pool, reg
 	ctx = context.WithValue(ctx, constants.CorrelationID, uuid.NewString())
 
 	services := NewServices(pool)
-	replay := handlers.NewReplayBilling(log, services.Droplets, services.Providers, registry, services.Transactions, NewMeter(log, outboxClient))
+	replay := handlers.NewReplayBilling(log, services.Droplets, services.Providers, registry, services.Transactions, NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient))
 
 	summary, err := replay.Run(ctx)
 	if err != nil {

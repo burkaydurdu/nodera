@@ -43,20 +43,14 @@ func (r *Repository) UpsertTeam(ctx context.Context, teamID uuid.UUID, name stri
 // UpsertTeamMember records a membership as of its UpdatedAt; being added
 // again after a removal lifts the tombstone. The comparison admits an equal
 // time: TeamCreated and the owner's TeamMemberAdded carry the same instant.
-// An empty contact field never blanks a known one, since an older producer
-// sends none.
 func (r *Repository) UpsertTeamMember(ctx context.Context, m *Member) error {
 	_, err := r.queries.Executor(ctx).Exec(ctx, `
-		INSERT INTO team_members (team_id, user_id, role, email, full_name, locale, updated_at, removed_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NULL)
+		INSERT INTO team_members (team_id, user_id, role, updated_at, removed_at)
+		VALUES ($1, $2, $3, $4, NULL)
 		ON CONFLICT (team_id, user_id) DO UPDATE
-		SET role = EXCLUDED.role,
-		    email = COALESCE(NULLIF(EXCLUDED.email, ''), team_members.email),
-		    full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), team_members.full_name),
-		    locale = COALESCE(NULLIF(EXCLUDED.locale, ''), team_members.locale),
-		    updated_at = EXCLUDED.updated_at, removed_at = NULL
+		SET role = EXCLUDED.role, updated_at = EXCLUDED.updated_at, removed_at = NULL
 		WHERE team_members.updated_at <= EXCLUDED.updated_at`,
-		m.TeamID, m.UserID, m.Role, m.Email, m.FullName, m.Locale, m.UpdatedAt)
+		m.TeamID, m.UserID, m.Role, m.UpdatedAt)
 	if err != nil {
 		return ErrorCannotStore.Copy().SetError(err)
 	}
@@ -127,32 +121,4 @@ func (r *Repository) FindTeam(ctx context.Context, teamID uuid.UUID) (*Team, err
 	}
 
 	return &t, nil
-}
-
-// OwnersOf answers the current owners of a Team with their contact details,
-// oldest membership first; a member whose email never reached this context
-// is left out, since no email can be sent to them.
-func (r *Repository) OwnersOf(ctx context.Context, teamID uuid.UUID) ([]Recipient, error) {
-	rows, err := r.queries.Executor(ctx).Query(ctx, `
-		SELECT user_id, email, full_name, locale FROM team_members
-		WHERE team_id = $1 AND role = $2 AND removed_at IS NULL AND email <> ''
-		ORDER BY created_at, user_id`, teamID, authz.RoleOwner)
-	if err != nil {
-		return nil, ErrorCannotRead.Copy().SetError(err)
-	}
-	defer rows.Close()
-
-	recipients := make([]Recipient, 0)
-	for rows.Next() {
-		var rec Recipient
-		if err := rows.Scan(&rec.UserID, &rec.Email, &rec.FullName, &rec.Locale); err != nil {
-			return nil, ErrorCannotRead.Copy().SetError(err)
-		}
-		recipients = append(recipients, rec)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, ErrorCannotRead.Copy().SetError(err)
-	}
-
-	return recipients, nil
 }

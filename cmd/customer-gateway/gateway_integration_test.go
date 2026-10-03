@@ -40,10 +40,11 @@ const (
 	// anything else is stale.
 	permVersion = 3
 
-	noTarget       = ""
-	targetCustomer = "customer"
-	targetDroplet  = "droplet"
-	targetBilling  = "billing"
+	noTarget           = ""
+	targetCustomer     = "customer"
+	targetDroplet      = "droplet"
+	targetBilling      = "billing"
+	targetNotification = "notification"
 )
 
 // stubUpstream records what reached it; that is how the suite reads what
@@ -84,9 +85,12 @@ type gatewaySuite struct {
 	redisResource *dockertest.Resource
 	redis         redis.IService
 
-	customer *stubUpstream
-	droplet  *stubUpstream
-	billing  *stubUpstream
+	customer     *stubUpstream
+	droplet      *stubUpstream
+	billing      *stubUpstream
+	notification *stubUpstream
+	// realtime answers WebSockets: it echoes every text frame.
+	realtime *httptest.Server
 
 	server *echo.Echo
 }
@@ -131,6 +135,8 @@ func (s *gatewaySuite) SetupSuite() {
 	s.customer = newStubUpstream("customer")
 	s.droplet = newStubUpstream("droplet")
 	s.billing = newStubUpstream("billing")
+	s.notification = newStubUpstream("notification")
+	s.realtime = newEchoSocketUpstream()
 
 	routeTable := &gatewayConfig.GatewayConfig{Gateway: gatewayConfig.Gateway{Services: map[string]gatewayConfig.Service{
 		"customer": {Host: s.customer.server.URL, Endpoints: gatewayConfig.Endpoints{
@@ -153,6 +159,12 @@ func (s *gatewaySuite) SetupSuite() {
 			{Path: "/v1/billing/payments/:paymentID/3ds/callback", Method: "POST", Public: true, Headerless: true},
 			{Path: "/v1/billing/payments/:paymentID/3ds/start", Method: "POST", Public: true},
 		}},
+		"notification": {Host: s.notification.server.URL, Endpoints: gatewayConfig.Endpoints{
+			{Path: "/v1/notifications", Method: "GET"},
+		}},
+		"realtime": {Host: s.realtime.URL, Endpoints: gatewayConfig.Endpoints{
+			{Path: "/v1/realtime", Method: "GET", Public: true, Headerless: true},
+		}},
 	}}}
 	routeTable.InitEndpoints()
 
@@ -170,10 +182,13 @@ func (s *gatewaySuite) SetupSuite() {
 }
 
 func (s *gatewaySuite) TearDownSuite() {
-	for _, u := range []*stubUpstream{s.customer, s.droplet, s.billing} {
+	for _, u := range []*stubUpstream{s.customer, s.droplet, s.billing, s.notification} {
 		if u != nil {
 			u.server.Close()
 		}
+	}
+	if s.realtime != nil {
+		s.realtime.Close()
 	}
 	if s.redisResource != nil {
 		_ = s.pool.Purge(s.redisResource)

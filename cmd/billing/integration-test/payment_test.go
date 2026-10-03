@@ -15,15 +15,11 @@ import (
 	"github.com/piggystats/nodera/contexts/billing/providers"
 )
 
-// The receipt goes to the invoice address and every owner, once per
-// address: an owner who is also the invoice address keeps their own Locale.
+// The receipt says what was paid by which Team and names the profile's invoice
+// address; who among the members reads it is the notification context's
+// decision (docs/adr/0008), so no recipient list travels.
 func (s *billingSuite) TestCharge_SucceededPaysTheInvoiceAndSendsTheReceipt() {
 	owner, teamID := s.germanTeam()
-	coOwner := s.signIn()
-	coOwner.Email = "books@acme.example"
-	s.addMember(teamID, coOwner, "owner", time.Now())
-	finance := s.signIn()
-	s.addMember(teamID, finance, "finance", time.Now())
 	s.droplet(teamID, "web-1", "1.0000", oct(5, 0, 0), at(oct(5, 10, 0)))
 
 	s.closePeriods(closingTime)
@@ -34,20 +30,15 @@ func (s *billingSuite) TestCharge_SucceededPaysTheInvoiceAndSendsTheReceipt() {
 	s.Require().Len(receipts, 1)
 	receipt := receipts[0]
 	s.Equal(detail.str("number"), receipt["invoice_number"])
-	s.Equal("Acme", receipt["team_name"])
+	s.Equal(teamID.String(), receipt["team_id"])
+	s.Equal(detail.str("id"), receipt["invoice_id"])
+	s.NotEmpty(receipt["payment_id"])
 	s.Equal("10.00", receipt["amount"])
 	s.Equal("USD", receipt["currency"])
 	s.Equal(rfc3339(closingTime), receipt["paid_at"])
-	recipients := s.objectList(receipt["recipients"])
-	s.Require().Len(recipients, 2, "the finance member is not addressed; the shared address once")
-	s.ElementsMatch([]string{owner.Email, "books@acme.example"}, recipientEmails(receipt))
-	for _, r := range recipients {
-		if r["email"] == "books@acme.example" {
-			s.Equal(coOwner.ID.String(), r["user_id"], "the owner's entry wins over the bare invoice address")
-			s.Equal("en", r["locale"])
-		}
-	}
-	s.Len(s.outboxPayloads(constants.InvoiceIssued)[0]["recipients"], 2)
+	s.Equal(map[string]any{"email": "books@acme.example", "full_name": "Acme GmbH", "locale": "en"}, receipt["invoice_address"])
+	s.NotContains(receipt, "recipients")
+	s.NotContains(receipt, "team_name")
 
 	status := s.get(billingPath(teamID, "/status"), owner.Token)
 	s.Equal("active", status.str("status"))
@@ -113,7 +104,8 @@ func (s *billingSuite) TestDunning_RunsTheScheduleFromRetriesToTheDeletionReques
 	s.Require().Len(suspended, 1)
 	s.Equal(detail.str("number"), suspended[0]["invoice_number"])
 	s.Equal(frontURL+"/dashboard/team/billing?team="+teamID.String()+"&tab=invoices&invoice="+invoiceID, suspended[0]["pay_url"])
-	s.Contains(recipientEmails(suspended[0]), owner.Email)
+	s.Equal(teamID.String(), suspended[0]["team_id"])
+	s.Equal(invoiceID, suspended[0]["invoice_id"])
 	status = s.get(billingPath(teamID, "/status"), owner.Token)
 	s.Equal("suspended", status.str("status"))
 	s.Equal(rfc3339(day(7)), status.str("suspended_at"))
@@ -128,10 +120,12 @@ func (s *billingSuite) TestDunning_RunsTheScheduleFromRetriesToTheDeletionReques
 	warnings := s.outboxPayloads(constants.DropletsDeletionWarning)
 	s.Require().Len(warnings, 1)
 	s.Equal(rfc3339(day(21)), warnings[0]["deletion_at"])
+	s.Equal(float64(14), warnings[0]["dunning_day"], "the day tells the two warnings apart")
 	s.Equal(frontURL+"/dashboard/team/billing?team="+teamID.String()+"&tab=invoices&invoice="+invoiceID, warnings[0]["pay_url"])
 
 	s.runDunning(day(20))
-	s.Len(s.outboxPayloads(constants.DropletsDeletionWarning), 2)
+	s.Require().Len(s.outboxPayloads(constants.DropletsDeletionWarning), 2)
+	s.Equal(float64(20), s.outboxPayloads(constants.DropletsDeletionWarning)[1]["dunning_day"])
 	s.Empty(s.outboxPayloads(constants.TeamDropletsDeletionRequested))
 
 	s.runDunning(day(21))
@@ -248,8 +242,9 @@ func (s *billingSuite) TestCardExpiring_WarnsOncePerDefaultCard() {
 	s.Equal("1111", warnings[0]["last4"])
 	s.Equal(float64(10), warnings[0]["exp_month"])
 	s.Equal(float64(2026), warnings[0]["exp_year"])
-	s.Equal("Acme", warnings[0]["team_name"])
-	s.ElementsMatch([]string{owner.Email, "books@acme.example"}, recipientEmails(warnings[0]))
+	s.Equal(teamID.String(), warnings[0]["team_id"])
+	s.NotEmpty(warnings[0]["payment_method_id"])
+	s.Equal("books@acme.example", warnings[0]["invoice_address"].(map[string]any)["email"])
 }
 
 // Craftgate reports no expiry with a saved card. The provider's own verdict

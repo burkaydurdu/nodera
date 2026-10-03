@@ -17,6 +17,7 @@ type IService interface {
 	FindBilled(ctx context.Context) (Droplets, error)
 	Save(ctx context.Context, d *Droplet) error
 	Transition(ctx context.Context, d *Droplet, to Status, reason string) error
+	Fail(ctx context.Context, d *Droplet, code FailureCode, reason string) error
 	ListHistory(ctx context.Context, dropletID uuid.UUID) (History, error)
 }
 
@@ -77,6 +78,18 @@ func (s *Service) Save(ctx context.Context, d *Droplet) error {
 // history row; the caller decides whether a transaction surrounds it.
 func (s *Service) Transition(ctx context.Context, d *Droplet, to Status, reason string) error {
 	entry, err := d.Transition(to, reason, Now())
+	if err != nil {
+		return err
+	}
+	if err := s.repository.Save(ctx, d); err != nil {
+		return err
+	}
+
+	return s.repository.AddHistory(ctx, d.ID, entry)
+}
+
+func (s *Service) Fail(ctx context.Context, d *Droplet, code FailureCode, reason string) error {
+	entry, err := d.Fail(code, reason, Now())
 	if err != nil {
 		return err
 	}

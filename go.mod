@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/cherryservers/cherrygo/v4 v4.2.0
+	github.com/coder/websocket v1.8.15
 	github.com/craftgate/craftgate-go-client v1.0.31
 	github.com/go-playground/validator/v10 v10.17.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

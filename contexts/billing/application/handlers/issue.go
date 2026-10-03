@@ -157,12 +157,12 @@ func (c *Collection) afterIssue(ctx context.Context, inv *invoice.Invoice, at ti
 }
 
 func (c *Collection) notifyIssued(ctx context.Context, inv *invoice.Invoice, at time.Time) error {
-	recipients, teamName, err := c.recipients(ctx, inv.TeamID)
+	address, err := c.invoiceAddress(ctx, inv.TeamID)
 	if err != nil {
 		return err
 	}
 	body := events.InvoiceIssuedBody{
-		Recipients: recipients, TeamName: teamName, InvoiceNumber: inv.Number,
+		TeamID: inv.TeamID, InvoiceID: inv.ID, InvoiceAddress: address, InvoiceNumber: inv.Number,
 		PeriodStart: inv.PeriodStart.UTC(), PeriodEnd: inv.PeriodEnd.UTC(),
 		TotalDue: inv.TotalDue.StringFixed(2), Currency: inv.Currency, PDFURL: c.pdfURL(inv.ID, at),
 	}

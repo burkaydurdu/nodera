@@ -17,9 +17,6 @@ type IService interface {
 	RemoveTeamMember(ctx context.Context, teamID, userID uuid.UUID, removedAt time.Time) error
 	FindTeamMembership(ctx context.Context, teamID, userID uuid.UUID) (*Membership, error)
 	FindTeam(ctx context.Context, teamID uuid.UUID) (*Team, error)
-	// OwnersOf answers the recipients of a Team's billing emails: every
-	// current owner, in their own Locale.
-	OwnersOf(ctx context.Context, teamID uuid.UUID) ([]Recipient, error)
 }
 
 type IRepository interface {
@@ -29,7 +26,6 @@ type IRepository interface {
 	RemoveTeamMember(ctx context.Context, teamID, userID uuid.UUID, removedAt time.Time) error
 	FindTeamMembership(ctx context.Context, teamID, userID uuid.UUID) (*Membership, error)
 	FindTeam(ctx context.Context, teamID uuid.UUID) (*Team, error)
-	OwnersOf(ctx context.Context, teamID uuid.UUID) ([]Recipient, error)
 }
 
 type Service struct {
@@ -62,8 +58,4 @@ func (s *Service) FindTeamMembership(ctx context.Context, teamID, userID uuid.UU
 
 func (s *Service) FindTeam(ctx context.Context, teamID uuid.UUID) (*Team, error) {
 	return s.repository.FindTeam(ctx, teamID)
-}
-
-func (s *Service) OwnersOf(ctx context.Context, teamID uuid.UUID) ([]Recipient, error) {
-	return s.repository.OwnersOf(ctx, teamID)
 }

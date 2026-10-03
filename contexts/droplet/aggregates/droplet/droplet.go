@@ -21,6 +21,24 @@ const (
 	StatusDeleted      Status = "deleted"
 )
 
+// FailureCode is why a Droplet failed, for the web app and the emails to word
+// in the reader's language; FailureReason keeps the English sentence for the
+// history and the logs.
+type FailureCode string
+
+const (
+	// FailureRejected: the Provider refused the order.
+	FailureRejected FailureCode = "rejected"
+	// FailureUnavailable: the Provider could not be asked.
+	FailureUnavailable FailureCode = "unavailable"
+	// FailureTimedOut: the Provider never delivered the server.
+	FailureTimedOut FailureCode = "timed_out"
+	// FailureServerGone: the server disappeared at the Provider.
+	FailureServerGone FailureCode = "server_gone"
+	// FailureProviderFailed: the Provider itself reported the server failed.
+	FailureProviderFailed FailureCode = "provider_failed"
+)
+
 // Action is a power request a customer makes; the resulting status comes
 // from the poller, not from the request.
 type Action string
@@ -57,6 +75,7 @@ type Droplet struct {
 	SSHKeys         []SSHKey
 	PendingAction   *Action
 	FailureReason   *string
+	FailureCode     *FailureCode
 	CreatedBy       uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time

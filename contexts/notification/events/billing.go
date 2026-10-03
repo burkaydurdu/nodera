@@ -3,6 +3,8 @@ package events
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Amount is a money value as billing formatted it: shopspring/decimal goes on
@@ -11,17 +13,26 @@ import (
 // rather than re-deriving a float.
 type Amount = json.Number
 
-// Billing is the part every billing email shares. Recipients are the invoice
-// email and every owner of the Team, each addressed in their own Locale; the
-// invoice email has no User behind it, so its UserID is the nil uuid.
+// Billing is the part every billing event shares: the Team it happened to and
+// the billing profile's invoice address, told as well although no member
+// holds it. Who among the members is told is this context's decision
+// (docs/adr/0008).
 type Billing struct {
-	Recipients []Recipient `json:"recipients"`
-	TeamName   string      `json:"team_name"`
+	TeamID         uuid.UUID `json:"team_id"`
+	InvoiceAddress *Address  `json:"invoice_address,omitempty"`
+}
+
+// Address is an email address with the name and Locale to write to it in.
+type Address struct {
+	Email    string `json:"email"`
+	FullName string `json:"full_name"`
+	Locale   string `json:"locale"`
 }
 
 type InvoiceIssuedEvent struct {
 	Payload struct {
 		Billing
+		InvoiceID          uuid.UUID `json:"invoice_id"`
 		InvoiceNumber      string    `json:"invoice_number"`
 		PeriodStart        time.Time `json:"period_start"`
 		PeriodEnd          time.Time `json:"period_end"`
@@ -36,6 +47,8 @@ type InvoiceIssuedEvent struct {
 type PaymentSucceededEvent struct {
 	Payload struct {
 		Billing
+		InvoiceID     uuid.UUID `json:"invoice_id"`
+		PaymentID     uuid.UUID `json:"payment_id"`
 		InvoiceNumber string    `json:"invoice_number"`
 		Amount        Amount    `json:"amount"`
 		Currency      string    `json:"currency"`
@@ -48,6 +61,8 @@ type PaymentSucceededEvent struct {
 type PaymentFailedEvent struct {
 	Payload struct {
 		Billing
+		InvoiceID     uuid.UUID  `json:"invoice_id"`
+		PaymentID     uuid.UUID  `json:"payment_id"`
 		InvoiceNumber string     `json:"invoice_number"`
 		Amount        Amount     `json:"amount"`
 		Currency      string     `json:"currency"`
@@ -60,24 +75,29 @@ type PaymentFailedEvent struct {
 type PaymentConfirmationRequiredEvent struct {
 	Payload struct {
 		Billing
-		InvoiceNumber string `json:"invoice_number"`
-		Amount        Amount `json:"amount"`
-		Currency      string `json:"currency"`
-		ConfirmURL    string `json:"confirm_url"`
+		InvoiceID     uuid.UUID `json:"invoice_id"`
+		PaymentID     uuid.UUID `json:"payment_id"`
+		InvoiceNumber string    `json:"invoice_number"`
+		Amount        Amount    `json:"amount"`
+		Currency      string    `json:"currency"`
+		ConfirmURL    string    `json:"confirm_url"`
 	} `json:"payload"`
 }
 
 type TeamSuspendedEvent struct {
 	Payload struct {
 		Billing
-		InvoiceNumber string `json:"invoice_number"`
-		PayURL        string `json:"pay_url"`
+		InvoiceID     uuid.UUID `json:"invoice_id"`
+		InvoiceNumber string    `json:"invoice_number"`
+		PayURL        string    `json:"pay_url"`
 	} `json:"payload"`
 }
 
 type DropletsDeletionWarningEvent struct {
 	Payload struct {
 		Billing
+		InvoiceID     uuid.UUID `json:"invoice_id"`
+		DunningDay    int       `json:"dunning_day"`
 		InvoiceNumber string    `json:"invoice_number"`
 		DeletionAt    time.Time `json:"deletion_at"`
 		PayURL        string    `json:"pay_url"`
@@ -87,9 +107,10 @@ type DropletsDeletionWarningEvent struct {
 type CardExpiringEvent struct {
 	Payload struct {
 		Billing
-		Brand    string `json:"brand"`
-		Last4    string `json:"last4"`
-		ExpMonth int    `json:"exp_month"`
-		ExpYear  int    `json:"exp_year"`
+		PaymentMethodID uuid.UUID `json:"payment_method_id"`
+		Brand           string    `json:"brand"`
+		Last4           string    `json:"last4"`
+		ExpMonth        int       `json:"exp_month"`
+		ExpYear         int       `json:"exp_year"`
 	} `json:"payload"`
 }

@@ -1,0 +1,4 @@
+ALTER TABLE team_members
+    ADD COLUMN email TEXT NOT NULL DEFAULT '',
+    ADD COLUMN full_name TEXT NOT NULL DEFAULT '',
+    ADD COLUMN locale TEXT NOT NULL DEFAULT '';

@@ -30,6 +30,10 @@ const (
 	KindTeamSuspended               Kind = "team_suspended"
 	KindDropletsDeletionWarning     Kind = "droplets_deletion_warning"
 	KindCardExpiring                Kind = "card_expiring"
+
+	// A Notification's email shares its type's name; its template reads the
+	// Notification's params under .Params.
+	KindDropletFailed Kind = "droplet_failed"
 )
 
 // shared templates carry no copy; per-locale ones do.

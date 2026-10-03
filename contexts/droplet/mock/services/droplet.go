@@ -56,6 +56,20 @@ func (mr *MockIDropletServiceMockRecorder) Create(ctx, d any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIDropletService)(nil).Create), ctx, d)
 }
 
+// Fail mocks base method.
+func (m *MockIDropletService) Fail(ctx context.Context, d *droplet.Droplet, code droplet.FailureCode, reason string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Fail", ctx, d, code, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Fail indicates an expected call of Fail.
+func (mr *MockIDropletServiceMockRecorder) Fail(ctx, d, code, reason any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fail", reflect.TypeOf((*MockIDropletService)(nil).Fail), ctx, d, code, reason)
+}
+
 // FindBilled mocks base method.
 func (m *MockIDropletService) FindBilled(ctx context.Context) (droplet.Droplets, error) {
 	m.ctrl.T.Helper()

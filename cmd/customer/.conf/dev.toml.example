@@ -6,7 +6,7 @@ name = "nodera-customer"
 port = ":9650"
 
 [postgresql]
-uri = "postgres://postgres:postgres@localhost:5432/nodera_customer?sslmode=disable"
+uri = "postgres://postgres:postgres@localhost:5442/nodera_customer?sslmode=disable"
 
 [postgresql.pool]
 max_conns = 4
@@ -17,21 +17,21 @@ health_check_period_seconds = 60
 
 [redis]
 host = "localhost"
-port = 6379
+port = 6389
 username = ""
 password = ""
 db = 0
 
 [mongodb]
 host = "localhost"
-port = 27017
+port = 27027
 username = ""
 password = ""
 database = "nodera_customer_outbox"
-uri = "mongodb://localhost:27017/?directConnection=true"
+uri = "mongodb://localhost:27027/?directConnection=true"
 
 [rabbitmq]
-host = "127.0.0.1:5672"
+host = "127.0.0.1:5682"
 username = "guest"
 password = "guest"
 virtualhost = "/nodera"

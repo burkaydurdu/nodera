@@ -49,6 +49,13 @@ Where a Droplet is in its life: `provisioning` (asked of the Provider, not yet u
 deliver it), `deleting`, `deleted`. Only `active` and `off` count as usage.
 _Avoid_: state (the Provider's word), phase
 
+**Failure code**:
+Why a Droplet failed: `rejected` (the Provider refused the order), `unavailable` (the Provider
+could not be asked), `timed_out` (never delivered), `server_gone` (the server vanished),
+`provider_failed` (the Provider reported it failed). The words for it are the reader's language;
+the failure reason is the English sentence kept for the history.
+_Avoid_: error code, failure type
+
 **Locked price**:
 The Plan's hourly price copied onto a Droplet when it is created. It never changes for that
 Droplet, whatever happens to the Plan or the Offer afterwards.

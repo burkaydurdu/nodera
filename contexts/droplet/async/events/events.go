@@ -98,6 +98,29 @@ type DropletBillingStoppedEvent struct {
 	Payload DropletBillingStoppedBody `json:"payload"`
 }
 
+// --- droplet → notification ------------------------------------------------
+
+// DropletStatusChangedBody is one move of a Droplet's status; FromStatus is
+// nil for a Droplet just created. The failure fields are set only for a
+// failure: the code for words in the reader's language, the reason as the
+// customer-safe English sentence.
+type DropletStatusChangedBody struct {
+	DropletID     uuid.UUID `json:"droplet_id"`
+	TeamID        uuid.UUID `json:"team_id"`
+	ProjectID     uuid.UUID `json:"project_id"`
+	Hostname      string    `json:"hostname"`
+	IPv4          string    `json:"ipv4"`
+	FromStatus    *string   `json:"from_status"`
+	Status        string    `json:"status"`
+	FailureCode   string    `json:"failure_code,omitempty"`
+	FailureReason string    `json:"failure_reason,omitempty"`
+	ChangedAt     time.Time `json:"changed_at"`
+}
+
+type DropletStatusChangedEvent struct {
+	Payload DropletStatusChangedBody `json:"payload"`
+}
+
 func ToJSONString(event any) (string, error) {
 	data, err := json.Marshal(event)
 	if err != nil {

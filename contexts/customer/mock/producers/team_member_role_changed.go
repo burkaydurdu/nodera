@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 	time "time"
 
+	uuid "github.com/google/uuid"
 	team "github.com/piggystats/nodera/contexts/customer/aggregates/team"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,15 +44,15 @@ func (m *MockITeamMemberRoleChangedProducer) EXPECT() *MockITeamMemberRoleChange
 }
 
 // Publish mocks base method.
-func (m_2 *MockITeamMemberRoleChangedProducer) Publish(ctx context.Context, m *team.Member, changedAt time.Time) error {
+func (m_2 *MockITeamMemberRoleChangedProducer) Publish(ctx context.Context, m *team.Member, changedBy uuid.UUID, changedAt time.Time) error {
 	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "Publish", ctx, m, changedAt)
+	ret := m_2.ctrl.Call(m_2, "Publish", ctx, m, changedBy, changedAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Publish indicates an expected call of Publish.
-func (mr *MockITeamMemberRoleChangedProducerMockRecorder) Publish(ctx, m, changedAt any) *gomock.Call {
+func (mr *MockITeamMemberRoleChangedProducerMockRecorder) Publish(ctx, m, changedBy, changedAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockITeamMemberRoleChangedProducer)(nil).Publish), ctx, m, changedAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockITeamMemberRoleChangedProducer)(nil).Publish), ctx, m, changedBy, changedAt)
 }

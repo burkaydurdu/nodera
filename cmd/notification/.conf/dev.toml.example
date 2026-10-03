@@ -1,7 +1,35 @@
 environment = "dev"
 
+# The Inbox API.
+[server]
+name = "nodera-notification"
+port = ":9680"
+
+# Notifications and the Team read model (docs/adr/0008).
+[postgresql]
+uri = "postgres://postgres:postgres@localhost:5442/nodera_notification?sslmode=disable"
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+# Sessions, checked by the Inbox API.
+[redis]
+host = "localhost"
+port = 6389
+username = ""
+password = ""
+db = 0
+
+# The same JWT secret the customer service signs access tokens with.
+[secret]
+jwt = "dev-jwt-secret-change-me"
+
 [rabbitmq]
-host = "127.0.0.1:5672"
+host = "127.0.0.1:5682"
 username = "guest"
 password = "guest"
 virtualhost = "/nodera"
@@ -16,7 +44,7 @@ provider = "smtp"
 [smtp]
 insecure_skip_verify = true
 host = "localhost"
-port = 1025
+port = 1035
 username = ""
 password = ""
 

@@ -1,0 +1,36 @@
+environment = "test"
+
+[server]
+name = "nodera-realtime"
+port = ":9690"
+
+# Sessions and permission versions the sockets are checked against, and the
+# pub/sub channel the replicas share (docs/adr/0007).
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+# The same JWT secret the customer service signs access tokens with.
+[secret]
+jwt = ""
+
+# origin_patterns are the web app's origins (scheme://host, path.Match
+# patterns); a page on any other site cannot open a socket.
+[websocket]
+origin_patterns = ["https://test.nodera.io"]
+heartbeat_seconds = 25
+auth_timeout_seconds = 5
+
+[metrics]
+enabled = true
+port = ":9105"

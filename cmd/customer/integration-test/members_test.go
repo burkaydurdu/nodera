@@ -165,7 +165,8 @@ func (s *customerSuite) TestMembers_StrangerListingMembers_IsNotFound() {
 }
 
 func (s *customerSuite) TestMembers_ChangeRole_AnswersMemberPublishesEventAndBumpsVersion() {
-	owner := s.registerAndVerify(s.uniqueEmail("role-owner"), "Str0ng!pass")
+	ownerEmail := s.uniqueEmail("role-owner")
+	owner := s.registerAndVerify(ownerEmail, "Str0ng!pass")
 	teamID := s.teamID(owner.Access)
 	devEmail := s.uniqueEmail("role-dev")
 	s.registerAndVerify(devEmail, "Str0ng!pass")
@@ -190,6 +191,7 @@ func (s *customerSuite) TestMembers_ChangeRole_AnswersMemberPublishesEventAndBum
 	s.Equal(devID, payload["user_id"])
 	s.Equal("owner", payload["role"])
 	s.isRFC3339UTC(payload["changed_at"])
+	s.Equal(s.userID(ownerEmail), payload["changed_by"], "the person told knows it was not their own doing")
 
 	var stored string
 	s.Require().NoError(s.pgPool.QueryRow(s.T().Context(),
@@ -245,7 +247,8 @@ func (s *customerSuite) TestMembers_DemotedOwner_LosesManagementAtOnce() {
 }
 
 func (s *customerSuite) TestMembers_RemoveMember_PublishesEventBumpsVersionAndEndsAccess() {
-	owner := s.registerAndVerify(s.uniqueEmail("remove-owner"), "Str0ng!pass")
+	ownerEmail := s.uniqueEmail("remove-owner")
+	owner := s.registerAndVerify(ownerEmail, "Str0ng!pass")
 	teamID := s.teamID(owner.Access)
 	devEmail := s.uniqueEmail("remove-dev")
 	developer := s.registerAndVerify(devEmail, "Str0ng!pass")
@@ -265,6 +268,7 @@ func (s *customerSuite) TestMembers_RemoveMember_PublishesEventBumpsVersionAndEn
 	s.Equal(teamID, payload["team_id"])
 	s.Equal(devID, payload["user_id"])
 	s.isRFC3339UTC(payload["removed_at"])
+	s.Equal(s.userID(ownerEmail), payload["removed_by"])
 
 	after := s.authed(http.MethodGet, "/v1/teams/"+teamID+"/projects", "", developer.Access)
 	s.Equal(team.ErrorNotMember.HttpStatus, after.Code, "the removed member is a stranger now")
@@ -347,6 +351,7 @@ func (s *customerSuite) TestMembers_Leave_PublishesRemovedAndTheTeamIsGoneForThe
 	s.Equal(before+1, s.permVersion(finID))
 	s.Equal(int64(1), s.outboxCount(constants.TeamMemberRemoved))
 	s.Equal(finID, s.outboxPayload(constants.TeamMemberRemoved)["user_id"])
+	s.Equal(finID, s.outboxPayload(constants.TeamMemberRemoved)["removed_by"], "leaving is removing oneself")
 
 	teams := s.authed(http.MethodGet, "/v1/teams", "", finance.Access)
 	s.Require().Len(teams.List, 1, "only their own Team is left")

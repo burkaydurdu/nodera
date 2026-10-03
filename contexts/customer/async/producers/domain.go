@@ -4,8 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/piggystats/nodera/contexts/customer/aggregates/project"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/user"
 	"github.com/piggystats/nodera/contexts/customer/async/constants"
 	"github.com/piggystats/nodera/contexts/customer/async/events"
 )
@@ -59,9 +62,9 @@ func NewTeamMemberRoleChanged(client OutboxClient) *TeamMemberRoleChanged {
 	return &TeamMemberRoleChanged{client: client}
 }
 
-func (p *TeamMemberRoleChanged) Publish(ctx context.Context, m *team.Member, changedAt time.Time) error {
+func (p *TeamMemberRoleChanged) Publish(ctx context.Context, m *team.Member, changedBy uuid.UUID, changedAt time.Time) error {
 	return publish(ctx, p.client, constants.TeamMemberRoleChanged, &events.TeamMemberRoleChangedEvent{
-		Payload: events.TeamMemberRoleChangedBody{TeamID: m.TeamID, UserID: m.UserID, Role: string(m.Role), ChangedAt: changedAt.UTC()},
+		Payload: events.TeamMemberRoleChangedBody{TeamID: m.TeamID, UserID: m.UserID, Role: string(m.Role), ChangedAt: changedAt.UTC(), ChangedBy: changedBy},
 	})
 }
 
@@ -71,9 +74,21 @@ func NewTeamMemberRemoved(client OutboxClient) *TeamMemberRemoved {
 	return &TeamMemberRemoved{client: client}
 }
 
-func (p *TeamMemberRemoved) Publish(ctx context.Context, m *team.Member, removedAt time.Time) error {
+func (p *TeamMemberRemoved) Publish(ctx context.Context, m *team.Member, removedBy uuid.UUID, removedAt time.Time) error {
 	return publish(ctx, p.client, constants.TeamMemberRemoved, &events.TeamMemberRemovedEvent{
-		Payload: events.TeamMemberRemovedBody{TeamID: m.TeamID, UserID: m.UserID, RemovedAt: removedAt.UTC()},
+		Payload: events.TeamMemberRemovedBody{TeamID: m.TeamID, UserID: m.UserID, RemovedAt: removedAt.UTC(), RemovedBy: removedBy},
+	})
+}
+
+type UserProfileUpdated struct{ client OutboxClient }
+
+func NewUserProfileUpdated(client OutboxClient) *UserProfileUpdated {
+	return &UserProfileUpdated{client: client}
+}
+
+func (p *UserProfileUpdated) Publish(ctx context.Context, u *user.User, updatedAt time.Time) error {
+	return publish(ctx, p.client, constants.UserProfileUpdated, &events.UserProfileUpdatedEvent{
+		Payload: events.UserProfileUpdatedBody{UserID: u.ID, FullName: u.FullName, Locale: string(u.Locale), UpdatedAt: updatedAt.UTC()},
 	})
 }
 

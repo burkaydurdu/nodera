@@ -1,5 +1,33 @@
 environment = "prod"
 
+# The Inbox API.
+[server]
+name = "nodera-notification"
+port = ":9680"
+
+# Notifications and the Team read model (docs/adr/0008).
+[postgresql]
+uri = ""
+
+[postgresql.pool]
+max_conns = 4
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+# Sessions, checked by the Inbox API.
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+# The same JWT secret the customer service signs access tokens with.
+[secret]
+jwt = ""
+
 [rabbitmq]
 host = ""
 username = ""

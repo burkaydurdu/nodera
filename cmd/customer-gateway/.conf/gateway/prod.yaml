@@ -232,3 +232,28 @@ gateway:
           method: POST
           public: true
           headerless: true
+    # Selected by X-Target-Server: notification. The Inbox is the caller's
+    # own across every Team, so no route names a Team or a Permission.
+    notification:
+      # PLACEHOLDER: the notification service's prod address, once it is deployed.
+      host: http://nodera-notification:9680
+      endpoints:
+        - path: /v1/notifications
+          method: GET
+        - path: /v1/notifications/unread-count
+          method: GET
+        - path: /v1/notifications/read-all
+          method: PUT
+        - path: /v1/notifications/:notificationID/read
+          method: PUT
+    # The web app's live socket (docs/adr/0007). Headerless and public: a
+    # browser can set no header on a WebSocket handshake, so the realtime
+    # service authenticates the access token in the socket's first frame.
+    realtime:
+      # PLACEHOLDER: the realtime service's prod address, once it is deployed.
+      host: http://nodera-realtime:9690
+      endpoints:
+        - path: /v1/realtime
+          method: GET
+          public: true
+          headerless: true

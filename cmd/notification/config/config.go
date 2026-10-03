@@ -2,14 +2,17 @@ package config
 
 import (
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/k0kubun/pp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/pkg/metrics"
 	"github.com/piggystats/nodera/utils/environment"
+	"github.com/piggystats/nodera/utils/str"
 )
 
 const (
@@ -18,12 +21,64 @@ const (
 )
 
 type Config struct {
-	Environment string   `mapstructure:"environment" validate:"required"`
-	RabbitMQ    RabbitMQ `mapstructure:"rabbitmq"`
-	Mail        Mail     `mapstructure:"mail"`
-	SMTP        SMTP     `mapstructure:"smtp"`
-	SendGrid    SendGrid `mapstructure:"sendgrid"`
-	Metrics     Metrics  `mapstructure:"metrics"`
+	Environment string     `mapstructure:"environment" validate:"required"`
+	Server      Server     `mapstructure:"server"`
+	PostgreSQL  PostgreSQL `mapstructure:"postgresql"`
+	Redis       Redis      `mapstructure:"redis"`
+	RabbitMQ    RabbitMQ   `mapstructure:"rabbitmq"`
+	Secret      Secret     `mapstructure:"secret"`
+	Mail        Mail       `mapstructure:"mail"`
+	SMTP        SMTP       `mapstructure:"smtp"`
+	SendGrid    SendGrid   `mapstructure:"sendgrid"`
+	Metrics     Metrics    `mapstructure:"metrics"`
+}
+
+// Server is the Inbox API.
+type Server struct {
+	Name string `mapstructure:"name" validate:"required"`
+	Port string `mapstructure:"port" validate:"required"`
+}
+
+// PostgreSQL holds the Notifications and the Team read model.
+type PostgreSQL struct {
+	URI  string `mapstructure:"uri" validate:"required"`
+	Pool PGPool `mapstructure:"pool"`
+}
+
+type PGPool struct {
+	MaxConns                 int32 `mapstructure:"max_conns"`
+	MinConns                 int32 `mapstructure:"min_conns"`
+	MaxConnIdleSeconds       int   `mapstructure:"max_conn_idle_seconds"`
+	MaxConnLifetimeSeconds   int   `mapstructure:"max_conn_lifetime_seconds"`
+	HealthCheckPeriodSeconds int   `mapstructure:"health_check_period_seconds"`
+}
+
+func (p PostgreSQL) ToDBConfig(appName string) *postgresql.Config {
+	return &postgresql.Config{
+		URI:               p.URI,
+		ApplicationName:   appName,
+		MaxConns:          p.Pool.MaxConns,
+		MinConns:          p.Pool.MinConns,
+		MaxConnIdleTime:   time.Duration(p.Pool.MaxConnIdleSeconds) * time.Second,
+		MaxConnLifetime:   time.Duration(p.Pool.MaxConnLifetimeSeconds) * time.Second,
+		HealthCheckPeriod: time.Duration(p.Pool.HealthCheckPeriodSeconds) * time.Second,
+	}
+}
+
+// Redis is where the customer service keeps sessions; the Inbox API checks
+// that the caller's is still alive.
+type Redis struct {
+	Host     string `mapstructure:"host" validate:"required"`
+	Port     int    `mapstructure:"port" validate:"required"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
+}
+
+// Secret.JWT is the same signing secret the customer service issues access
+// tokens with; the notification service verifies, never issues.
+type Secret struct {
+	JWT string `mapstructure:"jwt" validate:"required"`
 }
 
 // RabbitMQ.Host is "host:port"; the client builds the amqp URL from it, the
@@ -62,7 +117,7 @@ type Metrics struct {
 }
 
 func (m Metrics) Addr() string {
-	if m.Port == "" {
+	if str.IsEmpty(m.Port) {
 		return metrics.DefaultAddr
 	}
 
@@ -93,21 +148,23 @@ func InitConfig(configName string) *Config {
 
 	printable := cfg
 	if !cfg.IsDev() {
-		if printable.RabbitMQ.Password != "" {
-			printable.RabbitMQ.Password = mask
-		}
-		if printable.RabbitMQ.AuthSecret != "" {
-			printable.RabbitMQ.AuthSecret = mask
-		}
-		if printable.SMTP.Password != "" {
-			printable.SMTP.Password = mask
-		}
-		if printable.SendGrid.APIKey != "" {
-			printable.SendGrid.APIKey = mask
-		}
+		printable = maskSecrets(cfg)
 	}
 	_, err := pp.Println(printable)
 	cobra.CheckErr(err)
 
 	return &cfg
+}
+
+func maskSecrets(c Config) Config {
+	for _, secret := range []*string{
+		&c.PostgreSQL.URI, &c.Redis.Password, &c.RabbitMQ.Password, &c.RabbitMQ.AuthSecret,
+		&c.Secret.JWT, &c.SMTP.Password, &c.SendGrid.APIKey,
+	} {
+		if str.IsNotEmpty(*secret) {
+			*secret = mask
+		}
+	}
+
+	return c
 }

@@ -48,11 +48,14 @@ type PasswordResetEvent struct {
 // Locale is then the inviter's.
 type TeamInvitationEvent struct {
 	Payload struct {
-		Recipient   Recipient `json:"recipient"`
-		TeamName    string    `json:"team_name"`
-		Role        string    `json:"role"`
-		InviterName string    `json:"inviter_name"`
-		AcceptURL   string    `json:"accept_url"`
-		ExpiresAt   time.Time `json:"expires_at"`
+		InvitationID uuid.UUID `json:"invitation_id"`
+		TeamID       uuid.UUID `json:"team_id"`
+		SentAt       time.Time `json:"sent_at"`
+		Recipient    Recipient `json:"recipient"`
+		TeamName     string    `json:"team_name"`
+		Role         string    `json:"role"`
+		InviterName  string    `json:"inviter_name"`
+		AcceptURL    string    `json:"accept_url"`
+		ExpiresAt    time.Time `json:"expires_at"`
 	} `json:"payload"`
 }

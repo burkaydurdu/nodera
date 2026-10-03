@@ -7,6 +7,7 @@ import (
 
 	"github.com/piggystats/nodera/contexts/billing/aggregates/billingstatus"
 	"github.com/piggystats/nodera/contexts/billing/application/jobs"
+	"github.com/piggystats/nodera/pkg/realtime"
 )
 
 func (s *billingSuite) TestStatus_DefaultsToNoPaymentMethodWithEveryFieldNull() {
@@ -79,4 +80,21 @@ func (s *billingSuite) TestLock_SecondHolderSkipsAndFirstReleases() {
 	exists, err := s.redis.Exists(ctx, key)
 	s.Require().NoError(err)
 	s.False(exists, "released once the run finished")
+}
+
+func (s *billingSuite) TestStatus_EveryChangeTellsTheTeamLive() {
+	owner, teamID := s.payingTeam()
+	s.addCard(teamID, owner.Token)
+
+	live := make([]map[string]any, 0)
+	for _, payload := range s.outboxPayloads(realtime.RoutingKey) {
+		if payload["type"] == "billing.status_changed" {
+			live = append(live, payload)
+		}
+	}
+	s.Require().Len(live, 1, "the first card made the Team active")
+	address, _ := live[0]["address"].(map[string]any)
+	s.Equal(teamID.String(), address["team_id"])
+	s.Equal("team.read", address["permission"], "every member sees why spending is blocked")
+	s.Equal(map[string]any{"team_id": teamID.String(), "status": "active"}, live[0]["data"])
 }

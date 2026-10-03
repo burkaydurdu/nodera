@@ -21,6 +21,11 @@ const StepSuspend = StepRetryDay7
 
 var stepDays = [...]int{StepNone: 0, StepRetryDay1: 1, StepRetryDay3: 3, StepRetryDay7: 7, StepWarnDay14: 14, StepWarnDay20: 20, StepDeleteDay21: 21}
 
+// StepDay is how many days after the first failure a step falls due.
+func StepDay(step int) int {
+	return stepDays[step]
+}
+
 // StepAt is when a step falls due.
 func StepAt(failedAt time.Time, step int) time.Time {
 	return failedAt.AddDate(0, 0, stepDays[step])

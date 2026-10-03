@@ -31,12 +31,12 @@ type ITeamMemberAddedProducer interface {
 
 //go:generate mockgen -destination=../../mock/producers/team_member_role_changed.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers ITeamMemberRoleChangedProducer
 type ITeamMemberRoleChangedProducer interface {
-	Publish(ctx context.Context, m *team.Member, changedAt time.Time) error
+	Publish(ctx context.Context, m *team.Member, changedBy uuid.UUID, changedAt time.Time) error
 }
 
 //go:generate mockgen -destination=../../mock/producers/team_member_removed.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers ITeamMemberRemovedProducer
 type ITeamMemberRemovedProducer interface {
-	Publish(ctx context.Context, m *team.Member, removedAt time.Time) error
+	Publish(ctx context.Context, m *team.Member, removedBy uuid.UUID, removedAt time.Time) error
 }
 
 //go:generate mockgen -destination=../../mock/producers/project_created.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers IProjectCreatedProducer
@@ -237,7 +237,7 @@ func (h *Team) ChangeMemberRole(ctx context.Context, req *team.ChangeRoleRequest
 
 	target.Role = role
 	bumpPermissionVersion(ctx, h.log, h.permVersions, targetID)
-	if err := h.roleChanged.Publish(ctx, &target.Member, time.Now()); err != nil {
+	if err := h.roleChanged.Publish(ctx, &target.Member, contextutil.CurrentUserID(ctx), time.Now()); err != nil {
 		h.log.Error(err)
 	}
 
@@ -298,7 +298,7 @@ func (h *Team) removeMembership(ctx context.Context, teamID, userID uuid.UUID) e
 	}
 
 	bumpPermissionVersion(ctx, h.log, h.permVersions, userID)
-	if err := h.memberRemoved.Publish(ctx, &target.Member, time.Now()); err != nil {
+	if err := h.memberRemoved.Publish(ctx, &target.Member, contextutil.CurrentUserID(ctx), time.Now()); err != nil {
 		h.log.Error(err)
 	}
 

@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Nodera backend (Go, DDD). Bounded contexts under `contexts/` (customer, droplet, billing, gateway,
-notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per-context
+notification, and realtime, which is infrastructure); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per-context
 `CONTEXT.md`; decisions in `docs/adr/`. Read the glossary before naming anything.
 
 ## Rules that bind
@@ -25,6 +25,16 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
   Billing status from events and refuses creation without a Payment method (402) or when
   suspended (423). Usage flows droplet → billing as events; the Invoice model carries the
   e-invoice fields even while PDFs are statements.
+- **Notifications** are recorded for good and delivered per Channel (`email`, `sms`, `in_app`),
+  each Channel's delivery tracked so a redelivery never sends twice. The notification context
+  decides who is told, from its own Team read model and `pkg/authz` (docs/adr/0008); a producer
+  publishes what happened with the Team's and the thing's ids, never a recipient list. In-app text
+  is the web app's (type + params, a reason as a code, never an English sentence); a link or a code
+  rides only in the event's email params and never reaches a Notification's params.
+- **Live updates** are `pkg/realtime` messages (address: a User, or a Team plus the Permission a
+  member needs), published through the outbox like events (docs/adr/0007); the notification
+  context, which has no outbox, publishes them straight to RabbitMQ after its commit. The realtime
+  service knows nothing of the contexts; a context never touches Redis pub/sub to reach a browser.
 - **Authorization** is Team-scoped: Roles `owner|developer|finance`, Permissions
   `<area>.<verb>`, matrix only in `pkg/authz` (never copied, never per Team). The access
   token carries `teams` (Team → Role) and `pv`; the gateway enforces a route's `permissions`
@@ -40,14 +50,14 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
   `c.Bind` + `c.Validate`, never `c.Param`. Responses are `application/dto`.
 - **Errors** are `piggystats/rerror` values with a repo-wide unique `Domain` per aggregate
   (`error.go`) and an explicit `HttpStatus`. Taken domains: customer 1–9, 12; droplet
-  20–24; billing 30–39; common 100. Never mutate a var: `.Copy()` first. Sign-in
+  20–24; billing 30–39; notification 40–41; common 100. Never mutate a var: `.Copy()` first. Sign-in
   answers `user.ErrorNotFound` for a wrong email and a wrong password alike.
 - **Transactions** ride the context (`transactions.Begin(ctx)`); repositories reach them
   through `queries.Executor(ctx)`. An outbox publish runs after `Commit`, never inside
   (docs/adr/0001).
 - **Gateway route table** (`cmd/customer-gateway/.conf/gateway/{dev,test,alpha,prod}.yaml`)
-  is deny-by-default and split per upstream (`customer`, `droplet`; selected by
-  `X-Target-Server`). A new or renamed route is not shipped until all four files carry it
+  is deny-by-default and split per upstream (`customer`, `droplet`, `billing`, `notification`,
+  selected by `X-Target-Server`; `realtime` has only the headerless socket route). A new or renamed route is not shipped until all four files carry it
   under the right service.
 - **Money** is `numeric` in PostgreSQL and `shopspring/decimal` in Go, never a float; prices
   round up, in USD, excluding taxes.
@@ -63,7 +73,9 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
 - Integration suites: `cmd/customer/integration-test` (dockertest: postgres:18, redis,
   mongo:8.2), `cmd/droplet/integration-test` (postgres:18, redis, mongo:8.2, the fake Provider,
   worker jobs called directly), `cmd/billing/integration-test` (postgres:18, redis, mongo:8.2,
-  gotenberg, the fake Payment provider, a controllable clock) and
+  gotenberg, the fake Payment provider, a controllable clock), `cmd/notification/integration-test`
+  (postgres:18, redis, consumers called directly, recording email and realtime fakes),
+  `cmd/realtime/integration-test` (redis, two replicas, real WebSocket clients) and
   `cmd/customer-gateway/gateway_integration_test.go`; gated by
   `INTEGRATION=true`; assert the exact `HttpStatus` of the triggered rerror. The customer and
   droplet suites are the primary seams and every user-facing flow gets a scenario there. The
@@ -73,8 +85,12 @@ notification); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per
 
 ## Commands
 
-`make docker-up`, `make migrate-customer` / `make migrate-droplet` / `make migrate-billing`, `make seed-customer` /
+`make docker-up`, `make migrate-customer` / `make migrate-droplet` / `make migrate-billing` /
+`make migrate-notification`, `make seed-customer` /
 `make seed-droplet`, `make start` / `make stop` / `make logs-tail`, `make test`, `make test-all`,
-`make test-droplet-integration`, `make test-billing-integration`, `make lint`, `make swagger-customer` / `make swagger-droplet`,
+`make test-droplet-integration`, `make test-billing-integration`, `make test-notification-integration`,
+`make test-realtime-integration`, `make lint`, `make swagger-customer` / `make swagger-droplet` /
+`make swagger-notification`,
 `make generate`. One-off: `go run ./cmd/customer replay-projects --env=dev` republishes Team and
-Project events for rows that predate them.
+Project events for rows that predate them. Dev only: `make sample-notification TEAM=<id> [TYPE=…|all]`
+sends a sample Notification through RabbitMQ.

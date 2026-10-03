@@ -9,48 +9,51 @@ import (
 	"github.com/piggystats/nodera/logger"
 )
 
+// Source is a consumer with the routing keys it handles; each key gets its own
+// queue on the common exchange.
+type Source interface {
+	rabbitmq.IConsumer
+	RoutingKeys() []string
+}
+
+// bareQueues are the email events' queues, named before the prefix existed.
+// They keep their names, so no queue is left bound with nobody reading it.
+var bareQueues = map[string]bool{
+	constants.EmailVerificationCode: true, constants.EmailAlreadyRegistered: true, constants.MFAEmailCode: true,
+	constants.PasswordReset: true, constants.TeamInvitation: true,
+	constants.InvoiceIssued: true, constants.PaymentSucceeded: true, constants.PaymentFailed: true,
+	constants.PaymentConfirmationRequired: true, constants.TeamSuspended: true, constants.DropletsDeletionWarning: true,
+	constants.CardExpiring: true,
+}
+
 type Worker struct {
 	client rabbitmq.IClient
 	log    logger.ILog
 	items  rabbitmq.ConsumerItems
 }
 
-func NewWorker(client rabbitmq.IClient, log logger.ILog, sender ISender) *Worker {
-	bind := func(consumer rabbitmq.IConsumer, routingKey string) *rabbitmq.ConsumerItem {
-		return &rabbitmq.ConsumerItem{
-			Consumer: consumer,
-			Config: rabbitmq.ConsumerConfig{
-				RoutingKey: routingKey,
-				Topic:      rabbitmq.Topic,
-				Exchange:   constants.CommonExchange,
-			},
+func NewWorker(client rabbitmq.IClient, log logger.ILog, sources ...Source) *Worker {
+	items := rabbitmq.ConsumerItems{}
+	for _, source := range sources {
+		for _, key := range source.RoutingKeys() {
+			items = append(items, &rabbitmq.ConsumerItem{
+				Consumer: source,
+				Config:   rabbitmq.ConsumerConfig{RoutingKey: key, Topic: rabbitmq.Topic, Exchange: constants.CommonExchange},
+			})
 		}
 	}
 
-	return &Worker{
-		client: client,
-		log:    log,
-		items: rabbitmq.ConsumerItems{
-			bind(NewEmailVerificationCode(sender), constants.EmailVerificationCode),
-			bind(NewEmailAlreadyRegistered(sender), constants.EmailAlreadyRegistered),
-			bind(NewMFAEmailCode(sender), constants.MFAEmailCode),
-			bind(NewPasswordReset(sender), constants.PasswordReset),
-			bind(NewTeamInvitation(sender), constants.TeamInvitation),
-			bind(NewInvoiceIssued(sender, log), constants.InvoiceIssued),
-			bind(NewPaymentSucceeded(sender, log), constants.PaymentSucceeded),
-			bind(NewPaymentFailed(sender, log), constants.PaymentFailed),
-			bind(NewPaymentConfirmationRequired(sender, log), constants.PaymentConfirmationRequired),
-			bind(NewTeamSuspended(sender, log), constants.TeamSuspended),
-			bind(NewDropletsDeletionWarning(sender, log), constants.DropletsDeletionWarning),
-			bind(NewCardExpiring(sender, log), constants.CardExpiring),
-		},
-	}
+	return &Worker{client: client, log: log, items: items}
 }
 
 func (w *Worker) Consume(_ context.Context) {
 	for _, item := range w.items {
+		queue := constants.QueuePrefix + item.Config.RoutingKey
+		if bareQueues[item.Config.RoutingKey] {
+			queue = item.Config.RoutingKey
+		}
 		w.client.
-			AddConsumer(item.Config.RoutingKey).
+			AddConsumer(queue).
 			SubscriberExchange(item.Config.RoutingKey, item.Config.Topic, item.Config.Exchange).
 			HandleConsumer(item.Consumer.Consume)
 	}

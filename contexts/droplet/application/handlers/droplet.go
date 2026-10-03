@@ -63,10 +63,11 @@ func NewDroplet(
 	registry ProviderRegistry,
 	transactions postgresql.ITransactionManager,
 	meter *Meter,
+	status *StatusAnnouncer,
 	limiter ratelimit.ILimiter,
 ) *Droplet {
 	return &Droplet{
-		dropletOps: &dropletOps{log: log, droplets: droplets, providers: providerService, registry: registry, transactions: transactions, meter: meter},
+		dropletOps: newDropletOps(log, droplets, providerService, registry, transactions, meter, status),
 		catalog:    catalogService,
 		access:     accessService,
 		billing:    billingService,
@@ -165,6 +166,7 @@ func (h *Droplet) Create(ctx context.Context, req *droplet.CreateRequest) (*dto.
 	if err := h.transactions.Commit(txCtx); err != nil {
 		return nil, err
 	}
+	h.status.Announce(ctx, d, nil)
 
 	accepted := dto.ToDroplet(d)
 	provisionCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), provisionTimeout)
@@ -277,22 +279,28 @@ func (h *Droplet) fail(ctx context.Context, id uuid.UUID, cause error) {
 			return nil
 		}
 
-		return h.droplets.Transition(ctx, current, droplet.StatusFailed, customerSafeReason(cause))
+		code, reason := customerSafeFailure(cause)
+
+		return h.droplets.Fail(ctx, current, code, reason)
 	})
 	if err != nil {
 		h.log.Error(err)
 	}
 }
 
-// customerSafeReason keeps only the message of a provider-domain rerror;
-// anything else is a generic unavailability.
-func customerSafeReason(err error) string {
+// customerSafeFailure keeps only the message of a provider-domain rerror;
+// anything else is a generic unavailability. Only a refusal the Provider
+// explained is coded as such; every other failure to order is unavailability.
+func customerSafeFailure(err error) (droplet.FailureCode, string) {
 	var rerr rerror.Error
-	if errors.As(err, &rerr) && rerr.Domain == provider.Domain {
-		return rerr.Message
+	if !errors.As(err, &rerr) || rerr.Domain != provider.Domain {
+		return droplet.FailureUnavailable, provider.ErrorUnavailable.Message
+	}
+	if rerr.Code == provider.ErrorRejected.Code {
+		return droplet.FailureRejected, rerr.Message
 	}
 
-	return provider.ErrorUnavailable.Message
+	return droplet.FailureUnavailable, rerr.Message
 }
 
 func (h *Droplet) Get(ctx context.Context, req *droplet.GetRequest) (*dto.Droplet, error) {

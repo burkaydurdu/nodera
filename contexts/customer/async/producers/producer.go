@@ -40,6 +40,7 @@ func (p *Producer) AddPublisher(ctx context.Context) {
 		events.TeamMemberAddedEvent{},
 		events.TeamMemberRoleChangedEvent{},
 		events.TeamMemberRemovedEvent{},
+		events.UserProfileUpdatedEvent{},
 		events.ProjectCreatedEvent{},
 	)
 }

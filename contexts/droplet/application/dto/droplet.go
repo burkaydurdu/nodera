@@ -35,6 +35,7 @@ type Droplet struct {
 	MonthlyPrice        string           `json:"monthly_price" example:"330.63"`
 	SSHKeys             []DropletSSHKey  `json:"ssh_keys"`
 	FailureReason       *string          `json:"failure_reason"`
+	FailureCode         *string          `json:"failure_code" enums:"rejected,unavailable,timed_out,server_gone,provider_failed"`
 	CreatedAt           time.Time        `json:"created_at"`
 	ActiveAt            *time.Time       `json:"active_at"`
 	DeletionRequestedAt *time.Time       `json:"deletion_requested_at"`
@@ -61,6 +62,7 @@ func ToDroplet(d *droplet.Droplet) *Droplet {
 		MonthlyPrice:        catalog.MonthlyPrice(d.HourlyPrice, d.MonthlyCapHours).StringFixed(catalog.MonthlyScale),
 		SSHKeys:             keys,
 		FailureReason:       d.FailureReason,
+		FailureCode:         failureCode(d.FailureCode),
 		CreatedAt:           d.CreatedAt,
 		ActiveAt:            d.ActiveAt,
 		DeletionRequestedAt: d.DeletionRequest,
@@ -90,4 +92,13 @@ func ToDroplets(droplets droplet.Droplets) []*Droplet {
 	}
 
 	return out
+}
+
+func failureCode(code *droplet.FailureCode) *string {
+	if code == nil {
+		return nil
+	}
+	value := string(*code)
+
+	return &value
 }

@@ -59,6 +59,18 @@ func (a Action) TargetStatus() Status {
 	return StatusActive
 }
 
+// Fail moves the Droplet to failed and records why, as a code and as the
+// customer-safe sentence.
+func (d *Droplet) Fail(code FailureCode, reason string, now time.Time) (*HistoryEntry, error) {
+	entry, err := d.Transition(StatusFailed, reason, now)
+	if err != nil {
+		return nil, err
+	}
+	d.FailureCode = &code
+
+	return entry, nil
+}
+
 // Transition moves the Droplet and stamps the timestamps the status implies.
 // It answers the history entry to record; the caller persists both.
 func (d *Droplet) Transition(to Status, reason string, now time.Time) (*HistoryEntry, error) {

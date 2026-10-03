@@ -1,11 +1,17 @@
 # Infrastructure only. The Go services run natively via `make`; docker-compose
 # never carries an application service.
+#
+# Host ports are the standard ones plus ten, so Nodera runs next to other local
+# stacks that hold the standard ports; every dev.toml points at these. Override
+# one with its *_HOST_PORT variable (a gitignored .env works).
+name: nodera
+
 services:
   postgres:
     image: postgres:18
     restart: always
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "${POSTGRES_HOST_PORT:-5442}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -17,7 +23,7 @@ services:
     image: redis:8.2
     restart: always
     ports:
-      - "${REDIS_HOST_PORT:-6379}:6379"
+      - "${REDIS_HOST_PORT:-6389}:6379"
     volumes:
       - redis-data:/data
 
@@ -27,7 +33,7 @@ services:
     image: mongo:8.2
     restart: always
     ports:
-      - "${MONGO_HOST_PORT:-27017}:27017"
+      - "${MONGO_HOST_PORT:-27027}:27017"
     volumes:
       - mongo-data:/data/db
     command: ["--replSet", "rs0", "--bind_ip_all"]
@@ -36,8 +42,8 @@ services:
     image: rabbitmq:4.1-management
     restart: always
     ports:
-      - "${RABBITMQ_AMQP_HOST_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
+      - "${RABBITMQ_AMQP_HOST_PORT:-5682}:5672"
+      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15682}:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     environment:
@@ -48,8 +54,8 @@ services:
   mailhog:
     image: mailhog/mailhog
     ports:
-      - "${MAILHOG_SMTP_HOST_PORT:-1025}:1025"
-      - "${MAILHOG_WEB_HOST_PORT:-8025}:8025"
+      - "${MAILHOG_SMTP_HOST_PORT:-1035}:1025"
+      - "${MAILHOG_WEB_HOST_PORT:-8035}:8025"
 
   # Renders Invoice PDFs from HTML for the billing service.
   gotenberg:

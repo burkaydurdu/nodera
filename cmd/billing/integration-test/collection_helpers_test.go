@@ -136,18 +136,6 @@ func (s *billingSuite) pay(teamID uuid.UUID, token, invoiceID, body string) *res
 	return s.request(http.MethodPost, billingPath(teamID, "/invoices/"+invoiceID+"/pay"), body, token)
 }
 
-func recipientEmails(payload map[string]any) []string {
-	list, _ := payload["recipients"].([]any)
-	out := make([]string, 0, len(list))
-	for _, r := range list {
-		m, _ := r.(map[string]any)
-		email, _ := m["email"].(string)
-		out = append(out, email)
-	}
-
-	return out
-}
-
 func (s *billingSuite) objectList(v any) []map[string]any {
 	list, ok := v.([]any)
 	s.Require().True(ok, "%v is not a list", v)

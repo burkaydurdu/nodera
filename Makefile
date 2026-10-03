@@ -159,8 +159,51 @@ server-customer-gateway:
 # Notification
 # =============================================================================
 
+server-notification:
+	$(MAKE) -s swagger-notification
+	go run ./cmd/notification server --env=dev
+
 worker-notification:
 	go run ./cmd/notification worker --env=dev
+
+migrate-notification:
+	go run ./cmd/notification migrate --env=dev
+
+# Dev only: sends a sample Notification to a Team through RabbitMQ, as its real
+# event would, so the worker, the socket and the web app all run. TEAM is the id
+# on the web app's Team page; TYPE is a Notification type about a Team, or all.
+#   make sample-notification TEAM=<team id>
+#   make sample-notification TEAM=<team id> TYPE=payment_failed
+#   make sample-notification TEAM=<team id> TYPE=all
+sample-notification:
+	@test -n "$(TEAM)" || (echo "usage: make sample-notification TEAM=<team id> [TYPE=droplet_active|...|all]" && exit 1)
+	go run ./cmd/notification sample --env=dev --team=$(TEAM) --type=$(or $(TYPE),droplet_active)
+
+rollback-notification:
+	go run ./cmd/notification rollback --env=dev
+
+# Creates the database on a postgres volume made before it was added to
+# scripts/init-db.sql; harmless when it exists.
+create-db-notification:
+	docker compose exec -T postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'nodera_notification'" | grep -q 1 || \
+		docker compose exec -T postgres psql -U postgres -c 'CREATE DATABASE nodera_notification;'
+
+# DESTRUCTIVE: drop and recreate the notification database, then migrate.
+reset-db-notification:
+	docker compose exec -T postgres psql -U postgres -c 'DROP DATABASE IF EXISTS nodera_notification WITH (FORCE);' -c 'CREATE DATABASE nodera_notification;'
+	$(MAKE) -s migrate-notification
+
+# Scoped to the notification dirs: with several `dto` packages in the repo,
+# swag cannot resolve type names when it parses the whole tree.
+swagger-notification:
+	$(LOCAL_BIN)/swag init -q -d ./cmd/notification,./contexts/notification -g server.go -o contexts/notification/docs --parseDependency --parseInternal
+
+# =============================================================================
+# Realtime
+# =============================================================================
+
+server-realtime:
+	go run ./cmd/realtime server --env=dev
 
 # =============================================================================
 # Lifecycle: every dev daemon in the background with logs under logs/
@@ -170,11 +213,15 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@$(MAKE) -s swagger-customer
 	@$(MAKE) -s swagger-droplet
 	@$(MAKE) -s swagger-billing
+	@$(MAKE) -s swagger-notification
 	@touch $(LOG_DIR)/customer-server.log $(LOG_DIR)/customer-outbox.log $(LOG_DIR)/customer-gateway.log $(LOG_DIR)/notification-worker.log $(LOG_DIR)/droplet-server.log $(LOG_DIR)/droplet-worker.log
 	@( go run ./cmd/customer server --env=dev > $(LOG_DIR)/customer-server.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-server.pid
 	@( go run ./cmd/customer outbox --env=dev > $(LOG_DIR)/customer-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-outbox.pid
 	@( go run ./cmd/customer-gateway server --env=dev > $(LOG_DIR)/customer-gateway.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-gateway.pid
 	@( go run ./cmd/notification worker --env=dev > $(LOG_DIR)/notification-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/notification-worker.pid
+	@touch $(LOG_DIR)/notification-server.log $(LOG_DIR)/realtime-server.log
+	@( go run ./cmd/notification server --env=dev > $(LOG_DIR)/notification-server.log 2>&1 ) & echo $$! > $(PID_DIR)/notification-server.pid
+	@( go run ./cmd/realtime server --env=dev > $(LOG_DIR)/realtime-server.log 2>&1 ) & echo $$! > $(PID_DIR)/realtime-server.pid
 	@( go run ./cmd/droplet server --env=dev > $(LOG_DIR)/droplet-server.log 2>&1 ) & echo $$! > $(PID_DIR)/droplet-server.pid
 	@( go run ./cmd/droplet worker --env=dev > $(LOG_DIR)/droplet-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/droplet-worker.pid
 	@touch $(LOG_DIR)/droplet-outbox.log
@@ -221,6 +268,12 @@ test-droplet-integration:
 
 test-billing-integration:
 	INTEGRATION=true go test ./cmd/billing/integration-test/ -count=1 -v
+
+test-notification-integration:
+	INTEGRATION=true go test ./cmd/notification/integration-test/ -count=1 -v
+
+test-realtime-integration:
+	INTEGRATION=true go test ./cmd/realtime/integration-test/ -count=1 -v
 
 lint:
 	$(LOCAL_BIN)/golangci-lint run --config .golangci.yml ./...

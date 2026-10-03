@@ -6,7 +6,7 @@ name = "nodera-droplet"
 port = ":9660"
 
 [postgresql]
-uri = "postgres://postgres:postgres@localhost:5432/nodera_droplet?sslmode=disable"
+uri = "postgres://postgres:postgres@localhost:5442/nodera_droplet?sslmode=disable"
 
 [postgresql.pool]
 max_conns = 4
@@ -17,7 +17,7 @@ health_check_period_seconds = 60
 
 [redis]
 host = "localhost"
-port = 6379
+port = 6389
 username = ""
 password = ""
 db = 0
@@ -25,14 +25,14 @@ db = 0
 # The outbox lives here and nothing else does (docs/adr/0001).
 [mongodb]
 host = "localhost"
-port = 27017
+port = 27027
 username = ""
 password = ""
 database = "nodera_droplet_outbox"
-uri = "mongodb://localhost:27017/?directConnection=true"
+uri = "mongodb://localhost:27027/?directConnection=true"
 
 [rabbitmq]
-host = "127.0.0.1:5672"
+host = "127.0.0.1:5682"
 username = "guest"
 password = "guest"
 virtualhost = "/nodera"

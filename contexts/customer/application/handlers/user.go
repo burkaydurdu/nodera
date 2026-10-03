@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -9,18 +10,26 @@ import (
 	"github.com/piggystats/nodera/contexts/customer/aggregates/team"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user"
 	"github.com/piggystats/nodera/contexts/customer/application/dto"
+	"github.com/piggystats/nodera/logger"
 	"github.com/piggystats/nodera/pkg/contextutil"
 	"github.com/piggystats/nodera/utils/hash"
 )
 
-type User struct {
-	users    user.IService
-	teams    team.IService
-	sessions session.IManager
+//go:generate mockgen -destination=../../mock/producers/user_profile_updated.go -package=mockproducers github.com/piggystats/nodera/contexts/customer/application/handlers IUserProfileUpdatedProducer
+type IUserProfileUpdatedProducer interface {
+	Publish(ctx context.Context, u *user.User, updatedAt time.Time) error
 }
 
-func NewUser(users user.IService, teams team.IService, sessions session.IManager) *User {
-	return &User{users: users, teams: teams, sessions: sessions}
+type User struct {
+	log            logger.ILog
+	users          user.IService
+	teams          team.IService
+	sessions       session.IManager
+	profileUpdated IUserProfileUpdatedProducer
+}
+
+func NewUser(log logger.ILog, users user.IService, teams team.IService, sessions session.IManager, profileUpdated IUserProfileUpdatedProducer) *User {
+	return &User{log: log, users: users, teams: teams, sessions: sessions, profileUpdated: profileUpdated}
 }
 
 func (h *User) GetMe(ctx context.Context) (*dto.User, error) {
@@ -41,6 +50,11 @@ func (h *User) UpdateMe(ctx context.Context, req *user.UpdateMeRequest) (*dto.Us
 	u, err := h.users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	// The profile is saved; a failed publish leaves the read models with the
+	// old name until the next change, which is logged rather than refused.
+	if err := h.profileUpdated.Publish(ctx, u, time.Now()); err != nil {
+		h.log.Error(err)
 	}
 
 	return h.withTeam(ctx, u)

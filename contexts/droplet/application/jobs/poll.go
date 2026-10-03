@@ -59,6 +59,7 @@ func (j *Jobs) pollOne(ctx context.Context, id uuid.UUID) error {
 
 		return err
 	}
+	from := d.Status
 	if err := j.applyProviderState(txCtx, d); err != nil {
 		_ = j.transactions.Rollback(txCtx)
 
@@ -83,6 +84,7 @@ func (j *Jobs) pollOne(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	j.meter.Publish(ctx, d, claimed)
+	j.status.Announce(ctx, d, &from)
 
 	return nil
 }
@@ -98,7 +100,7 @@ func (j *Jobs) applyProviderState(ctx context.Context, d *droplet.Droplet) error
 		case d.Status == droplet.StatusDeleting:
 			return j.droplets.Transition(ctx, d, droplet.StatusDeleted, reasonReleased)
 		case timedOut:
-			return j.droplets.Transition(ctx, d, droplet.StatusFailed, droplet.ErrorProvisioningTimedOut.Message)
+			return j.droplets.Fail(ctx, d, droplet.FailureTimedOut, droplet.ErrorProvisioningTimedOut.Message)
 		default:
 			return nil
 		}
@@ -129,6 +131,8 @@ func (j *Jobs) applyProviderState(ctx context.Context, d *droplet.Droplet) error
 	changed := applyAddresses(d, server.IPv4, server.IPv6)
 
 	switch {
+	case reported == droplet.StatusFailed && d.Status.CanTransitionTo(reported):
+		return j.droplets.Fail(ctx, d, droplet.FailureProviderFailed, transitionReason(d, reported))
 	case reported != d.Status && d.Status.CanTransitionTo(reported):
 		return j.droplets.Transition(ctx, d, reported, transitionReason(d, reported))
 	case d.PendingAction != nil && reported == d.PendingAction.TargetStatus():
@@ -185,14 +189,14 @@ func (j *Jobs) timeOut(ctx context.Context, adapter adapter, d *droplet.Droplet)
 		j.log.ErrorWithFields(err, fields.Add("outcome", "provisioning timed out: server could not be released"))
 	}
 
-	return j.droplets.Transition(ctx, d, droplet.StatusFailed, droplet.ErrorProvisioningTimedOut.Message)
+	return j.droplets.Fail(ctx, d, droplet.FailureTimedOut, droplet.ErrorProvisioningTimedOut.Message)
 }
 
 // serverGone: a live Droplet whose server vanished is failed; one still
 // provisioning gets another poll until the timeout decides.
 func (j *Jobs) serverGone(ctx context.Context, d *droplet.Droplet) error {
 	if d.Status != droplet.StatusProvisioning && d.Status.CanTransitionTo(droplet.StatusFailed) {
-		return j.droplets.Transition(ctx, d, droplet.StatusFailed, reasonGoneAtProvider)
+		return j.droplets.Fail(ctx, d, droplet.FailureServerGone, reasonGoneAtProvider)
 	}
 
 	return nil

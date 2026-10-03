@@ -1,0 +1,25 @@
+{{ define "droplet_failed" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.Hostname}} oluşturulamadı</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{if .TeamName}}{{.TeamName}} takımındaki {{end}}<strong>{{.Hostname}}</strong> droplet'i kurulamadı. Sebep: {{t .FailureKey}}.</p>
+              <p class="subtitle">Hiç çalışmamış bir droplet için ücret alınmaz. Panelden silip yenisini oluşturabilirsin.</p>
+              <p class="subtitle">Bu e-posta, bu takımın droplet'lerini görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

@@ -30,6 +30,12 @@ type BillingMeter interface {
 	Publish(ctx context.Context, d *droplet.Droplet, events []droplet.BillingEvent)
 }
 
+// StatusAnnouncer announces a change of status a poll made; it is called
+// after the commit and does nothing when the status did not move.
+type StatusAnnouncer interface {
+	Announce(ctx context.Context, d *droplet.Droplet, from *droplet.Status)
+}
+
 type Jobs struct {
 	log          logger.ILog
 	providers    provider.IService
@@ -39,6 +45,7 @@ type Jobs struct {
 	registry     ProviderRegistry
 	transactions postgresql.ITransactionManager
 	meter        BillingMeter
+	status       StatusAnnouncer
 	now          func() time.Time
 }
 
@@ -51,6 +58,7 @@ func New(
 	registry ProviderRegistry,
 	transactions postgresql.ITransactionManager,
 	meter BillingMeter,
+	status StatusAnnouncer,
 ) *Jobs {
 	return &Jobs{
 		log:          log,
@@ -61,6 +69,7 @@ func New(
 		registry:     registry,
 		transactions: transactions,
 		meter:        meter,
+		status:       status,
 		now:          time.Now,
 	}
 }

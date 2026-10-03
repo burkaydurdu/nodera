@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/piggystats/outbox"
 	"github.com/piggystats/rabbitmq"
@@ -18,7 +19,10 @@ import (
 const (
 	outboxWorkers   = 5
 	outboxBatchSize = 50
-	prefetchCount   = 32
+	// The relay polls Mongo; the library's ten seconds would make a live
+	// update in the web app late by that much (docs/adr/0007).
+	outboxInterval = time.Second
+	prefetchCount  = 32
 )
 
 func newRabbitMQClient(ctx context.Context, conf *config.Config, log logger.ILog) rabbitmq.IClient {
@@ -55,6 +59,7 @@ func newOutbox(mongoClient mongo.IClient, publisher outbox.Publisher, log logger
 		rabbitmq.CorrelationID,
 		outbox.WithWorkers(outboxWorkers),
 		outbox.WithBatchSize(outboxBatchSize),
+		outbox.WithRetryInterval(outboxInterval),
 	)
 }
 

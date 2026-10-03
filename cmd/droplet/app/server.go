@@ -56,6 +56,12 @@ func NewMeter(log logger.ILog, outboxClient producers.OutboxClient) *handlers.Me
 	return handlers.NewMeter(log, producers.NewBillingStarted(outboxClient), producers.NewBillingStopped(outboxClient))
 }
 
+// NewStatusAnnouncer is the one announcer of status changes, shared the same
+// way as the Meter.
+func NewStatusAnnouncer(log logger.ILog, outboxClient producers.OutboxClient) *handlers.StatusAnnouncer {
+	return handlers.NewStatusAnnouncer(log, producers.NewStatusChanged(outboxClient))
+}
+
 // BuildServer wires the droplet service over already-built dependencies. The
 // binary and the integration suite both go through it, so the suite exercises
 // the same chain the binary serves.
@@ -73,7 +79,7 @@ func BuildServer(
 	catalogHandler := handlers.NewCatalog(services.Catalog)
 	dropletHandler := handlers.NewDroplet(
 		log, services.Catalog, services.Droplets, services.Access, services.Billing, services.Providers, registry, services.Transactions,
-		NewMeter(log, outboxClient), ratelimit.NewLimiter(redisService),
+		NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient), ratelimit.NewLimiter(redisService),
 	)
 
 	authenticate := apiMiddleware.Authenticate(conf.Secret.JWT, apiMiddleware.NewRedisSessions(redisService))
@@ -92,7 +98,10 @@ func BuildServer(
 func BuildJobs(log logger.ILog, pool *pgxpool.Pool, registry *providers.Registry, outboxClient producers.OutboxClient) *jobs.Jobs {
 	services := NewServices(pool)
 
-	return jobs.New(log, services.Providers, services.Catalog, services.Droplets, services.Billing, registry, services.Transactions, NewMeter(log, outboxClient))
+	return jobs.New(
+		log, services.Providers, services.Catalog, services.Droplets, services.Billing, registry, services.Transactions,
+		NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient),
+	)
 }
 
 func BuildCustomerConsumer(pool *pgxpool.Pool) *consumers.CustomerEvents {
@@ -103,6 +112,7 @@ func BuildBillingConsumer(log logger.ILog, pool *pgxpool.Pool, registry *provide
 	services := NewServices(pool)
 
 	return consumers.NewBillingEvents(handlers.NewTeamBilling(
-		log, services.Billing, services.Droplets, services.Providers, registry, services.Transactions, NewMeter(log, outboxClient),
+		log, services.Billing, services.Droplets, services.Providers, registry, services.Transactions,
+		NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient),
 	))
 }

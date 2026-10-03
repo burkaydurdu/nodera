@@ -53,11 +53,9 @@ func (c *CustomerEvents) Consume(message *rabbitmq.Message) error {
 	}
 }
 
-// teamCreated records the Team's name and, when the producer sent them, the
-// owner's contact details. An older producer sends neither; the owner then
-// arrives through their own TeamMemberAdded. A replayed TeamCreated cannot
-// re-grant an owner who has left since: it carries the creation time, older
-// than the tombstone.
+// teamCreated records the Team's name and its owner. A replayed TeamCreated
+// cannot re-grant an owner who has left since: it carries the creation time,
+// older than the tombstone.
 func (c *CustomerEvents) teamCreated(ctx context.Context, message *rabbitmq.Message) error {
 	var event events.TeamCreatedEvent
 	if err := decode(message, &event); err != nil {
@@ -74,14 +72,11 @@ func (c *CustomerEvents) teamCreated(ctx context.Context, message *rabbitmq.Mess
 	if err := c.access.UpsertTeam(ctx, p.TeamID, p.Name, p.CreatedAt); err != nil {
 		return err
 	}
-	if p.OwnerUserID == uuid.Nil || str.IsBlank(p.OwnerEmail) {
+	if p.OwnerUserID == uuid.Nil {
 		return nil
 	}
 
-	return c.access.UpsertTeamMember(ctx, &access.Member{
-		TeamID: p.TeamID, UserID: p.OwnerUserID, Role: authz.RoleOwner,
-		Email: p.OwnerEmail, FullName: p.OwnerFullName, Locale: p.OwnerLocale, UpdatedAt: p.CreatedAt,
-	})
+	return c.access.UpsertTeamMember(ctx, &access.Member{TeamID: p.TeamID, UserID: p.OwnerUserID, Role: authz.RoleOwner, UpdatedAt: p.CreatedAt})
 }
 
 func (c *CustomerEvents) memberAdded(ctx context.Context, message *rabbitmq.Message) error {
@@ -103,10 +98,7 @@ func (c *CustomerEvents) memberAdded(ctx context.Context, message *rabbitmq.Mess
 		role = authz.RoleOwner
 	}
 
-	return c.access.UpsertTeamMember(ctx, &access.Member{
-		TeamID: p.TeamID, UserID: p.UserID, Role: role,
-		Email: p.Email, FullName: p.FullName, Locale: p.Locale, UpdatedAt: p.AddedAt,
-	})
+	return c.access.UpsertTeamMember(ctx, &access.Member{TeamID: p.TeamID, UserID: p.UserID, Role: role, UpdatedAt: p.AddedAt})
 }
 
 func (c *CustomerEvents) roleChanged(ctx context.Context, message *rabbitmq.Message) error {

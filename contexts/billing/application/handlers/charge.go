@@ -385,7 +385,7 @@ func (c *Collection) publishOutcome(ctx context.Context, out *outcome) {
 	}
 	fields := func() logger.Fields { return logger.NewFields().Add("payment", p.ID.String()) }
 
-	recipients, teamName, err := c.recipients(ctx, p.TeamID)
+	address, err := c.invoiceAddress(ctx, p.TeamID)
 	if err != nil {
 		c.logFailure(err, "address payment emails", fields())
 
@@ -399,7 +399,7 @@ func (c *Collection) publishOutcome(ctx context.Context, out *outcome) {
 	switch {
 	case out.succeeded:
 		err = c.Notifier.PaymentSucceeded(ctx, events.PaymentSucceededBody{
-			Recipients: recipients, TeamName: teamName, InvoiceNumber: number,
+			TeamID: p.TeamID, InvoiceID: p.InvoiceID, PaymentID: p.ID, InvoiceAddress: address, InvoiceNumber: number,
 			Amount: p.Amount.StringFixed(2), Currency: p.Currency, PaidAt: p.CompletedAt.UTC(),
 		})
 	case out.failed:
@@ -408,12 +408,12 @@ func (c *Collection) publishOutcome(ctx context.Context, out *outcome) {
 			next = utcPtr(invoice.NextRetryAt(*out.invoice.FailedAt, out.invoice.DunningStep))
 		}
 		err = c.Notifier.PaymentFailed(ctx, events.PaymentFailedBody{
-			Recipients: recipients, TeamName: teamName, InvoiceNumber: number, Amount: p.Amount.StringFixed(2),
-			Currency: p.Currency, FailureReason: p.FailureReason, Attempt: p.Attempt, NextRetryAt: next,
+			TeamID: p.TeamID, InvoiceID: p.InvoiceID, PaymentID: p.ID, InvoiceAddress: address, InvoiceNumber: number,
+			Amount: p.Amount.StringFixed(2), Currency: p.Currency, FailureReason: p.FailureReason, Attempt: p.Attempt, NextRetryAt: next,
 		})
 	case out.confirm:
 		err = c.Notifier.PaymentConfirmationRequired(ctx, events.PaymentConfirmationRequiredBody{
-			Recipients: recipients, TeamName: teamName, InvoiceNumber: number,
+			TeamID: p.TeamID, InvoiceID: p.InvoiceID, PaymentID: p.ID, InvoiceAddress: address, InvoiceNumber: number,
 			Amount: p.Amount.StringFixed(2), Currency: p.Currency, ConfirmURL: c.confirmURL(p),
 		})
 	}
@@ -423,8 +423,8 @@ func (c *Collection) publishOutcome(ctx context.Context, out *outcome) {
 }
 
 // announceStatus tells the droplet context about a status move with the
-// row's own change time and, on a suspension, the Team's owners and invoice
-// address. The status event never waits on the email's recipients.
+// row's own change time and, on a suspension, announces it for the Team's
+// notifications. The status event never waits on the invoice address.
 func (c *Collection) announceStatus(ctx context.Context, teamID uuid.UUID, change *statusChange) {
 	if change == nil {
 		return
@@ -440,10 +440,10 @@ func (c *Collection) announceStatus(ctx context.Context, teamID uuid.UUID, chang
 		return
 	}
 
-	recipients, teamName, err := c.recipients(ctx, teamID)
+	address, err := c.invoiceAddress(ctx, teamID)
 	if err == nil {
 		err = c.Notifier.TeamSuspended(ctx, events.TeamSuspendedBody{
-			Recipients: recipients, TeamName: teamName, InvoiceNumber: change.suspending.Number,
+			TeamID: teamID, InvoiceID: change.suspending.ID, InvoiceAddress: address, InvoiceNumber: change.suspending.Number,
 			PayURL: c.payURL(teamID, change.suspending.ID),
 		})
 	}

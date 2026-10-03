@@ -6,6 +6,7 @@ import (
 
 	"github.com/piggystats/nodera/contexts/customer/aggregates/session"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/user"
+	"github.com/piggystats/nodera/contexts/customer/async/constants"
 )
 
 func (s *customerSuite) TestGetMe_AnswersProfileWithTeam() {
@@ -33,6 +34,12 @@ func (s *customerSuite) TestUpdateMe_ChangesNameLocaleAndCountry() {
 	s.Equal("Dev Renamed", res.str("full_name"))
 	s.Equal("tr", res.str("locale"))
 	s.Equal("DE", res.str("country"))
+	s.Equal(int64(1), s.outboxCount(constants.UserProfileUpdated))
+	updated := s.outboxPayload(constants.UserProfileUpdated)
+	s.Equal(s.userID(seedEmail), updated["user_id"])
+	s.Equal("Dev Renamed", updated["full_name"])
+	s.Equal("tr", updated["locale"])
+	s.isRFC3339UTC(updated["updated_at"])
 
 	_, err := s.pgPool.Exec(s.T().Context(), `UPDATE users SET full_name = 'Nodera Dev', locale = 'en', country = 'TR' WHERE email = $1`, seedEmail)
 	s.Require().NoError(err)

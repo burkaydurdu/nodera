@@ -74,21 +74,6 @@ func (mr *MockIAccessServiceMockRecorder) FindTeamMembership(ctx, teamID, userID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTeamMembership", reflect.TypeOf((*MockIAccessService)(nil).FindTeamMembership), ctx, teamID, userID)
 }
 
-// OwnersOf mocks base method.
-func (m *MockIAccessService) OwnersOf(ctx context.Context, teamID uuid.UUID) ([]access.Recipient, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OwnersOf", ctx, teamID)
-	ret0, _ := ret[0].([]access.Recipient)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// OwnersOf indicates an expected call of OwnersOf.
-func (mr *MockIAccessServiceMockRecorder) OwnersOf(ctx, teamID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OwnersOf", reflect.TypeOf((*MockIAccessService)(nil).OwnersOf), ctx, teamID)
-}
-
 // RemoveTeamMember mocks base method.
 func (m *MockIAccessService) RemoveTeamMember(ctx context.Context, teamID, userID uuid.UUID, removedAt time.Time) error {
 	m.ctrl.T.Helper()

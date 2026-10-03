@@ -13,9 +13,10 @@ spec: [docs/specs](docs/specs).
 | Binary | Purpose | Dev port |
 | --- | --- | --- |
 | `cmd/customer` | customer service: sign-up, sign-in, MFA, profile, teams, projects, SSH keys (`server`, `outbox`, `migrate`, `seed`, `replay-projects`) | 9650 |
-| `cmd/customer-gateway` | reverse proxy in front of the customer, droplet and billing services; `X-Target-Server` (`customer`, `droplet` or `billing`) picks the upstream and the route table per upstream is the authorization source of truth | 3460 |
+| `cmd/customer-gateway` | reverse proxy in front of the customer, droplet, billing and notification services and the realtime socket; `X-Target-Server` (`customer`, `droplet`, `billing` or `notification`) picks the upstream, the headerless `/v1/realtime` route reaches the realtime service, and the route table per upstream is the authorization source of truth | 3460 |
 | `cmd/droplet` | droplet service: catalog and Droplets inside a Project (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-billing`); the worker runs the catalog sync, the status poller and the customer- and billing-events consumers | 9660 |
-| `cmd/notification` | worker that turns email events into emails | – |
+| `cmd/notification` | Notifications (`server`, `worker`, `migrate`): the worker records a Notification for what happened and delivers it by email and In-app, and sends the platform's other emails; the server is the User's Inbox. Gateway target `notification` | 9680 |
+| `cmd/realtime` | the web app's live socket (`server`): one WebSocket per tab at `/v1/realtime`, fed by the contexts' realtime messages over RabbitMQ and shared between replicas over Redis pub/sub ([ADR-0007](docs/adr/0007-live-updates-reach-realtime-over-rabbitmq.md)) | 9690 |
 | `cmd/billing` | billing service: Billing profile, Payment methods, usage, Invoices, Payments, Dunning, Billing status and provider webhooks (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-status`); the worker runs the exchange-rate fetch, Period close, Threshold check, Dunning, reconciliation, the collection sweep, the card-expiry warning and the customer- and usage-events consumers. Gateway target `billing` | 9670 (metrics 9104) |
 
 Bounded contexts live under `contexts/<name>/`; a context never imports another.
@@ -29,18 +30,24 @@ make tools                      # swag, mockgen, golangci-lint, migrate into .lo
 cp cmd/customer/.conf/dev.toml.example cmd/customer/.conf/dev.toml
 cp cmd/customer-gateway/.conf/dev.toml.example cmd/customer-gateway/.conf/dev.toml
 cp cmd/notification/.conf/dev.toml.example cmd/notification/.conf/dev.toml
+cp cmd/realtime/.conf/dev.toml.example cmd/realtime/.conf/dev.toml
 
-make docker-up                  # Postgres 18, Redis, MongoDB (outbox only), RabbitMQ, MailHog
+make docker-up                  # Postgres 18, Redis, MongoDB (outbox only), RabbitMQ, MailHog on ports +10
 make mongo-init                 # once: single-node replica set
 make migrate-customer seed-customer
-make start                      # customer server + outbox, gateway, notification worker
+make migrate-notification       # `make create-db-notification` first on a volume older than the database
+make start                      # every server, worker and outbox, the gateway and the realtime socket
 ```
 
-Then open the web app on <http://localhost:3002>, MailHog on <http://localhost:8025>
+Then open the web app on <http://localhost:3002>, MailHog on <http://localhost:8035>
 (every code and reset link lands there), Swagger on <http://localhost:9650/swagger/index.html>.
 
 Seeded dev sign-in: `dev@nodera.local` / `Nodera1234!`. In `dev` every verification and
 MFA code is `123456`.
+
+docker-compose publishes every service on its standard port plus ten (Postgres 5442, Redis 6389,
+MongoDB 27027, RabbitMQ 5682 and 15682, MailHog 1035 and 8035), so Nodera runs next to other
+local stacks holding the standard ports; the dev TOMLs point at these.
 
 Configuration is TOML per environment under `cmd/<binary>/.conf/` (`dev.toml` is
 gitignored); every key can be overridden with `NODERA_<BINARY>_<SECTION>_<KEY>`.
@@ -218,3 +225,42 @@ make lint
 The customer HTTP suite (`cmd/customer/integration-test`) is the primary seam: it boots
 the real dependencies in containers, wires the server exactly as the binary does and
 drives every flow over HTTP. Emails are observed as outbox documents.
+
+### Notifications and the live socket
+
+A Notification is recorded for good and delivered over the Channels its type fixes
+([contexts/notification/CONTEXT.md](contexts/notification/CONTEXT.md)). The notification
+worker keeps its own Team read model from the customer events and tells the members whose Role
+may see what happened ([ADR-0008](docs/adr/0008-the-notification-context-decides-who-is-told.md)):
+a Droplet ready or failed, every billing event (to `billing.read` and the profile's invoice
+address), an invitation, a role change or removal someone else made, and the sign-in mail (by email
+only, its code or link never recorded). Delivery is tracked per Channel, so a redelivery from the
+error queue sends nothing twice.
+
+The web app opens one WebSocket per tab at `ws://localhost:3460/v1/realtime` through the
+gateway and sends `{"type":"auth","token":"<access token>"}` as its first frame, and again
+after every token refresh; the server answers `{"type":"ready"}` and then pushes
+`{"type","data","at"}` messages. It closes with `4401` when the session ended or the token's
+permission version is stale (refresh, then reconnect) and with `4408` when the first frame was
+late. Contexts publish realtime messages through their outbox like any event; the outbox relays
+poll every second for that.
+
+To see one arrive without creating a real Droplet (dev's Provider is real and bills), send a
+sample: it publishes, signed, the event behind a Notification about a Team, and everything from the
+worker to the web app's toast runs as for the real thing. The Team id is on the web app's Team page,
+next to the title. The sample names a Droplet or an Invoice that does not exist, so opening it finds
+nothing.
+
+```bash
+make sample-notification TEAM=<team id>                   # droplet_active
+make sample-notification TEAM=<team id> TYPE=payment_failed
+make sample-notification TEAM=<team id> TYPE=all           # every Notification type about a Team
+```
+
+Memberships that existed before the notification context did reach its read model with the
+customer replay; start the notification worker first so its queues exist.
+
+```bash
+make worker-notification
+go run ./cmd/customer replay-projects --env=dev
+```

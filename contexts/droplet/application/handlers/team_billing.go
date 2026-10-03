@@ -39,9 +39,10 @@ func NewTeamBilling(
 	registry ProviderRegistry,
 	transactions postgresql.ITransactionManager,
 	meter *Meter,
+	status *StatusAnnouncer,
 ) *TeamBilling {
 	return &TeamBilling{
-		dropletOps: &dropletOps{log: log, droplets: droplets, providers: providerService, registry: registry, transactions: transactions, meter: meter},
+		dropletOps: newDropletOps(log, droplets, providerService, registry, transactions, meter, status),
 		billing:    billingService,
 	}
 }
