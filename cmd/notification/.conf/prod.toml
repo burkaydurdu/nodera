@@ -51,6 +51,10 @@ password = ""
 [sendgrid]
 api_key = ""
 
+# The web app's origin: the links in Mail's emails open there.
+[domain]
+front = "https://app.nodera.io"
+
 [metrics]
 enabled = true
 port = ":9102"

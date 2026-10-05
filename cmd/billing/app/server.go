@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 
@@ -191,11 +192,15 @@ func BuildJobs(d Dependencies) *jobs.Jobs {
 
 // BuildConsumers answers every event consumer the worker binds.
 func BuildConsumers(d Dependencies) []consumers.Source {
-	return []consumers.Source{BuildCustomerConsumer(d), BuildUsageConsumer(d)}
+	return []consumers.Source{BuildCustomerConsumer(d), BuildUsageConsumer(d), BuildMailPackageConsumer(d)}
 }
 
 func BuildUsageConsumer(d Dependencies) *consumers.UsageEvents {
 	return consumers.NewUsageEvents(NewServices(d.Pool).Usage)
+}
+
+func BuildMailPackageConsumer(d Dependencies) *consumers.MailPackageEvents {
+	return consumers.NewMailPackageEvents(NewServices(d.Pool).Usage)
 }
 
 func BuildCustomerConsumer(d Dependencies) *consumers.CustomerEvents {
@@ -207,4 +212,15 @@ func ReplayStatuses(ctx context.Context, d Dependencies) (int, error) {
 	services := NewServices(d.Pool)
 
 	return handlers.NewReplayStatus(services.Statuses, producers.NewTeamBillingStatusChanged(d.Outbox)).Run(ctx)
+}
+
+// SamplePaymentMethod saves a Payment method no Payment provider holds for a
+// Team, so a dev environment without provider credentials can activate it.
+func SamplePaymentMethod(ctx context.Context, d Dependencies, teamID uuid.UUID) (*paymentmethod.PaymentMethod, billingstatus.Status, error) {
+	services := NewServices(d.Pool)
+
+	return handlers.NewSamplePaymentMethod(
+		d.Log, services.Access, services.Profiles, services.PaymentMethods, services.Statuses, services.Transactions,
+		producers.NewTeamBillingStatusChanged(d.Outbox), d.now(),
+	).Run(ctx, teamID)
 }

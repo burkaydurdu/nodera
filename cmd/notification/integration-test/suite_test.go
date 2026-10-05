@@ -169,9 +169,15 @@ func (s *notificationSuite) SetupSuite() {
 
 	s.email = &fakeEmail{}
 	s.realtime = &fakeRealtime{}
+	conf := &config.Config{
+		Environment: "dev", Server: config.Server{Name: "nodera-notification-test", Port: ":0"}, Secret: config.Secret{JWT: testJWTSecret},
+		// Written with a trailing slash, as an operator may: it must not double
+		// in the links the emails carry.
+		Domain: config.Domain{Front: "http://localhost:3002/"},
+	}
 	deps := app.Dependencies{
 		Log:      log,
-		Conf:     &config.Config{Environment: "dev", Server: config.Server{Name: "nodera-notification-test", Port: ":0"}, Secret: config.Secret{JWT: testJWTSecret}},
+		Conf:     conf,
 		Pool:     s.pgPool,
 		Redis:    redis.NewService(redisClient),
 		Email:    s.email,

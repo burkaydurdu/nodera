@@ -137,6 +137,16 @@ seed-billing:
 seed-rollback-billing:
 	go run ./cmd/billing seed-rollback --env=dev
 
+# Dev only: saves a Payment method no Payment provider holds for a Team, since
+# dev has no provider credentials for the web app's card form. The Team's first
+# one makes it active, so it can create Droplets and choose Mail Packages; the
+# billing outbox relays that. TEAM is the id on the web app's Team page, and the
+# Team needs its Billing profile first.
+#   make sample-payment-method TEAM=<team id>
+sample-payment-method:
+	@test -n "$(TEAM)" || (echo "usage: make sample-payment-method TEAM=<team id>" && exit 1)
+	go run ./cmd/billing sample-payment-method --env=dev --team=$(TEAM)
+
 # DESTRUCTIVE: drop and recreate the billing database, then migrate and seed.
 reset-db-billing:
 	docker compose exec -T postgres psql -U postgres -c 'DROP DATABASE IF EXISTS nodera_billing WITH (FORCE);' -c 'CREATE DATABASE nodera_billing;'
@@ -199,6 +209,77 @@ swagger-notification:
 	$(LOCAL_BIN)/swag init -q -d ./cmd/notification,./contexts/notification -g server.go -o contexts/notification/docs --parseDependency --parseInternal
 
 # =============================================================================
+# Mail
+# =============================================================================
+
+server-mail:
+	$(MAKE) -s swagger-mail
+	go run ./cmd/mail server --env=dev
+
+smtp-mail:
+	go run ./cmd/mail smtp --env=dev
+
+dns-mail:
+	go run ./cmd/mail dns --env=dev
+
+worker-mail:
+	go run ./cmd/mail worker --env=dev
+
+outbox-mail:
+	go run ./cmd/mail outbox --env=dev
+
+migrate-mail:
+	go run ./cmd/mail migrate --env=dev
+
+rollback-mail:
+	go run ./cmd/mail rollback --env=dev
+
+seed-mail:
+	go run ./cmd/mail seed --env=dev
+
+seed-rollback-mail:
+	go run ./cmd/mail seed-rollback --env=dev
+
+# An operator's decision until the Admin side exists: lifts a Project's Pause.
+#   make unpause-mail PROJECT=<project id>
+unpause-mail:
+	@test -n "$(PROJECT)" || (echo "usage: make unpause-mail PROJECT=<project id>" && exit 1)
+	go run ./cmd/mail unpause --env=dev --project=$(PROJECT)
+
+# Dev only: verifies a Sending domain as if the Team had published its DNS
+# records. Dev's zone is not public, so the real check cannot pass; the daily
+# check unverifies the domain again a day later. SENDING_DOMAIN is the last
+# part of the domain page's URL in the web app.
+#   make verify-sending-domain SENDING_DOMAIN=<sending domain id>
+verify-sending-domain:
+	@test -n "$(SENDING_DOMAIN)" || (echo "usage: make verify-sending-domain SENDING_DOMAIN=<sending domain id>" && exit 1)
+	go run ./cmd/mail verify-sending-domain --env=dev --sending-domain=$(SENDING_DOMAIN)
+
+# Creates the database on a postgres volume made before it was added to
+# scripts/init-db.sql; harmless when it exists.
+create-db-mail:
+	docker compose exec -T postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'nodera_mail'" | grep -q 1 || \
+		docker compose exec -T postgres psql -U postgres -c 'CREATE DATABASE nodera_mail;'
+
+# DESTRUCTIVE: drop and recreate the mail database, then migrate and seed.
+reset-db-mail:
+	docker compose exec -T postgres psql -U postgres -c 'DROP DATABASE IF EXISTS nodera_mail WITH (FORCE);' -c 'CREATE DATABASE nodera_mail;'
+	$(MAKE) -s migrate-mail
+	$(MAKE) -s seed-mail
+
+# Scoped to the mail dirs: with several `dto` packages in the repo, swag
+# cannot resolve type names when it parses the whole tree.
+swagger-mail:
+	$(LOCAL_BIN)/swag init -q -d ./cmd/mail,./contexts/mail -g server.go -o contexts/mail/docs --parseDependency --parseInternal
+
+# =============================================================================
+# Integration gateway
+# =============================================================================
+
+server-integration-gateway:
+	go run ./cmd/integration-gateway server --env=dev
+
+# =============================================================================
 # Realtime
 # =============================================================================
 
@@ -214,6 +295,7 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@$(MAKE) -s swagger-droplet
 	@$(MAKE) -s swagger-billing
 	@$(MAKE) -s swagger-notification
+	@$(MAKE) -s swagger-mail
 	@touch $(LOG_DIR)/customer-server.log $(LOG_DIR)/customer-outbox.log $(LOG_DIR)/customer-gateway.log $(LOG_DIR)/notification-worker.log $(LOG_DIR)/droplet-server.log $(LOG_DIR)/droplet-worker.log
 	@( go run ./cmd/customer server --env=dev > $(LOG_DIR)/customer-server.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-server.pid
 	@( go run ./cmd/customer outbox --env=dev > $(LOG_DIR)/customer-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-outbox.pid
@@ -230,6 +312,13 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@( go run ./cmd/billing server --env=dev > $(LOG_DIR)/billing-server.log 2>&1 ) & echo $$! > $(PID_DIR)/billing-server.pid
 	@( go run ./cmd/billing worker --env=dev > $(LOG_DIR)/billing-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/billing-worker.pid
 	@( go run ./cmd/billing outbox --env=dev > $(LOG_DIR)/billing-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/billing-outbox.pid
+	@touch $(LOG_DIR)/mail-server.log $(LOG_DIR)/mail-smtp.log $(LOG_DIR)/mail-dns.log $(LOG_DIR)/mail-worker.log $(LOG_DIR)/mail-outbox.log $(LOG_DIR)/integration-gateway.log
+	@( go run ./cmd/mail server --env=dev > $(LOG_DIR)/mail-server.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-server.pid
+	@( go run ./cmd/mail smtp --env=dev > $(LOG_DIR)/mail-smtp.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-smtp.pid
+	@( go run ./cmd/mail dns --env=dev > $(LOG_DIR)/mail-dns.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-dns.pid
+	@( go run ./cmd/mail worker --env=dev > $(LOG_DIR)/mail-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-worker.pid
+	@( go run ./cmd/mail outbox --env=dev > $(LOG_DIR)/mail-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-outbox.pid
+	@( go run ./cmd/integration-gateway server --env=dev > $(LOG_DIR)/integration-gateway.log 2>&1 ) & echo $$! > $(PID_DIR)/integration-gateway.pid
 	@echo "started. Tailing logs (Ctrl-C to stop)."
 	@trap '$(MAKE) -s stop' INT TERM EXIT; tail -f $(LOG_DIR)/*.log
 
@@ -274,6 +363,16 @@ test-notification-integration:
 
 test-realtime-integration:
 	INTEGRATION=true go test ./cmd/realtime/integration-test/ -count=1 -v
+
+test-mail-integration:
+	INTEGRATION=true go test ./cmd/mail/integration-test/ -count=1 -v
+
+test-integration-gateway:
+	INTEGRATION=true go test ./cmd/integration-gateway/ -count=1 -v
+
+# Pulls the KumoMTA image and runs deploy/kumomta's policy against a real MTA.
+test-kumomta-contract:
+	NODERA_MAIL_SMOKE=true go test ./contexts/mail/mta/kumomta/ -run TestKumoMTAContract -count=1 -v
 
 lint:
 	$(LOCAL_BIN)/golangci-lint run --config .golangci.yml ./...

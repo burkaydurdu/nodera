@@ -7,6 +7,8 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/piggystats/nodera/cmd/customer/config"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/apikey"
+	"github.com/piggystats/nodera/contexts/customer/aggregates/apikey/entry"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/invitation"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/project"
 	"github.com/piggystats/nodera/contexts/customer/aggregates/session"
@@ -63,6 +65,7 @@ func BuildServer(
 	projectService := project.NewService(project.NewRepository(queries))
 	sshKeyService := sshkey.NewService(sshkey.NewRepository(queries))
 	invitationService := invitation.NewService(invitation.NewRepository(queries))
+	apiKeyService := apikey.NewService(apikey.NewRepository(queries))
 
 	teamCreated := producers.NewTeamCreated(outboxClient)
 	memberAdded := producers.NewTeamMemberAdded(outboxClient)
@@ -117,6 +120,7 @@ func BuildServer(
 	userHandler := handlers.NewUser(log, userService, teamService, sessions, producers.NewUserProfileUpdated(outboxClient))
 	teamHandler := handlers.NewTeam(log, userService, teamService, projectService, transactions, permVersions, teamCreated, memberAdded, roleChanged, memberRemoved, projectCreated)
 	sshKeyHandler := handlers.NewSSHKey(teamService, sshKeyService)
+	apiKeyHandler := handlers.NewAPIKey(log, teamService, projectService, apiKeyService, transactions, entry.NewStore(redisService))
 	invitationHandler := handlers.NewInvitation(log, authConfig, userService, teamService, invitationService, limiter, joiner, producers.NewTeamInvitation(outboxClient))
 
 	authenticate := apiMiddleware.Authenticate(authConfig.JWTSecret, sessions)
@@ -130,6 +134,7 @@ func BuildServer(
 	v1.NewUser(userHandler, authenticate).SetRoutes(apiV1)
 	v1.NewTeam(teamHandler, authenticate).SetRoutes(apiV1)
 	v1.NewSSHKey(sshKeyHandler, authenticate).SetRoutes(apiV1)
+	v1.NewAPIKey(apiKeyHandler, authenticate).SetRoutes(apiV1)
 	v1.NewInvitation(invitationHandler, authenticate).SetRoutes(apiV1)
 
 	return server

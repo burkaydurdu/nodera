@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httputil"
@@ -90,6 +91,9 @@ func targetService(c echo.Context, routeTable *config.GatewayConfig) (config.Ser
 	return routeTable.Service(targetServer)
 }
 
+// Proxy forwards the request to its upstream. A proxy that leaves a failure
+// through failUpstream has it answered by the platform's error handler, in
+// the same shape as every other error.
 func Proxy(proxies Proxies) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -103,9 +107,31 @@ func Proxy(proxies Proxies) echo.MiddlewareFunc {
 				return echo.ErrUnauthorized
 			}
 
-			proxy.ServeHTTP(c.Response(), c.Request())
+			failure := &upstreamFailure{}
+			req := c.Request()
+			proxy.ServeHTTP(c.Response(), req.WithContext(context.WithValue(req.Context(), upstreamFailureKey{}, failure)))
 
-			return nil
+			return failure.err
 		}
 	}
+}
+
+type upstreamFailureKey struct{}
+
+// upstreamFailure carries what a proxy's error handler could not forward back
+// to Proxy: the handler has a request but no Echo context to return it to.
+type upstreamFailure struct {
+	err error
+}
+
+// failUpstream hands err to the Proxy that forwarded r. A request that came
+// through no Proxy has nobody to answer it, so it gets the bare status.
+func failUpstream(w http.ResponseWriter, r *http.Request, err *echo.HTTPError) {
+	if failure, ok := r.Context().Value(upstreamFailureKey{}).(*upstreamFailure); ok {
+		failure.err = err
+
+		return
+	}
+
+	w.WriteHeader(err.Code)
 }

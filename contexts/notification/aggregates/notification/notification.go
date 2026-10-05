@@ -26,6 +26,13 @@ const (
 	TypeDropletsDeletionWarning     Type = "droplets_deletion_warning"
 	TypeCardExpiring                Type = "card_expiring"
 
+	TypeMailDomainVerified   Type = "mail_domain_verified"
+	TypeMailDomainUnverified Type = "mail_domain_unverified"
+	TypeMailPackageNearLimit Type = "mail_package_near_limit"
+	TypeMailPackageExhausted Type = "mail_package_exhausted"
+	TypeMailRatesWarning     Type = "mail_rates_warning"
+	TypeMailPaused           Type = "mail_paused"
+
 	TypeTeamInvitation    Type = "team_invitation"
 	TypeTeamRoleChanged   Type = "team_role_changed"
 	TypeTeamMemberRemoved Type = "team_member_removed"
@@ -76,6 +83,17 @@ var catalog = map[Type]Definition{
 	TypeTeamSuspended:               {Channels: inAppByEmail, Permission: authz.BillingRead},
 	TypeDropletsDeletionWarning:     {Channels: inAppByEmail, Permission: authz.BillingRead},
 	TypeCardExpiring:                {Channels: inAppByEmail, Permission: authz.BillingRead},
+
+	// A Project's Mail news reaches whoever may see its Mail, finance too since
+	// the Package is a line on its Invoice, and goes by email as well: most of
+	// it asks for action (fix the DNS, upgrade, clean a list) while nobody may
+	// be looking.
+	TypeMailDomainVerified:   {Channels: inAppByEmail, Permission: authz.MailRead},
+	TypeMailDomainUnverified: {Channels: inAppByEmail, Permission: authz.MailRead},
+	TypeMailPackageNearLimit: {Channels: inAppByEmail, Permission: authz.MailRead},
+	TypeMailPackageExhausted: {Channels: inAppByEmail, Permission: authz.MailRead},
+	TypeMailRatesWarning:     {Channels: inAppByEmail, Permission: authz.MailRead},
+	TypeMailPaused:           {Channels: inAppByEmail, Permission: authz.MailRead},
 
 	// An invitation reaches an address that may have no account yet; the
 	// Inbox shows it to one that has.

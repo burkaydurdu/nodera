@@ -39,13 +39,7 @@ func RunServer(conf *config.Config) {
 	}
 	defer pool.Close()
 
-	redisService := redis.NewService(redis.NewClient(&redis.Config{
-		Host:     conf.Redis.Host,
-		Port:     conf.Redis.Port,
-		Username: conf.Redis.Username,
-		Password: conf.Redis.Password,
-		DB:       conf.Redis.DB,
-	}, log))
+	redisService := newRedisService(conf, log)
 
 	rabbitMQClient := newRabbitMQClient(ctx, conf, log)
 	producers.NewProducer(rabbitMQClient).AddPublisher(ctx)
@@ -58,4 +52,14 @@ func RunServer(conf *config.Config) {
 
 	server := app.BuildServer(log, conf, pool, redisService, outboxInstance, http.DefaultRateLimit)
 	server.Logger.Fatal(server.Start(conf.Server.Port))
+}
+
+func newRedisService(conf *config.Config, log logger.ILog) redis.IService {
+	return redis.NewService(redis.NewClient(&redis.Config{
+		Host:     conf.Redis.Host,
+		Port:     conf.Redis.Port,
+		Username: conf.Redis.Username,
+		Password: conf.Redis.Password,
+		DB:       conf.Redis.DB,
+	}, log))
 }

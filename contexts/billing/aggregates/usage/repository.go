@@ -90,10 +90,79 @@ func (r *Repository) FindForTeam(ctx context.Context, teamID uuid.UUID, from, to
 	return out, nil
 }
 
+// StartMail fills a new interval or one whose stop arrived first, and leaves
+// a started one alone, so a redelivered or replayed start never moves the
+// price the Package was chosen at. The stop already heard of stays.
+func (r *Repository) StartMail(ctx context.Context, i *MailInterval) error {
+	_, err := r.queries.Executor(ctx).Exec(ctx, `
+		INSERT INTO mail_package_intervals (project_id, started_at, team_id, project_name, package_code, monthly_emails, monthly_price)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (project_id, started_at) DO UPDATE SET
+			team_id = EXCLUDED.team_id, project_name = EXCLUDED.project_name, package_code = EXCLUDED.package_code,
+			monthly_emails = EXCLUDED.monthly_emails, monthly_price = EXCLUDED.monthly_price, updated_at = now()
+		WHERE mail_package_intervals.monthly_price IS NULL`,
+		i.ProjectID, i.StartedAt, i.TeamID, i.ProjectName, i.PackageCode, i.MonthlyEmails, i.MonthlyPrice)
+	if err != nil {
+		return ErrorCannotStore.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+// StopMail keeps the earliest stop it has heard of; a stop whose start has
+// not arrived yet is kept for it.
+func (r *Repository) StopMail(ctx context.Context, projectID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error {
+	_, err := r.queries.Executor(ctx).Exec(ctx, `
+		INSERT INTO mail_package_intervals (project_id, started_at, team_id, stopped_at)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (project_id, started_at) DO UPDATE SET
+			stopped_at = LEAST(mail_package_intervals.stopped_at, EXCLUDED.stopped_at), updated_at = now()`,
+		projectID, startedAt, teamID, stoppedAt)
+	if err != nil {
+		return ErrorCannotStore.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+// FindMailForTeam answers the started intervals only: one still waiting for
+// its start has no price to charge.
+func (r *Repository) FindMailForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*MailInterval, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `
+		SELECT project_id, team_id, project_name, package_code, monthly_emails, monthly_price, started_at, stopped_at
+		FROM mail_package_intervals
+		WHERE team_id = $1 AND monthly_price IS NOT NULL AND started_at < $3 AND (stopped_at IS NULL OR stopped_at > $2)
+		ORDER BY started_at, project_id`, teamID, from, to)
+	if err != nil {
+		return nil, ErrorCannotRead.Copy().SetError(err)
+	}
+	defer rows.Close()
+
+	out := make([]*MailInterval, 0)
+	for rows.Next() {
+		var i MailInterval
+		if err := rows.Scan(&i.ProjectID, &i.TeamID, &i.ProjectName, &i.PackageCode, &i.MonthlyEmails, &i.MonthlyPrice,
+			&i.StartedAt, &i.StoppedAt); err != nil {
+			return nil, ErrorCannotRead.Copy().SetError(err)
+		}
+		out = append(out, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ErrorCannotRead.Copy().SetError(err)
+	}
+
+	return out, nil
+}
+
+// TeamsWithUsage answers the Teams with a Droplet that ran or a Package held
+// at some point in [from, to).
 func (r *Repository) TeamsWithUsage(ctx context.Context, from, to time.Time) ([]uuid.UUID, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
-		SELECT DISTINCT team_id FROM usage
+		SELECT team_id FROM usage
 		WHERE started_at IS NOT NULL AND started_at < $2 AND (stopped_at IS NULL OR stopped_at > $1)
+		UNION
+		SELECT team_id FROM mail_package_intervals
+		WHERE monthly_price IS NOT NULL AND started_at < $2 AND (stopped_at IS NULL OR stopped_at > $1)
 		ORDER BY team_id`, from, to)
 	if err != nil {
 		return nil, ErrorCannotRead.Copy().SetError(err)

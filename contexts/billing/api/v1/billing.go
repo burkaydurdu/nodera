@@ -390,7 +390,7 @@ func (h *Billing) webhook(provider string) echo.HandlerFunc {
 
 // GetUsage godoc
 // @Summary The open Period's draft Invoice
-// @Description Each Droplet's hours not yet on an Invoice this Period (rounded up, capped at 672), priced at its Locked price; tax estimated with the Billing profile's Tax rule (0 without a profile); and the Threshold that issues it early. Needs billing.read.
+// @Description Each Droplet's hours not yet on an Invoice this Period (rounded up, capped at 672), priced at its Locked price, and each Project's Mail Package: the highest monthly price it held in the Period, less what earlier Invoices of the Period charged for it. A line's kind (droplet or mail) says which fields it carries; the other kind's are omitted. Tax estimated with the Billing profile's Tax rule (0 without a profile); and the Threshold that issues it early. Needs billing.read.
 // @Tags billing
 // @Security BearerAuth
 // @Produce json
@@ -445,7 +445,7 @@ func (h *Billing) ListInvoices(c echo.Context) error {
 
 // GetInvoice godoc
 // @Summary One Invoice with its lines, Tax lines and Payments
-// @Description 404 invoice 33-10001 for an unknown Invoice or another Team's. Needs billing.read.
+// @Description A line's kind (droplet or mail) says which fields it carries; the other kind's are omitted. 404 invoice 33-10001 for an unknown Invoice or another Team's. Needs billing.read.
 // @Tags billing
 // @Security BearerAuth
 // @Produce json

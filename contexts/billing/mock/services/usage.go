@@ -58,6 +58,21 @@ func (mr *MockIUsageServiceMockRecorder) FindForTeam(ctx, teamID, from, to any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindForTeam", reflect.TypeOf((*MockIUsageService)(nil).FindForTeam), ctx, teamID, from, to)
 }
 
+// FindMailForTeam mocks base method.
+func (m *MockIUsageService) FindMailForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*usage.MailInterval, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindMailForTeam", ctx, teamID, from, to)
+	ret0, _ := ret[0].([]*usage.MailInterval)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindMailForTeam indicates an expected call of FindMailForTeam.
+func (mr *MockIUsageServiceMockRecorder) FindMailForTeam(ctx, teamID, from, to any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindMailForTeam", reflect.TypeOf((*MockIUsageService)(nil).FindMailForTeam), ctx, teamID, from, to)
+}
+
 // FirstStartedAt mocks base method.
 func (m *MockIUsageService) FirstStartedAt(ctx context.Context, teamID uuid.UUID) (*time.Time, error) {
 	m.ctrl.T.Helper()
@@ -87,6 +102,20 @@ func (mr *MockIUsageServiceMockRecorder) Start(ctx, u any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockIUsageService)(nil).Start), ctx, u)
 }
 
+// StartMail mocks base method.
+func (m *MockIUsageService) StartMail(ctx context.Context, i *usage.MailInterval) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartMail", ctx, i)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StartMail indicates an expected call of StartMail.
+func (mr *MockIUsageServiceMockRecorder) StartMail(ctx, i any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartMail", reflect.TypeOf((*MockIUsageService)(nil).StartMail), ctx, i)
+}
+
 // Stop mocks base method.
 func (m *MockIUsageService) Stop(ctx context.Context, dropletID, teamID uuid.UUID, stoppedAt time.Time) error {
 	m.ctrl.T.Helper()
@@ -99,6 +128,20 @@ func (m *MockIUsageService) Stop(ctx context.Context, dropletID, teamID uuid.UUI
 func (mr *MockIUsageServiceMockRecorder) Stop(ctx, dropletID, teamID, stoppedAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockIUsageService)(nil).Stop), ctx, dropletID, teamID, stoppedAt)
+}
+
+// StopMail mocks base method.
+func (m *MockIUsageService) StopMail(ctx context.Context, projectID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StopMail", ctx, projectID, teamID, startedAt, stoppedAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StopMail indicates an expected call of StopMail.
+func (mr *MockIUsageServiceMockRecorder) StopMail(ctx, projectID, teamID, startedAt, stoppedAt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopMail", reflect.TypeOf((*MockIUsageService)(nil).StopMail), ctx, projectID, teamID, startedAt, stoppedAt)
 }
 
 // TeamsWithUsage mocks base method.

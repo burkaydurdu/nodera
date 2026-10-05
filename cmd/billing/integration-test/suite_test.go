@@ -141,6 +141,7 @@ type billingSuite struct {
 	jobs     *jobs.Jobs
 	consumer *consumers.CustomerEvents
 	usage    *consumers.UsageEvents
+	mail     *consumers.MailPackageEvents
 }
 
 func TestBillingSuite(t *testing.T) {
@@ -263,6 +264,7 @@ func (s *billingSuite) SetupSuite() {
 	s.jobs = app.BuildJobs(s.deps)
 	s.consumer = app.BuildCustomerConsumer(s.deps)
 	s.usage = app.BuildUsageConsumer(s.deps)
+	s.mail = app.BuildMailPackageConsumer(s.deps)
 }
 
 func (s *billingSuite) TearDownSuite() {
@@ -286,7 +288,7 @@ func (s *billingSuite) SetupTest() {
 func (s *billingSuite) TearDownTest() {
 	ctx := context.Background()
 	for _, table := range []string{
-		"payments", "credit_ledger", "invoice_tax_lines", "invoice_lines", "invoices", "invoice_numbers", "usage",
+		"payments", "credit_ledger", "invoice_tax_lines", "invoice_lines", "invoices", "invoice_numbers", "usage", "mail_package_intervals",
 		"card_verifications", "payment_methods", "billing_profiles", "team_billing_status",
 		"team_members", "teams", "exchange_rates", "webhook_events",
 	} {

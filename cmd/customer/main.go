@@ -67,6 +67,14 @@ var replayProjectsCmd = &cobra.Command{
 	},
 }
 
+var syncAPIKeysCmd = &cobra.Command{
+	Use:   "sync-api-keys",
+	Short: "Rewrite the Redis entry of every active API key from the database and delete those of revoked keys",
+	Run: func(cmd *cobra.Command, args []string) {
+		RunSyncAPIKeys(cmd.Context(), config.InitConfig(viper.GetString("env")))
+	},
+}
+
 var outboxCmd = &cobra.Command{
 	Use:   "outbox",
 	Short: "Relay outbox messages to RabbitMQ",
@@ -95,7 +103,7 @@ var outboxCmd = &cobra.Command{
 }
 
 func main() {
-	rootCmd.AddCommand(serverCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, outboxCmd, replayProjectsCmd)
+	rootCmd.AddCommand(serverCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, outboxCmd, replayProjectsCmd, syncAPIKeysCmd)
 	rootCmd.PersistentFlags().StringP("env", "e", "dev", "Config file name under .conf (dev|test|alpha|prod)")
 	cobra.CheckErr(rootCmd.MarkPersistentFlagRequired("env"))
 	cobra.CheckErr(viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env")))

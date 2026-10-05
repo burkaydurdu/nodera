@@ -9,10 +9,19 @@ import (
 	"github.com/piggystats/nodera/pkg/echo_middleware"
 )
 
-const DefaultRateLimit = 20
+const (
+	DefaultRateLimit = 20
+	defaultBodyLimit = "1MB"
+)
 
 // CreateEcho builds the canonical Echo instance for the backend services.
 func CreateEcho(log logger.ILog, rateLimit int) *echo.Echo {
+	return CreateEchoWithBodyLimit(log, rateLimit, defaultBodyLimit)
+}
+
+// CreateEchoWithBodyLimit is CreateEcho for a listener whose requests carry
+// more than the usual megabyte, such as a Message with attachments.
+func CreateEchoWithBodyLimit(log logger.ILog, rateLimit int, bodyLimit string) *echo.Echo {
 	if rateLimit == 0 {
 		rateLimit = DefaultRateLimit
 	}
@@ -30,7 +39,7 @@ func CreateEcho(log logger.ILog, rateLimit int) *echo.Echo {
 	}))
 	e.Use(
 		middleware.Secure(),
-		middleware.BodyLimit("1MB"),
+		middleware.BodyLimit(bodyLimit),
 	)
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rate.Limit(rateLimit))))
 	e.Use(RequestLogger(log))

@@ -1,0 +1,28 @@
+{{ define "mail_rates_warning" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">High bounce or complaint rate in {{.ProjectName}}</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, {{if .WindowDays}}over the last {{.WindowDays}} days, {{end}}mail from the project <strong>{{.ProjectName}}</strong>{{if .TeamName}} in {{.TeamName}}{{end}} had a bounce rate of <strong>{{.BounceRate}}%</strong> and a complaint rate of <strong>{{.ComplaintRate}}%</strong>.</p>
+              <p class="subtitle">If these rates keep rising, Nodera pauses the project's sending to protect delivery for everyone. Remove the addresses that bounce, and send only to people who asked for your mail.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.MailURL}}">Open Mail</a></td></tr>
+              </table>
+              <p class="subtitle">This email was sent to {{.Email}} because you can see this team's Mail.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

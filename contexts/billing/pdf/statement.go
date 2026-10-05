@@ -21,24 +21,26 @@ var templates = template.Must(template.New("statement").Funcs(template.FuncMap{
 }).ParseFS(templateFiles, "templates/*.html"))
 
 // Statement is everything the template prints, already formatted where the
-// format is the service's decision (money as decimal strings).
+// format is the service's decision (money as decimal strings). Each kind of
+// line has its own table, printed only when the statement has lines of it.
 type Statement struct {
-	Locale      string
-	Number      string
-	Threshold   bool
-	IssuedAt    time.Time
-	PeriodStart time.Time
-	PeriodEnd   time.Time
-	TeamName    string
-	Payer       Payer
-	Lines       []Line
-	TaxLines    []TaxLine
-	Currency    string
-	Subtotal    string
-	Credit      string
-	HasCredit   bool
-	TotalDue    string
-	Settlement  *Settlement
+	Locale       string
+	Number       string
+	Threshold    bool
+	IssuedAt     time.Time
+	PeriodStart  time.Time
+	PeriodEnd    time.Time
+	TeamName     string
+	Payer        Payer
+	DropletLines []DropletLine
+	MailLines    []MailLine
+	TaxLines     []TaxLine
+	Currency     string
+	Subtotal     string
+	Credit       string
+	HasCredit    bool
+	TotalDue     string
+	Settlement   *Settlement
 }
 
 type Payer struct {
@@ -55,11 +57,19 @@ type Payer struct {
 	InvoiceEmail string
 }
 
-type Line struct {
+type DropletLine struct {
 	Hostname    string
 	PlanCode    string
 	Hours       int
 	HourlyPrice string
+	Amount      string
+}
+
+// MailLine is printed "Mail · <project> · <package>" in every locale: both
+// are names the Team chose or saw in the product, never translated.
+type MailLine struct {
+	ProjectName string
+	PackageCode string
 	Amount      string
 }
 

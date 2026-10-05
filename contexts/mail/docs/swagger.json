@@ -1,0 +1,1426 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Mail inside a Project: Packages, Sending domains, logs, Suppressions and Webhooks, and the sending API software reaches with an API key. Prices are USD excluding taxes.",
+        "title": "Nodera Mail API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/v1/mail/messages": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "At most 50 recipients and 10 MB decoded. 202 with the Message id once accepted; suppressed recipients are dropped and named. 402 without a Package, 429 with Retry-After when the Daily limit or the Package is used up, 423 when the Project is Paused or the Team suspended, 422 when the sender is not on a verified Sending domain. A repeated Idempotency-Key within 24 hours answers the first Message.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sending"
+                ],
+                "summary": "Send a Message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Repeat-safe request id",
+                        "name": "Idempotency-Key",
+                        "in": "header"
+                    },
+                    {
+                        "description": "The Message",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.SendRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/mail/packages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Prices are USD per month, excluding taxes.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "The Packages a Project can choose, smallest first",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Package"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The Package and any scheduled change, this Period's usage, today's Daily limit, the seven-day rates, a Pause and the Team's Billing status. sending_state says whether a Message would be accepted now. 403 without mail.read; 404 for a Project the caller is not a member of.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Project's Mail at a glance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Overview"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/domains": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Project's Sending domains",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Answers the three CNAME records to add. 409 when the Project already has the domain or holds 10. 403 without mail.write.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Add a Sending domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The domain",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_sendingdomain.AddRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/domains/{domainID}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Sending domain with its records and what the last check found",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sending domain id",
+                        "name": "domainID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sending from it stops at once; its Messages' logs stay until they expire.",
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Delete a Sending domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sending domain id",
+                        "name": "domainID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/domains/{domainID}/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "At most once a minute per domain (429 with Retry-After).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Check a Sending domain's records now",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sending domain id",
+                        "name": "domainID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "A status or a recipient filter matches a Message when one of its recipients does. Nodera keeps no Message body.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Project's Messages of the last 30 days, newest first",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "accepted | delivered | deferred | bounced | suppressed | complained",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Recipient address",
+                        "name": "recipient",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sender address",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tag",
+                        "name": "tag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC 3339",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC 3339",
+                        "name": "until",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "next_cursor of the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1-100, default 50",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.MessagePage"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/messages/{messageID}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Message with each recipient's Message events",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Message id",
+                        "name": "messageID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.MessageDetail"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/package": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "A first Package and a larger one apply at once (the used count carries over); a smaller one and \"none\" apply from the next Period, and choosing the current Package again undoes them. Starting or upgrading needs a payment method (402) and a Team that is not suspended (423). 403 without mail.write.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Choose, change or cancel a Project's Package",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "A Package code or none",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_packages.ChooseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Overview"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/suppressions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Project's Suppressions, newest first",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Part of an address",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "next_cursor of the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1-100, default 50",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SuppressionPage"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/suppressions/{suppressionID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Only a bounce Suppression can be removed; a complaint answers 409.",
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Mail an address again",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Suppression id",
+                        "name": "suppressionID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/webhooks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Project's Webhooks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Webhook"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Answers the signing secret this once. Deliveries are batched JSON arrays signed with Nodera-Signature: t=\u003cunix\u003e,v1=\u003chex HMAC-SHA256 of \"t.body\"\u003e. At most 3 per Project (409); a public HTTPS URL only (400).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Add a Webhook",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "URL and Message events",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_webhook.CreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Webhook"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/webhooks/{webhookID}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Change a Webhook's URL, events or active flag",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Webhook id",
+                        "name": "webhookID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "URL, events and active",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_webhook.UpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Webhook"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "Delete a Webhook",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Webhook id",
+                        "name": "webhookID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/v1/projects/{projectID}/mail/webhooks/{webhookID}/deliveries": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mail"
+                ],
+                "summary": "A Webhook's deliveries of the last 30 days, newest first",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Webhook id",
+                        "name": "webhookID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "next_cursor of the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1-100, default 50",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.DeliveryPage"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_aggregates_message.AttachmentInput": {
+            "type": "object",
+            "required": [
+                "content",
+                "content_type",
+                "filename"
+            ],
+            "properties": {
+                "content": {
+                    "description": "Content is base64; its decoded size counts towards MaxSizeBytes.",
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "content_type": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "filename": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_aggregates_message.SendRequest": {
+            "type": "object",
+            "required": [
+                "from",
+                "subject"
+            ],
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AttachmentInput"
+                    }
+                },
+                "bcc": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput"
+                    }
+                },
+                "cc": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput"
+                    }
+                },
+                "from": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "html": {
+                    "type": "string"
+                },
+                "reply_to": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput"
+                },
+                "subject": {
+                    "type": "string",
+                    "maxLength": 998
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "text": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput"
+                    }
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_aggregates_packages.ChooseRequest": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "description": "Code is a catalog Package, or \"none\" to cancel.",
+                    "type": "string",
+                    "maxLength": 32
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_aggregates_sendingdomain.AddRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 253
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_aggregates_webhook.CreateRequest": {
+            "type": "object",
+            "required": [
+                "events",
+                "url"
+            ],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_aggregates_webhook.UpdateRequest": {
+            "type": "object",
+            "required": [
+                "active",
+                "events",
+                "url"
+            ],
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array",
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.DailyLimit": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "resets_at": {
+                    "type": "string"
+                },
+                "used": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Delivery": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "event_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_attempt_at": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_status_code": {
+                    "type": "integer"
+                },
+                "next_attempt_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.DeliveryPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Delivery"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Event": {
+            "type": "object",
+            "properties": {
+                "occurred_at": {
+                    "type": "string"
+                },
+                "response": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Response"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.HeldPackage": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "monthly_emails": {
+                    "type": "integer"
+                },
+                "monthly_price": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.MessageDetail": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message_id_header": {
+                    "type": "string"
+                },
+                "recipients": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.RecipientDetail"
+                    }
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.MessagePage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.MessageSummary"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.MessageSummary": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "recipients": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.RecipientSummary"
+                    }
+                },
+                "source": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Overview": {
+            "type": "object",
+            "properties": {
+                "billing_status": {
+                    "type": "string"
+                },
+                "daily_limit": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.DailyLimit"
+                },
+                "package": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.HeldPackage"
+                },
+                "pause": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Pause"
+                },
+                "period": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Period"
+                },
+                "project_id": {
+                    "type": "string"
+                },
+                "rates": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Rates"
+                },
+                "scheduled_change": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.ScheduledChange"
+                },
+                "sending_state": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Package": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "monthly_emails": {
+                    "type": "integer"
+                },
+                "monthly_price": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Pause": {
+            "type": "object",
+            "properties": {
+                "paused_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Period": {
+            "type": "object",
+            "properties": {
+                "allowance": {
+                    "type": "integer"
+                },
+                "end": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "string"
+                },
+                "used": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Rates": {
+            "type": "object",
+            "properties": {
+                "bounce_rate": {
+                    "type": "string"
+                },
+                "complaint_rate": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "window_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.RecipientDetail": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Event"
+                    }
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.RecipientSummary": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Record": {
+            "type": "object",
+            "properties": {
+                "checked_at": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "valid": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "enhanced_code": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.ScheduledChange": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code is a Package, or \"none\" for a cancellation.",
+                    "type": "string"
+                },
+                "effective_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "dmarc_found": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_checked_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Record"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "verified_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Sent": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "suppressed": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Suppression": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.SuppressionPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Suppression"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_mail_application_dto.Webhook": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "secret": {
+                    "description": "Secret is answered once, when the Webhook is created.",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

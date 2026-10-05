@@ -18,14 +18,21 @@ const (
 	rateScale   = 4
 )
 
-// UsageLine is one Droplet's unbilled hours in the open Period.
+// UsageLine is one priced row of a draft or an issued Invoice, told apart by
+// its kind. A droplet line is a Droplet's hours and carries the droplet
+// fields; a mail line is the Mail Package a Project held in the Period and
+// carries the project fields. Each kind omits the other's fields.
 type UsageLine struct {
-	DropletID   uuid.UUID `json:"droplet_id"`
-	Hostname    string    `json:"hostname"`
-	PlanCode    string    `json:"plan_code"`
-	Hours       int       `json:"hours" example:"3"`
-	HourlyPrice string    `json:"hourly_price" example:"0.2766"`
-	Amount      string    `json:"amount" example:"0.83"`
+	Kind        string     `json:"kind" enums:"droplet,mail"`
+	DropletID   *uuid.UUID `json:"droplet_id,omitempty"`
+	Hostname    *string    `json:"hostname,omitempty"`
+	PlanCode    *string    `json:"plan_code,omitempty"`
+	Hours       *int       `json:"hours,omitempty" example:"3"`
+	HourlyPrice *string    `json:"hourly_price,omitempty" example:"0.2766"`
+	ProjectID   *uuid.UUID `json:"project_id,omitempty"`
+	ProjectName *string    `json:"project_name,omitempty" example:"Shop"`
+	PackageCode *string    `json:"package_code,omitempty" example:"10k"`
+	Amount      string     `json:"amount" example:"0.83"`
 }
 
 type UsageThreshold struct {
@@ -55,10 +62,16 @@ func ToUsageLines(lines []invoice.Line) []UsageLine {
 }
 
 func toLine(l invoice.Line) UsageLine {
-	return UsageLine{
-		DropletID: l.DropletID, Hostname: l.Hostname, PlanCode: l.PlanCode, Hours: l.Hours,
-		HourlyPrice: l.HourlyPrice.StringFixed(hourlyScale), Amount: l.Amount.StringFixed(centScale),
+	out := UsageLine{Kind: string(l.Kind), Amount: l.Amount.StringFixed(centScale)}
+	if l.Kind == invoice.LineMail {
+		out.ProjectID, out.ProjectName, out.PackageCode = &l.ProjectID, &l.ProjectName, &l.PackageCode
+
+		return out
 	}
+	hourlyPrice := l.HourlyPrice.StringFixed(hourlyScale)
+	out.DropletID, out.Hostname, out.PlanCode, out.Hours, out.HourlyPrice = &l.DropletID, &l.Hostname, &l.PlanCode, &l.Hours, &hourlyPrice
+
+	return out
 }
 
 // InvoiceSummary is a row of the Invoices list.

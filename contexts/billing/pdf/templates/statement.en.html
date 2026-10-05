@@ -32,13 +32,21 @@
   {{.Payer.InvoiceEmail}}</p>
 </section>
 
-<table class="lines">
+{{if .DropletLines}}<table class="lines">
   <thead><tr><th>Droplet</th><th>Plan</th><th class="num">Hours</th><th class="num">Hourly price</th><th class="num">Amount</th></tr></thead>
   <tbody>
-  {{range .Lines}}<tr><td>{{.Hostname}}</td><td>{{.PlanCode}}</td><td class="num">{{.Hours}}</td><td class="num">{{.HourlyPrice}}</td><td class="num">{{.Amount}}</td></tr>
+  {{range .DropletLines}}<tr><td>{{.Hostname}}</td><td>{{.PlanCode}}</td><td class="num">{{.Hours}}</td><td class="num">{{.HourlyPrice}}</td><td class="num">{{.Amount}}</td></tr>
   {{end}}
   </tbody>
-</table>
+</table>{{end}}{{if .MailLines}}
+
+<table class="lines">
+  <thead><tr><th>Mail package</th><th class="num">Amount</th></tr></thead>
+  <tbody>
+  {{range .MailLines}}<tr><td>Mail · {{.ProjectName}} · {{.PackageCode}}</td><td class="num">{{.Amount}}</td></tr>
+  {{end}}
+  </tbody>
+</table>{{end}}
 
 <table class="totals">
   <tr><th>Subtotal</th><td class="num">{{.Subtotal}} {{.Currency}}</td></tr>
@@ -50,6 +58,6 @@
   <tr class="rate"><td colspan="2">Converted at the Central Bank of the Republic of Türkiye USD buying rate of {{date "2 January 2006" .RateDate}}: 1 USD = {{.Rate}} {{.Currency}}</td></tr>{{end}}
 </table>
 
-<footer>Prices are in US dollars. Hours are counted from the moment a Droplet became active until its deletion was requested, rounded up to whole hours and capped at 672 per Droplet per period.</footer>
+<footer>Prices are in US dollars.{{if .DropletLines}} Hours are counted from the moment a Droplet became active until its deletion was requested, rounded up to whole hours and capped at 672 per Droplet per period.{{end}}{{if .MailLines}} A Mail line is the price of the largest Package the Project held in the period, less what an earlier statement of the period already charged for it.{{end}}</footer>
 </body>
 </html>{{end}}

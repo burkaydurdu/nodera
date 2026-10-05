@@ -14,6 +14,11 @@ const (
 	DropletBillingStarted = "DropletBillingStarted"
 	DropletBillingStopped = "DropletBillingStopped"
 
+	// Routing keys of the mail context's Package events (consumed by the
+	// usage aggregate).
+	MailPackageStarted = "MailPackageStarted"
+	MailPackageStopped = "MailPackageStopped"
+
 	// Routing keys of the events this context publishes.
 	TeamBillingStatusChanged      = "TeamBillingStatusChanged"
 	TeamDropletsDeletionRequested = "TeamDropletsDeletionRequested"

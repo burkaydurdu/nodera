@@ -1,0 +1,28 @@
+{{ define "mail_domain_unverified" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.Domain}} üzerinden gönderim durdu</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, Nodera, {{if .TeamName}}{{.TeamName}} takımındaki {{end}}<strong>{{.ProjectName}}</strong> projesinin gönderim alan adı <strong>{{.Domain}}</strong> için DNS kayıtlarını artık bulamıyor; bu yüzden proje bu alan adından gönderim yapamıyor. Projenin doğrulanmış diğer alan adlarından gönderim sürüyor.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.MailURL}}">Mail'i aç</a></td></tr>
+              </table>
+              <p class="subtitle">Üç CNAME kaydını Mail'de gösterildiği gibi geri ekle; Nodera onları bulur bulmaz alan adı yeniden doğrulanır.</p>
+              <p class="subtitle">Bu e-posta, bu takımın Mail'ini görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

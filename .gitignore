@@ -27,3 +27,5 @@ logs/
 /droplet
 /billing
 /realtime
+/mail
+/integration-gateway

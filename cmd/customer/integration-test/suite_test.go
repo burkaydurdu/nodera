@@ -163,6 +163,7 @@ func (s *customerSuite) TearDownSuite() {
 // so each scenario starts from the same state.
 func (s *customerSuite) TearDownTest() {
 	ctx := context.Background()
+	_, _ = s.pgPool.Exec(ctx, `DELETE FROM api_keys`)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM projects`)
 	_, _ = s.pgPool.Exec(ctx, `DELETE FROM ssh_keys`)
 	_, _ = s.pgPool.Exec(ctx, `UPDATE users SET pending_invitation_id = NULL`)
@@ -199,7 +200,7 @@ func runMigrate(databaseURL, path, table string) error {
 func (s *customerSuite) flushRedis() {
 	// The service's Redis wrapper has no FLUSHALL on purpose; the suite reaches
 	// past it through the same client the wrapper was built on.
-	for _, pattern := range []string{"session:*", "user_sessions:*", "verify:*", "mfa:*", "login_lockout:*", "password_reset:*", "ratelimit:*", "user_perm_version:*"} {
+	for _, pattern := range []string{"session:*", "user_sessions:*", "verify:*", "mfa:*", "login_lockout:*", "password_reset:*", "ratelimit:*", "user_perm_version:*", "api_key:*", "api_key_last_used:*"} {
 		s.deleteByPattern(pattern)
 	}
 }

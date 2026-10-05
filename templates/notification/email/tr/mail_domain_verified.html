@@ -1,0 +1,28 @@
+{{ define "mail_domain_verified" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.Domain}} doğrulandı</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{if .TeamName}}{{.TeamName}} takımındaki {{end}}<strong>{{.ProjectName}}</strong> projesinin gönderim alan adı <strong>{{.Domain}}</strong> doğrulandı: Nodera üç DNS kaydını da buldu. Proje artık {{.Domain}} altındaki her adresten e-posta gönderebilir.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.MailURL}}">Mail'i aç</a></td></tr>
+              </table>
+              <p class="subtitle">Üç kaydı da yerinde tut: biri kaybolursa, geri gelene kadar bu alan adından gönderim durur.</p>
+              <p class="subtitle">Bu e-posta, bu takımın Mail'ini görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

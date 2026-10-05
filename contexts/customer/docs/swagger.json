@@ -857,6 +857,142 @@
                 }
             }
         },
+        "/v1/teams/{teamID}/projects/{projectID}/api-keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Never shows a key's secret. last_used_at is when the key last authenticated, null if it never has. Needs apikey.write.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "api-keys"
+                ],
+                "summary": "The active API keys of a Project, newest first",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.APIKey"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Answers the whole key, nd_\u003cid\u003e.\u003csecret\u003e, the only time it is shown. A key carries only Permissions a key may hold (mail.send) and the caller's Role holds; a Project holds at most 20 active keys.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "api-keys"
+                ],
+                "summary": "Create an API key for a Project",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "API key",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_apikey.CreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.CreatedAPIKey"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/teams/{teamID}/projects/{projectID}/api-keys/{keyID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "api-keys"
+                ],
+                "summary": "Revoke an API key; it is refused from the next request on",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team id",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project id",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "API key id",
+                        "name": "keyID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/v1/teams/{teamID}/ssh-keys": {
             "get": {
                 "security": [
@@ -1244,6 +1380,28 @@
         }
     },
     "definitions": {
+        "github_com_piggystats_nodera_contexts_customer_aggregates_apikey.CreateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "permissions"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 1
+                },
+                "permissions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "github_com_piggystats_nodera_contexts_customer_aggregates_invitation.CreateRequest": {
             "type": "object",
             "required": [
@@ -1547,11 +1705,72 @@
                 "MethodEmail"
             ]
         },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.APIKey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "prefix": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation": {
             "type": "object",
             "properties": {
                 "team": {
                     "$ref": "#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_customer_application_dto.CreatedAPIKey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "prefix": {
+                    "type": "string"
                 }
             }
         },

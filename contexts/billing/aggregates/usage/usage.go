@@ -1,7 +1,9 @@
-// Package usage is the hours a Droplet was rented, learned from the droplet
-// context's DropletBillingStarted and DropletBillingStopped events and priced
-// at the Droplet's Locked price. One row per Droplet; the hours of a Period
-// are derived from it on read.
+// Package usage is what a Team used and pays for. The hours a Droplet was
+// rented are learned from the droplet context's DropletBillingStarted and
+// DropletBillingStopped events and priced at the Droplet's Locked price, one
+// row per Droplet. The Packages a Project held are learned from the mail
+// context's MailPackageStarted and MailPackageStopped events, one row per
+// interval. What a Period owes is derived from both on read.
 package usage
 
 import (

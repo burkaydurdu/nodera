@@ -205,27 +205,18 @@ func (h *PaymentMethod) CompleteVerification(ctx context.Context, req *paymentme
 			return h.methods.SaveVerification(ctx, current)
 		}
 
-		count, err := h.methods.CountByTeamID(ctx, teamID)
-		if err != nil {
-			return err
-		}
 		saved = &paymentmethod.PaymentMethod{
 			TeamID: teamID, Provider: v.Provider, Currency: v.Currency,
 			ProviderCustomerRef: card.CustomerRef, ProviderCardRef: card.CardRef,
 			Brand: card.Brand, Last4: card.Last4, ExpMonth: card.ExpMonth, ExpYear: card.ExpYear,
-			IsDefault: count == 0, CreatedBy: contextutil.CurrentUserID(ctx),
+			CreatedBy: contextutil.CurrentUserID(ctx),
 		}
-		if err := h.methods.Create(ctx, saved); err != nil {
+		if activated, err = addPaymentMethod(ctx, h.methods, h.statuses, saved, at); err != nil {
 			return err
 		}
 		current.Status, current.PaymentMethodID, current.CompletedAt = paymentmethod.VerificationCompleted, &saved.ID, &at
-		if err := h.methods.SaveVerification(ctx, current); err != nil {
-			return err
-		}
 
-		activated, err = h.statuses.Transition(ctx, teamID, []billingstatus.Status{billingstatus.NoPaymentMethod}, billingstatus.Active, at)
-
-		return err
+		return h.methods.SaveVerification(ctx, current)
 	})
 	if err != nil {
 		return nil, err
@@ -243,7 +234,7 @@ func (h *PaymentMethod) CompleteVerification(ctx context.Context, req *paymentme
 		return h.savedBy(ctx, current)
 	}
 	if activated != nil {
-		h.publish(ctx, activated)
+		publishStatus(ctx, h.log, h.published, activated)
 	}
 
 	return dto.ToPaymentMethod(saved), nil
@@ -335,7 +326,7 @@ func (h *PaymentMethod) Delete(ctx context.Context, req *paymentmethod.DeleteReq
 		return err
 	}
 	if deactivated != nil {
-		h.publish(ctx, deactivated)
+		publishStatus(ctx, h.log, h.published, deactivated)
 	}
 
 	return nil
@@ -376,12 +367,30 @@ func (h *PaymentMethod) adapter(code string) (providers.Provider, error) {
 	return adapter, nil
 }
 
-// publish runs after commit with the row's own change time; a failure is
-// logged, the status row already holds the truth and replay-status can
+// addPaymentMethod saves a verified Payment method in the caller's
+// transaction. The Team's first becomes its default and makes it active; the
+// moved status row it answers is published after the commit.
+func addPaymentMethod(
+	ctx context.Context, methods paymentmethod.IService, statuses billingstatus.IService, m *paymentmethod.PaymentMethod, at time.Time,
+) (*billingstatus.TeamStatus, error) {
+	count, err := methods.CountByTeamID(ctx, m.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	m.IsDefault = count == 0
+	if err := methods.Create(ctx, m); err != nil {
+		return nil, err
+	}
+
+	return statuses.Transition(ctx, m.TeamID, []billingstatus.Status{billingstatus.NoPaymentMethod}, billingstatus.Active, at)
+}
+
+// publishStatus runs after commit with the row's own change time; a failure
+// is logged, the status row already holds the truth and replay-status can
 // republish it.
-func (h *PaymentMethod) publish(ctx context.Context, changed *billingstatus.TeamStatus) {
-	if err := h.published.Publish(ctx, changed.TeamID, string(changed.Status), changed.ChangedAt); err != nil {
-		h.log.ErrorWithFields(err, logger.NewFields().Add("team", changed.TeamID.String()).Add("status", string(changed.Status)))
+func publishStatus(ctx context.Context, log logger.ILog, published StatusPublisher, changed *billingstatus.TeamStatus) {
+	if err := published.Publish(ctx, changed.TeamID, string(changed.Status), changed.ChangedAt); err != nil {
+		log.ErrorWithFields(err, logger.NewFields().Add("team", changed.TeamID.String()).Add("status", string(changed.Status)))
 	}
 }
 

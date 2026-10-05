@@ -100,6 +100,6 @@ func NewProjectCreated(client OutboxClient) *ProjectCreated {
 
 func (p *ProjectCreated) Publish(ctx context.Context, pr *project.Project) error {
 	return publish(ctx, p.client, constants.ProjectCreated, &events.ProjectCreatedEvent{
-		Payload: events.ProjectCreatedBody{ProjectID: pr.ID, TeamID: pr.TeamID, CreatedAt: pr.CreatedAt.UTC()},
+		Payload: events.ProjectCreatedBody{ProjectID: pr.ID, TeamID: pr.TeamID, Name: pr.Name, CreatedAt: pr.CreatedAt.UTC()},
 	})
 }

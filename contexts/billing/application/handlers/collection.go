@@ -129,7 +129,10 @@ func NewCollection(deps CollectionDeps) *Collection {
 }
 
 // Draft is the next Invoice of a Team as of windowEnd: each Droplet's hours
-// in the Period that no earlier Invoice of the Period has billed.
+// in the Period that no earlier Invoice of the Period has billed, then each
+// Project's Mail Package less what earlier Invoices of the Period charged
+// for it. Both kinds of line count alike toward the Threshold, tax, Credit
+// and the TRY equivalent.
 type Draft struct {
 	Period   usage.Period
 	Lines    []invoice.Line
@@ -153,12 +156,44 @@ func (c *Collection) draft(ctx context.Context, teamID uuid.UUID, period usage.P
 			continue
 		}
 		lines = append(lines, invoice.Line{
-			DropletID: u.DropletID, Hostname: u.Hostname, PlanCode: u.PlanCode, Hours: hours,
+			Kind: invoice.LineDroplet, DropletID: u.DropletID, Hostname: u.Hostname, PlanCode: u.PlanCode, Hours: hours,
 			HourlyPrice: u.HourlyPrice, Amount: usage.LineAmount(hours, u.HourlyPrice),
 		})
 	}
 
+	mail, err := c.mailLines(ctx, teamID, period, windowEnd)
+	if err != nil {
+		return nil, err
+	}
+	lines = append(lines, mail...)
+
 	return &Draft{Period: period, Lines: lines, Subtotal: invoice.Subtotal(lines)}, nil
+}
+
+// mailLines charges the Packages held in the Period from the cutover on: a
+// Package held only before billing went live is never charged, like the
+// hours Droplets ran then.
+func (c *Collection) mailLines(ctx context.Context, teamID uuid.UUID, period usage.Period, windowEnd time.Time) ([]invoice.Line, error) {
+	from, to := maxTime(period.Start, c.BillingStart), minTime(period.End, windowEnd)
+	intervals, err := c.Usage.FindMailForTeam(ctx, teamID, from, to)
+	if err != nil || len(intervals) == 0 {
+		return nil, err
+	}
+	billed, err := c.Invoices.BilledMail(ctx, teamID, period.Start)
+	if err != nil {
+		return nil, err
+	}
+
+	mail := usage.MailLines(intervals, from, to, billed)
+	lines := make([]invoice.Line, 0, len(mail))
+	for _, l := range mail {
+		lines = append(lines, invoice.Line{
+			Kind: invoice.LineMail, ProjectID: l.ProjectID, ProjectName: l.ProjectName,
+			PackageCode: l.PackageCode, Amount: l.Amount,
+		})
+	}
+
+	return lines, nil
 }
 
 // billableHours counts from the cutover at the earliest: what ran before
@@ -273,6 +308,14 @@ func (c *Collection) logFailure(err error, step string, fields logger.Fields) {
 
 func minTime(a, b time.Time) time.Time {
 	if b.Before(a) {
+		return b
+	}
+
+	return a
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if b.After(a) {
 		return b
 	}
 

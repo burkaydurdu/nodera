@@ -19,5 +19,13 @@
   "droplet_failure_unavailable": "the server could not be ordered right now",
   "droplet_failure_timed_out": "the server was not delivered in time",
   "droplet_failure_server_gone": "the server no longer exists",
-  "droplet_failure_provider_failed": "the server stopped working"
+  "droplet_failure_provider_failed": "the server stopped working",
+  "mail_domain_verified_subject": "{{.Domain}} is verified for {{.ProjectName}}",
+  "mail_domain_unverified_subject": "{{.Domain}} is no longer verified for {{.ProjectName}}",
+  "mail_package_near_limit_subject": "{{.ProjectName}} is close to the limit of its {{.PackageCode}} Mail package",
+  "mail_package_exhausted_subject": "{{.ProjectName}} has used up its {{.PackageCode}} Mail package",
+  "mail_rates_warning_subject": "High bounce or complaint rate in {{.ProjectName}}",
+  "mail_paused_subject": "Mail sending is paused for {{.ProjectName}}",
+  "mail_pause_reason_bounce_rate": "too much of its mail bounced",
+  "mail_pause_reason_complaint_rate": "too many recipients reported its mail as spam"
 }

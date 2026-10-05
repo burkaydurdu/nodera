@@ -13,11 +13,13 @@ spec: [docs/specs](docs/specs).
 | Binary | Purpose | Dev port |
 | --- | --- | --- |
 | `cmd/customer` | customer service: sign-up, sign-in, MFA, profile, teams, projects, SSH keys (`server`, `outbox`, `migrate`, `seed`, `replay-projects`) | 9650 |
-| `cmd/customer-gateway` | reverse proxy in front of the customer, droplet, billing and notification services and the realtime socket; `X-Target-Server` (`customer`, `droplet`, `billing` or `notification`) picks the upstream, the headerless `/v1/realtime` route reaches the realtime service, and the route table per upstream is the authorization source of truth | 3460 |
+| `cmd/customer-gateway` | reverse proxy in front of the customer, droplet, billing, notification and mail services and the realtime socket; `X-Target-Server` (`customer`, `droplet`, `billing`, `notification` or `mail`) picks the upstream, the headerless `/v1/realtime` route reaches the realtime service, and the route table per upstream is the authorization source of truth | 3460 |
 | `cmd/droplet` | droplet service: catalog and Droplets inside a Project (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-billing`); the worker runs the catalog sync, the status poller and the customer- and billing-events consumers | 9660 |
 | `cmd/notification` | Notifications (`server`, `worker`, `migrate`): the worker records a Notification for what happened and delivers it by email and In-app, and sends the platform's other emails; the server is the User's Inbox. Gateway target `notification` | 9680 |
 | `cmd/realtime` | the web app's live socket (`server`): one WebSocket per tab at `/v1/realtime`, fed by the contexts' realtime messages over RabbitMQ and shared between replicas over Redis pub/sub ([ADR-0007](docs/adr/0007-live-updates-reach-realtime-over-rabbitmq.md)) | 9690 |
-| `cmd/billing` | billing service: Billing profile, Payment methods, usage, Invoices, Payments, Dunning, Billing status and provider webhooks (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-status`); the worker runs the exchange-rate fetch, Period close, Threshold check, Dunning, reconciliation, the collection sweep, the card-expiry warning and the customer- and usage-events consumers. Gateway target `billing` | 9670 (metrics 9104) |
+| `cmd/mail` | Mail ([ADR-0009](docs/adr/0009-mail-delivers-from-its-own-mta.md)): Sending domains, Packages, the send API, the SMTP relay, logs, Suppressions and Webhooks (`server`, `smtp`, `dns`, `worker`, `outbox`, `migrate`, `seed`, `unpause`, dev-only `verify-sending-domain`); `server` answers the web app (9700), software through the integration gateway (9701) and the MTA's log records (9702), `dns` serves the zone the Sending domains' CNAMEs point at ([ADR-0011](docs/adr/0011-mail-serves-its-own-dns-zone-for-dkim-keys.md)). Gateway target `mail` | 9700, SMTP 1587/1465/2525, DNS 5354 |
+| `cmd/integration-gateway` | reverse proxy for software holding a Project API key (`Authorization: Bearer nd_<id>.<secret>`): method and path pick the service, and every route names the Permissions a key needs ([ADR-0010](docs/adr/0010-software-reaches-nodera-through-an-integration-gateway.md)) | 3470 |
+| `cmd/billing` | billing service: Billing profile, Payment methods, usage, Invoices, Payments, Dunning, Billing status and provider webhooks (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-status`, dev-only `sample-payment-method`); the worker runs the exchange-rate fetch, Period close, Threshold check, Dunning, reconciliation, the collection sweep, the card-expiry warning and the customer- and usage-events consumers. Gateway target `billing` | 9670 (metrics 9104) |
 
 Bounded contexts live under `contexts/<name>/`; a context never imports another.
 
@@ -31,11 +33,14 @@ cp cmd/customer/.conf/dev.toml.example cmd/customer/.conf/dev.toml
 cp cmd/customer-gateway/.conf/dev.toml.example cmd/customer-gateway/.conf/dev.toml
 cp cmd/notification/.conf/dev.toml.example cmd/notification/.conf/dev.toml
 cp cmd/realtime/.conf/dev.toml.example cmd/realtime/.conf/dev.toml
+cp cmd/mail/.conf/dev.toml.example cmd/mail/.conf/dev.toml
+cp cmd/integration-gateway/.conf/dev.toml.example cmd/integration-gateway/.conf/dev.toml
 
-make docker-up                  # Postgres 18, Redis, MongoDB (outbox only), RabbitMQ, MailHog on ports +10
+make docker-up                  # Postgres 18, Redis, MongoDB (outbox only), RabbitMQ, MailHog on ports +10, KumoMTA
 make mongo-init                 # once: single-node replica set
 make migrate-customer seed-customer
 make migrate-notification       # `make create-db-notification` first on a volume older than the database
+make migrate-mail seed-mail      # `make create-db-mail` first on a volume older than the database
 make start                      # every server, worker and outbox, the gateway and the realtime socket
 ```
 
@@ -143,6 +148,16 @@ with `NODERA_BILLING_<SECTION>_<KEY>`:
 Provider webhooks arrive at `POST /v1/billing/webhooks/craftgate` and `/stripe` (public on
 the gateway); they are verified, stored once by event id and reconciled by the worker.
 
+Without sandbox keys, a Team gets its Payment method for local work from the billing CLI. It is
+saved as a verified card would be: the Billing profile's country routes it, the Team's first
+becomes the default and makes the Team active, and the outbox relays that to the droplet and mail
+contexts. No provider holds it, so a charge on it stays pending. The Team needs its Billing
+profile first; its id is on the web app's Team page.
+
+```bash
+make sample-payment-method TEAM=<team id>
+```
+
 #### Usage, Invoices and collection
 
 - **Usage** comes from the droplet context's `DropletBillingStarted` / `DropletBillingStopped`
@@ -209,6 +224,34 @@ a bad or expired token), `POST /v1/billing/payments/:paymentID/3ds/start?token=`
 `POST /v1/billing/payments/:paymentID/3ds/callback?token=` (posted by the provider; 302 to
 the web app) and `GET /v1/billing/invoices/:invoiceID/pdf?expires=&token=` (the PDF link's
 download, 410 33-10005 for a bad or expired link).
+
+### Mail
+
+The mail service ([spec](docs/specs/2026-10-05-phase-5-mail.md)) has its own database
+`nodera_mail`. In dev, docker-compose's KumoMTA runs the policy in `deploy/kumomta`, hands every
+Message to MailHog instead of the recipients' servers and posts its log records back to the mail
+service, so a Message goes the whole way: accepted, signed, delivered and visible in MailHog.
+
+To send one through the HTTP API:
+
+1. Give the Team a Payment method (`make sample-payment-method TEAM=<team id>`) and choose a
+   Package on the Project's Mail overview.
+2. Add a Sending domain in the web app. Dev's zone is not public, so its DNS check never passes;
+   verify it as if its records were published with
+   `make verify-sending-domain SENDING_DOMAIN=<the last part of the domain page's URL>`. The daily
+   check reads DNS again and unverifies it a day later.
+3. Create an API key. The window that shows it once also shows a curl with the key written in and
+   watches for the Message it sends until each recipient is delivered or bounced; the Mail
+   overview's HTTP API card shows the same command reading the key from `$NODERA_API_KEY`.
+
+```bash
+curl -X POST http://localhost:3470/v1/mail/messages \
+  -H "Authorization: Bearer $NODERA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"from": {"email": "test@<verified domain>"}, "to": [{"email": "you@example.com"}], "subject": "Hello", "text": "It works."}'
+```
+
+The answer is `202` with the Message's id; the Message then shows in the logs and in MailHog.
 
 ## Tests
 

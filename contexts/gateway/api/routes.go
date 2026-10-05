@@ -33,27 +33,36 @@ var (
 	exposeHeaders = []string{echo.HeaderRetryAfter, echo.HeaderContentDisposition, constants.CorrelationIDHeader}
 )
 
-// CreateEcho builds the gateway's Echo instance. Health is answered from
-// e.Pre because the proxy chain below never calls next.
+// CreateEcho builds the customer gateway's Echo instance.
 func CreateEcho(log logger.ILog, allowOrigins []string) *echo.Echo {
+	e := newEcho(log, "2MB")
+	e.Validator = echo_middleware.NewCustomValidator()
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:  allowOrigins,
+		AllowMethods:  allowMethods,
+		AllowHeaders:  allowHeaders,
+		ExposeHeaders: exposeHeaders,
+	}))
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rateLimit)))
+
+	return e
+}
+
+// newEcho is what both gateways share: the platform's error envelope, panic
+// recovery, security headers, the body limit and health. Health is answered
+// from e.Pre because the proxy chain never calls next.
+func newEcho(log logger.ILog, bodyLimit string) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.IPExtractor = echo.ExtractIPFromXFFHeader(echo.TrustLoopback(true), echo.TrustLinkLocal(true), echo.TrustPrivateNet(true))
-	e.Validator = echo_middleware.NewCustomValidator()
 	e.HTTPErrorHandler = echo_middleware.ErrorHandler(log)
 
 	e.Use(middleware.RecoverWithConfig(middleware.RecoverConfig{StackSize: 1 << 10}))
 	e.Use(
 		middleware.Secure(),
-		middleware.BodyLimit("2MB"),
-		middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins:  allowOrigins,
-			AllowMethods:  allowMethods,
-			AllowHeaders:  allowHeaders,
-			ExposeHeaders: exposeHeaders,
-		}),
+		middleware.BodyLimit(bodyLimit),
 	)
-	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rateLimit)))
 
 	e.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {

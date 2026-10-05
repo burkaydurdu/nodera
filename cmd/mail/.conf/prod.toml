@@ -1,0 +1,98 @@
+environment = "prod"
+
+# The management API sits behind the customer gateway, the sending API behind
+# the integration gateway; only KumoMTA reaches the internal API.
+[server]
+name = "nodera-mail"
+port = ":9700"
+sending_port = ":9701"
+internal_port = ":9702"
+
+[smtp]
+hostname = "smtp.nodera.io"
+submission_addr = ":587"
+tls_addr = ":465"
+alt_addr = ":2525"
+cert_file = "/etc/nodera/mail/tls.crt"
+key_file = "/etc/nodera/mail/tls.key"
+max_message_bytes = 10485760
+
+# The zone the Sending domains' CNAMEs point at (docs/adr/0011). An empty
+# resolver checks domains with the system's.
+[dns]
+listen_addr = ":53"
+zone = "mta.nodera.io"
+nameservers = []
+hostmaster = "hostmaster.nodera.io"
+mx_hosts = []
+spf = ""
+addresses = []
+refresh_seconds = 30
+resolver = ""
+
+# KumoMTA's injection API; its policy accepts these credentials.
+[mta]
+injection_url = "http://nodera-kumomta:8000/api/inject/v1"
+username = "mail-service"
+password = ""
+timeout_seconds = 30
+
+# What KumoMTA presents to the internal API.
+[internal]
+token = ""
+
+[postgresql]
+uri = ""
+
+[postgresql.pool]
+max_conns = 8
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+# The outbox lives here and nothing else does (docs/adr/0001).
+[mongodb]
+host = ""
+port = 0
+username = ""
+password = ""
+database = "nodera_mail_outbox"
+uri = ""
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+# The same JWT secret the customer service signs access tokens with; the
+# encryption key (32 bytes, base64) seals DKIM keys and Webhook secrets.
+[secret]
+jwt = ""
+encryption_key = ""
+
+[webhooks]
+allow_local = false
+
+[jobs]
+domain_check_seconds = 60
+rotation_minutes = 60
+rollover_minutes = 15
+dispatch_seconds = 5
+days_minutes = 30
+rates_minutes = 15
+webhooks_seconds = 5
+expire_minutes = 60
+
+[metrics]
+enabled = true
+port = ":9106"

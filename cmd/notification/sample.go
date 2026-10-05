@@ -70,6 +70,24 @@ var samples = map[string]sample{
 			"exp_month": int(next.Month()), "exp_year": next.Year(),
 		}
 	}},
+	"mail_domain_verified": {constants.MailDomainVerified, func(teamID uuid.UUID, now time.Time) map[string]any {
+		return mailProject(teamID, map[string]any{"sending_domain_id": uuid.New(), "domain": "mail.example.com", "verified_at": now})
+	}},
+	"mail_domain_unverified": {constants.MailDomainUnverified, func(teamID uuid.UUID, now time.Time) map[string]any {
+		return mailProject(teamID, map[string]any{"sending_domain_id": uuid.New(), "domain": "mail.example.com", "unverified_at": now})
+	}},
+	"mail_package_near_limit": {constants.MailPackageNearLimit, func(teamID uuid.UUID, now time.Time) map[string]any {
+		return mailUsage(teamID, now, 8000)
+	}},
+	"mail_package_exhausted": {constants.MailPackageExhausted, func(teamID uuid.UUID, now time.Time) map[string]any {
+		return mailUsage(teamID, now, 10000)
+	}},
+	"mail_rates_warning": {constants.MailRatesWarning, func(teamID uuid.UUID, now time.Time) map[string]any {
+		return mailProject(teamID, map[string]any{"bounce_rate": "2.40", "complaint_rate": "0.02", "window_days": 7, "at": now})
+	}},
+	"mail_paused": {constants.MailSendingPaused, func(teamID uuid.UUID, now time.Time) map[string]any {
+		return mailProject(teamID, map[string]any{"reason": "bounce_rate", "bounce_rate": "5.40", "complaint_rate": "0.02", "paused_at": now})
+	}},
 }
 
 // sampleTypes lists the types in a stable order, for the help and the errors.
@@ -156,6 +174,22 @@ func payment(teamID uuid.UUID, extra map[string]any) map[string]any {
 	}
 
 	return payload
+}
+
+func mailProject(teamID uuid.UUID, extra map[string]any) map[string]any {
+	projectID := uuid.New()
+	payload := map[string]any{"team_id": teamID, "project_id": projectID, "project_name": "sample-" + projectID.String()[:6]}
+	for k, v := range extra {
+		payload[k] = v
+	}
+
+	return payload
+}
+
+func mailUsage(teamID uuid.UUID, now time.Time, used int) map[string]any {
+	return mailProject(teamID, map[string]any{
+		"package_code": "10k", "allowance": 10000, "used": used, "period": now.Format("2006-01"), "at": now,
+	})
 }
 
 func monthStart(t time.Time) time.Time {

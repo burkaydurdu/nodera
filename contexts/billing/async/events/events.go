@@ -83,6 +83,34 @@ type DropletBillingStoppedEvent struct {
 }
 
 // ---------------------------------------------------------------------------
+// Consumed: mail context (Packages)
+// ---------------------------------------------------------------------------
+
+// MailPackageStartedEvent opens the interval (project_id, started_at); the
+// monthly price is USD with two decimals, copied when the Package was chosen.
+type MailPackageStartedEvent struct {
+	Payload struct {
+		ProjectID     uuid.UUID `json:"project_id"`
+		TeamID        uuid.UUID `json:"team_id"`
+		ProjectName   string    `json:"project_name"`
+		PackageCode   string    `json:"package_code"`
+		MonthlyEmails int       `json:"monthly_emails"`
+		MonthlyPrice  string    `json:"monthly_price"`
+		StartedAt     time.Time `json:"started_at"`
+	} `json:"payload"`
+}
+
+// MailPackageStoppedEvent closes the interval its started_at names.
+type MailPackageStoppedEvent struct {
+	Payload struct {
+		ProjectID uuid.UUID `json:"project_id"`
+		TeamID    uuid.UUID `json:"team_id"`
+		StartedAt time.Time `json:"started_at"`
+		StoppedAt time.Time `json:"stopped_at"`
+	} `json:"payload"`
+}
+
+// ---------------------------------------------------------------------------
 // Published
 // ---------------------------------------------------------------------------
 

@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -58,6 +59,35 @@ func (r *Repository) FindByTeamID(ctx context.Context, teamID uuid.UUID) (Projec
 	return scanProjects(rows)
 }
 
+// FindInTeam answers a live Project only through its own Team, so an id
+// learned elsewhere reads as not found.
+func (r *Repository) FindInTeam(ctx context.Context, teamID, projectID uuid.UUID) (*Project, error) {
+	p, err := scanProject(r.queries.Executor(ctx).QueryRow(ctx, `
+		SELECT `+projectColumns+`
+		FROM projects
+		WHERE id = $1 AND team_id = $2 AND deleted_at IS NULL`, projectID, teamID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrorNotFound
+	}
+
+	return p, err
+}
+
+// Lock holds a live Project of the Team for the rest of the transaction, so
+// changes that count what the Project holds run one at a time.
+func (r *Repository) Lock(ctx context.Context, teamID, projectID uuid.UUID) error {
+	var id uuid.UUID
+	err := r.queries.Executor(ctx).QueryRow(ctx, `
+		SELECT id FROM projects
+		WHERE id = $1 AND team_id = $2 AND deleted_at IS NULL
+		FOR UPDATE`, projectID, teamID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrorNotFound
+	}
+
+	return err
+}
+
 // FindAll feeds the replay of domain events; it walks every live row on purpose.
 func (r *Repository) FindAll(ctx context.Context) (Projects, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
@@ -79,12 +109,21 @@ func scanProjects(rows pgx.Rows) (Projects, error) {
 
 	projects := make(Projects, 0)
 	for rows.Next() {
-		var p Project
-		if err := rows.Scan(&p.ID, &p.TeamID, &p.Name, &p.Description, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		p, err := scanProject(rows)
+		if err != nil {
 			return nil, err
 		}
-		projects = append(projects, &p)
+		projects = append(projects, p)
 	}
 
 	return projects, rows.Err()
+}
+
+func scanProject(row pgx.Row) (*Project, error) {
+	var p Project
+	if err := row.Scan(&p.ID, &p.TeamID, &p.Name, &p.Description, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	return &p, nil
 }

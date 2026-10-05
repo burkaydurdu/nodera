@@ -1,8 +1,9 @@
 # Billing
 
-The context that turns a Team's Droplet hours into money: what the Team owes, how it pays,
-and what it is told about both. It knows a Team by its identifier and a Droplet by the usage
-events the droplet context publishes; it never reads either context's tables.
+The context that turns a Team's Droplet hours and Mail Packages into money: what the Team owes,
+how it pays, and what it is told about both. It knows a Team by its identifier, a Droplet by the
+usage events the droplet context publishes and a Project's Package by the events the mail context
+publishes; it never reads another context's tables.
 
 ## Language
 
@@ -26,32 +27,43 @@ non-Turkish entity exists. Chosen by the Team's billing country; never shown to 
 _Avoid_: PSP, gateway (that is Nodera's own API gateway), processor
 
 **Billing status**:
-Whether a Team may spend: `no_payment_method` (nothing can be created), `active`, `suspended`
-(an unpaid invoice stopped its Droplets). The droplet context learns it from events.
+Whether a Team may spend: `no_payment_method` (no Droplet can be created and no Package chosen),
+`active`, `suspended` (an unpaid invoice stopped its Droplets and its Mail sending). The droplet
+and mail contexts learn it from events.
 _Avoid_: account status, blocked, frozen
 
 ### Usage and money
 
 **Usage**:
-The hours a Droplet was rented in a period, counted from the moment it became active until its
-deletion was requested, powered off or not, rounded up to whole hours and capped at 672 per
-Droplet per period. Priced at the Droplet's Locked price.
+What a Team used in a Period and pays for. For a Droplet, the hours it was rented, counted from
+the moment it became active until its deletion was requested, powered off or not, rounded up to
+whole hours, capped at 672 per Droplet per period and priced at the Droplet's Locked price. For
+Mail, the Packages each Project held.
 _Avoid_: consumption, metering, meter (the mechanism, not the thing)
+
+**Package**:
+The Mail allowance a Project is on, as the mail context reports it: intervals from a start to a
+stop, each at the monthly price the Package was chosen at. A Period charges a Project the highest
+monthly price among the intervals it held in that Period, never prorated, less what earlier
+Invoices of the Period already charged for that Project.
+_Avoid_: plan (the Droplet catalog's word), subscription, tier
 
 **Period**:
 A calendar month in UTC. Usage is grouped and invoiced per Period.
 _Avoid_: billing cycle, month (ambiguous), term
 
 **Invoice**:
-A Team's statement for a Period or a Threshold: one Invoice line per Droplet, the Tax lines, any
-Credit applied, totals in USD and, for Turkish Teams, the TRY equivalent at the Exchange rate of
-its issue date. It moves `draft` → `issued` → `paid` or `payment_failed` → `void`. It is numbered
-on issue. Until an e-invoice issuer is connected it is a statement, not a legal invoice.
+A Team's statement for a Period or a Threshold: one Invoice line per Droplet and per Project's
+Package, the Tax lines, any Credit applied, totals in USD and, for Turkish Teams, the TRY
+equivalent at the Exchange rate of its issue date. It moves `draft` → `issued` → `paid` or
+`payment_failed` → `void`. It is numbered on issue. Until an e-invoice issuer is connected it is a
+statement, not a legal invoice.
 _Avoid_: bill, receipt (that is the proof of a Payment), statement (what it legally is today,
 but one word in the product)
 
 **Invoice line**:
-One priced row of an Invoice: a Droplet's hostname, Plan, hours, hourly price and amount.
+One priced row of an Invoice, of one kind: a Droplet line carries the Droplet's hostname, Plan,
+hours, hourly price and amount; a Mail line the Project, its name, the Package and the amount.
 _Avoid_: item, entry
 
 **Threshold**:
@@ -65,7 +77,8 @@ _Avoid_: charge, transaction, collection
 
 **Dunning**:
 The retries and emails after a failed Payment: retries on days 1, 3 and 7, suspension on day 7,
-deletion of the Team's Droplets on day 21, with warnings before each step.
+deletion of the Team's Droplets and the end of its Packages on day 21, with warnings before each
+step.
 _Avoid_: collections, reminder flow
 
 **Credit**:

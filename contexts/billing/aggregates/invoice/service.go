@@ -16,8 +16,11 @@ type IService interface {
 	// PeriodInvoiceExists makes Period close idempotent per Team and Period.
 	PeriodInvoiceExists(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (bool, error)
 	// BilledHours answers the hours of each Droplet already on a live Invoice
-	// of the Period, so a later Invoice never bills them again.
+	// of the Period, so a later Invoice never bills them again; BilledMail
+	// what live Invoices of the Period already charged for each Project's
+	// Mail, so a later one charges only what is left.
 	BilledHours(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]int, error)
+	BilledMail(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error)
 	FindByID(ctx context.Context, teamID, id uuid.UUID) (*Invoice, error)
 	// FindAnyByID answers an Invoice of any Team, for a signed link that
 	// names no Team.
@@ -54,6 +57,7 @@ type IRepository interface {
 	ApplyCredit(ctx context.Context, teamID, invoiceID uuid.UUID, amount decimal.Decimal) error
 	PeriodInvoiceExists(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (bool, error)
 	BilledHours(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]int, error)
+	BilledMail(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error)
 	Find(ctx context.Context, id uuid.UUID, teamID *uuid.UUID, lock bool) (*Invoice, error)
 	FindByTeamID(ctx context.Context, teamID uuid.UUID) ([]*Invoice, error)
 	FindFailed(ctx context.Context, teamID *uuid.UUID) ([]*Invoice, error)
@@ -99,6 +103,10 @@ func (s *Service) PeriodInvoiceExists(ctx context.Context, teamID uuid.UUID, per
 
 func (s *Service) BilledHours(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]int, error) {
 	return s.repository.BilledHours(ctx, teamID, periodStart)
+}
+
+func (s *Service) BilledMail(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error) {
+	return s.repository.BilledMail(ctx, teamID, periodStart)
 }
 
 func (s *Service) FindByID(ctx context.Context, teamID, id uuid.UUID) (*Invoice, error) {

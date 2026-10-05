@@ -32,13 +32,21 @@
   {{.Payer.InvoiceEmail}}</p>
 </section>
 
-<table class="lines">
+{{if .DropletLines}}<table class="lines">
   <thead><tr><th>Droplet</th><th>Plan</th><th class="num">Saat</th><th class="num">Saatlik fiyat</th><th class="num">Tutar</th></tr></thead>
   <tbody>
-  {{range .Lines}}<tr><td>{{.Hostname}}</td><td>{{.PlanCode}}</td><td class="num">{{.Hours}}</td><td class="num">{{.HourlyPrice}}</td><td class="num">{{.Amount}}</td></tr>
+  {{range .DropletLines}}<tr><td>{{.Hostname}}</td><td>{{.PlanCode}}</td><td class="num">{{.Hours}}</td><td class="num">{{.HourlyPrice}}</td><td class="num">{{.Amount}}</td></tr>
   {{end}}
   </tbody>
-</table>
+</table>{{end}}{{if .MailLines}}
+
+<table class="lines">
+  <thead><tr><th>Mail paketi</th><th class="num">Tutar</th></tr></thead>
+  <tbody>
+  {{range .MailLines}}<tr><td>Mail · {{.ProjectName}} · {{.PackageCode}}</td><td class="num">{{.Amount}}</td></tr>
+  {{end}}
+  </tbody>
+</table>{{end}}
 
 <table class="totals">
   <tr><th>Ara toplam</th><td class="num">{{.Subtotal}} {{.Currency}}</td></tr>
@@ -50,6 +58,6 @@
   <tr class="rate"><td colspan="2">Türkiye Cumhuriyet Merkez Bankası'nın {{date "02.01.2006" .RateDate}} tarihli USD döviz alış kuru ile çevrilmiştir: 1 USD = {{.Rate}} {{.Currency}}</td></tr>{{end}}
 </table>
 
-<footer>Fiyatlar ABD doları cinsindendir. Saatler, Droplet'in aktif olduğu andan silinmesinin istendiği ana kadar sayılır, tam saate yukarı yuvarlanır ve dönem başına Droplet başına en fazla 672 saattir.</footer>
+<footer>Fiyatlar ABD doları cinsindendir.{{if .DropletLines}} Saatler, Droplet'in aktif olduğu andan silinmesinin istendiği ana kadar sayılır, tam saate yukarı yuvarlanır ve dönem başına Droplet başına en fazla 672 saattir.{{end}}{{if .MailLines}} Mail satırı, projenin dönem içinde sahip olduğu en büyük paketin fiyatıdır; dönemin daha önceki bir hesap özetinde alınan tutar bundan düşülür.{{end}}</footer>
 </body>
 </html>{{end}}

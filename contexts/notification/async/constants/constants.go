@@ -26,6 +26,14 @@ const (
 	// The droplet context's status changes.
 	DropletStatusChanged = "DropletStatusChanged"
 
+	// The mail context's news about a Project's Mail.
+	MailDomainVerified   = "MailDomainVerified"
+	MailDomainUnverified = "MailDomainUnverified"
+	MailPackageNearLimit = "MailPackageNearLimit"
+	MailPackageExhausted = "MailPackageExhausted"
+	MailRatesWarning     = "MailRatesWarning"
+	MailSendingPaused    = "MailSendingPaused"
+
 	// QueuePrefix keeps this context's queues for the shared domain events
 	// apart from the droplet and billing contexts' queues of the same events.
 	QueuePrefix = "notification."

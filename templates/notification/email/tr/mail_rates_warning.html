@@ -1,0 +1,28 @@
+{{ define "mail_rates_warning" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.ProjectName}} projesinde geri dönme ya da şikâyet oranı yüksek</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{if .WindowDays}}son {{.WindowDays}} günde {{end}}{{if .TeamName}}{{.TeamName}} takımındaki {{end}}<strong>{{.ProjectName}}</strong> projesinin e-postalarında geri dönme oranı <strong>%{{.BounceRate}}</strong>, şikâyet oranı <strong>%{{.ComplaintRate}}</strong> oldu.</p>
+              <p class="subtitle">Bu oranlar yükselmeye devam ederse Nodera, herkesin e-postalarının teslimini korumak için projenin gönderimini duraklatır. Geri dönen adresleri listenden çıkar ve yalnızca e-postalarını isteyen kişilere gönder.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.MailURL}}">Mail'i aç</a></td></tr>
+              </table>
+              <p class="subtitle">Bu e-posta, bu takımın Mail'ini görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

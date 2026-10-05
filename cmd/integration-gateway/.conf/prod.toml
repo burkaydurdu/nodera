@@ -1,0 +1,16 @@
+environment = "prod"
+
+[server]
+name = "nodera-integration-gateway"
+port = ":3470"
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+[metrics]
+enabled = true
+port = ":9107"

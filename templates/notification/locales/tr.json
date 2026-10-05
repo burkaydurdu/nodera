@@ -19,5 +19,13 @@
   "droplet_failure_unavailable": "sunucu şu anda sipariş edilemedi",
   "droplet_failure_timed_out": "sunucu zamanında teslim edilmedi",
   "droplet_failure_server_gone": "sunucu artık mevcut değil",
-  "droplet_failure_provider_failed": "sunucu çalışmayı durdurdu"
+  "droplet_failure_provider_failed": "sunucu çalışmayı durdurdu",
+  "mail_domain_verified_subject": "{{.Domain}}, {{.ProjectName}} projesi için doğrulandı",
+  "mail_domain_unverified_subject": "{{.Domain}}, {{.ProjectName}} projesi için artık doğrulanmış değil",
+  "mail_package_near_limit_subject": "{{.ProjectName}} projesi {{.PackageCode}} Mail paketinin sınırına yaklaştı",
+  "mail_package_exhausted_subject": "{{.ProjectName}} projesi {{.PackageCode}} Mail paketini tüketti",
+  "mail_rates_warning_subject": "{{.ProjectName}} projesinde geri dönme ya da şikâyet oranı yüksek",
+  "mail_paused_subject": "{{.ProjectName}} projesinin Mail gönderimi duraklatıldı",
+  "mail_pause_reason_bounce_rate": "e-postalarının çok fazlası geri döndü",
+  "mail_pause_reason_complaint_rate": "çok fazla alıcı e-postalarını spam olarak bildirdi"
 }

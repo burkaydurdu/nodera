@@ -65,14 +65,30 @@ type Invoice struct {
 	TaxLines           []TaxLine
 }
 
-// Line is one Droplet's hours on the Invoice, priced at its Locked price.
+// LineKind is the product an Invoice line charges for.
+type LineKind string
+
+const (
+	LineDroplet LineKind = "droplet"
+	LineMail    LineKind = "mail"
+)
+
+// Line is one priced row of the Invoice: a Droplet's hours at its Locked
+// price, or the Mail Package a Project held in the Period. Each kind fills
+// its own fields and leaves the other's empty.
 type Line struct {
+	Kind   LineKind
+	Amount decimal.Decimal
+	// Droplet lines only.
 	DropletID   uuid.UUID
 	Hostname    string
 	PlanCode    string
 	Hours       int
 	HourlyPrice decimal.Decimal
-	Amount      decimal.Decimal
+	// Mail lines only.
+	ProjectID   uuid.UUID
+	ProjectName string
+	PackageCode string
 }
 
 // TaxLine keeps the rule's label key for the e-invoice issuer and the label

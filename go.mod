@@ -6,12 +6,17 @@ require (
 	github.com/cherryservers/cherrygo/v4 v4.2.0
 	github.com/coder/websocket v1.8.15
 	github.com/craftgate/craftgate-go-client v1.0.31
+	github.com/emersion/go-message v0.18.2
+	github.com/emersion/go-msgauth v0.7.0
+	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
+	github.com/emersion/go-smtp v0.25.0
 	github.com/go-playground/validator/v10 v10.17.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/labstack/echo/v4 v4.15.0
+	github.com/miekg/dns v1.1.73
 	github.com/nicksnyder/go-i18n/v2 v2.4.0
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/piggystats/outbox v0.0.16
@@ -31,6 +36,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.9
 	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.57.0
+	golang.org/x/net v0.58.0
 	golang.org/x/text v0.42.0
 	golang.org/x/time v0.14.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -119,7 +125,6 @@ require (
 	go.uber.org/multierr v1.9.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect

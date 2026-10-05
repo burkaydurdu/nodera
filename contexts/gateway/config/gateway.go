@@ -194,7 +194,7 @@ func isWildcard(path string) bool {
 // headerless request would leave the target to chance. All are caught before
 // the first request rather than discovered by a client.
 func (g *GatewayConfig) Validate() error {
-	for _, name := range g.serviceNames() {
+	for _, name := range g.Gateway.serviceNames() {
 		service := g.Gateway.Services[name]
 		for i, endpoint := range service.Endpoints {
 			if str.IsBlank(endpoint.Path) || str.IsBlank(endpoint.Method) {
@@ -222,9 +222,9 @@ func (g *GatewayConfig) Validate() error {
 
 // serviceNames orders the services so a table with several faults always
 // reports the same one first.
-func (g *GatewayConfig) serviceNames() []string {
-	names := make([]string, 0, len(g.Gateway.Services))
-	for name := range g.Gateway.Services {
+func (g *Gateway) serviceNames() []string {
+	names := make([]string, 0, len(g.Services))
+	for name := range g.Services {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -232,33 +232,44 @@ func (g *GatewayConfig) serviceNames() []string {
 	return names
 }
 
-func (g *GatewayConfig) validateHeaderlessAreUnambiguous() error {
-	type route struct {
-		service  string
-		endpoint *Endpoint
-	}
+type listedRoute struct {
+	service  string
+	endpoint *Endpoint
+}
 
-	var routes []route
+// ambiguousRoutes answers the first two routes, of two services and both kept
+// by the filter, that can match the same request; found is false when no two
+// can.
+func (g *Gateway) ambiguousRoutes(keep func(*Endpoint) bool) (a, b listedRoute, found bool) {
+	var routes []listedRoute
 	for _, name := range g.serviceNames() {
-		endpoints := g.Gateway.Services[name].Endpoints
+		endpoints := g.Services[name].Endpoints
 		for i := range endpoints {
-			if endpoints[i].Headerless {
-				routes = append(routes, route{service: name, endpoint: &endpoints[i]})
+			if keep(&endpoints[i]) {
+				routes = append(routes, listedRoute{service: name, endpoint: &endpoints[i]})
 			}
 		}
 	}
 
 	for i := range routes {
 		for j := i + 1; j < len(routes); j++ {
-			a, b := routes[i], routes[j]
-			if a.service != b.service && a.endpoint.canMatchTheSameRequest(b.endpoint) {
-				return fmt.Errorf("gateway endpoints %s %s (%s) and %s %s (%s): headerless routes in two services can match the same request",
-					a.endpoint.Method, a.endpoint.Path, a.service, b.endpoint.Method, b.endpoint.Path, b.service)
+			if routes[i].service != routes[j].service && routes[i].endpoint.canMatchTheSameRequest(routes[j].endpoint) {
+				return routes[i], routes[j], true
 			}
 		}
 	}
 
-	return nil
+	return listedRoute{}, listedRoute{}, false
+}
+
+func (g *GatewayConfig) validateHeaderlessAreUnambiguous() error {
+	a, b, found := g.Gateway.ambiguousRoutes(func(e *Endpoint) bool { return e.Headerless })
+	if !found {
+		return nil
+	}
+
+	return fmt.Errorf("gateway endpoints %s %s (%s) and %s %s (%s): headerless routes in two services can match the same request",
+		a.endpoint.Method, a.endpoint.Path, a.service, b.endpoint.Method, b.endpoint.Path, b.service)
 }
 
 func (e *Endpoint) validatePermissions() error {

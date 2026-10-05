@@ -2,7 +2,9 @@
 
 Nodera is a self-service cloud platform: a customer asks for a CPU/RAM/disk/region combination and
 receives a Droplet, which is a bare-metal server the platform rents from an integrated provider and
-sets up on the customer's behalf. The customer never sees the provider.
+sets up on the customer's behalf. The customer never sees the provider. Its second product, Mail,
+delivers a Team's email from the Team's own domains on Nodera's own mail servers. Each product is
+an App the web app switches between.
 
 Bounded contexts live under `contexts/<name>/`. A context gets a `CONTEXT.md` when its vocabulary
 is first written down, so this list grows as terms are settled.
@@ -13,12 +15,17 @@ is first written down, so this list grows as terms are settled.
   how they prove who they are, and the teams and projects their Droplets will be grouped under.
 - Customer gateway (`contexts/gateway/`): the reverse proxy in front of the customer service and
   the authorization source of truth for its routes.
+- Integration gateway (`contexts/gateway/`, binary `cmd/integration-gateway`): the reverse proxy
+  in front of the services for software that calls with an API key instead of a User's token:
+  Mail first, Droplets later (ADR-0010).
 - [Notification](./contexts/notification/CONTEXT.md): what the platform tells people about
   what happened, recorded and delivered over Email, SMS and In-app Channels.
 - [Droplet](./contexts/droplet/CONTEXT.md): the catalog (Regions, Plans, Offers, Commission),
   the Providers behind it and the Droplets rented through them.
-- [Billing](./contexts/billing/CONTEXT.md): what a Team owes for its Droplet hours, how it pays and
-  what it is told; Payment providers behind it (ADR-0006).
+- [Billing](./contexts/billing/CONTEXT.md): what a Team owes for its Droplet hours and Mail
+  Packages, how it pays and what it is told; Payment providers behind it (ADR-0006).
+- [Mail](./contexts/mail/CONTEXT.md): the second product — a Team's email, sent from the
+  Team's own domains and delivered by Nodera's own mail servers, inside a Project (ADR-0009).
 - Realtime (`contexts/realtime/`): platform infrastructure, like the gateway, not a bounded
   context: the web app's live socket, which knows Users, Teams and Permissions from the access
   token and nothing else (ADR-0007).
@@ -46,6 +53,18 @@ is first written down, so this list grows as terms are settled.
   a Payment method and stops Droplets of a suspended Team.
 - **Customer → Billing**: billing learns Teams and their members from the customer events, like
   droplet does (ADR-0004), to authorize `billing.*`.
+- **Customer → Mail**: customer emits Team and Project events; mail keeps its own
+  Project access read model from them, like droplet (ADR-0004).
+- **Mail → Billing**: mail tells billing which Package each Project is on; billing
+  charges it on the Team's Invoice for the Period.
+- **Billing → Mail**: billing emits a Team's Billing status; mail refuses a Package
+  without a Payment method, stops a suspended Team's sending, and ends the Team's Packages on the
+  day its Droplets are deleted.
+- **Integration gateway → Mail**: software reaches the mail service with an API key; a
+  route absent from the integration gateway's config does not exist (ADR-0010).
+- **Mail → Notification**: mail emits what happened to a Project's Sending domains,
+  Package and sending (a domain verified or lost, the Package nearly or fully used, rates near the
+  line, a Pause); notification tells the members holding `mail.read`.
 - **Billing → Notification**: what happened to a Team's money (Invoice issued, Payment outcome,
   suspension, deletion warnings, an expiring card), naming the Team and the billing profile's
   invoice address; notification tells the members holding `billing.read` and that address.
@@ -53,6 +72,8 @@ is first written down, so this list grows as terms are settled.
 - **Customer gateway → Droplet**: the same gateway fronts the droplet service under a second
   target; a droplet route absent from its config does not exist.
 - **Customer gateway → Notification**: the gateway fronts the Inbox as a fourth target.
+- **Customer gateway → Mail**: the gateway fronts the Mail management API as a fifth target; the
+  mail service authorizes each route through its Project access read model.
 - **Contexts → Realtime**: any context publishes a realtime message (an address, a type, data)
   through its outbox; the realtime service hands it to the open sockets the address names. It
   carries no domain event and never goes from one context to another (ADR-0007).

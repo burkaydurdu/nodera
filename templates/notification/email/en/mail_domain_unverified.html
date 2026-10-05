@@ -1,0 +1,28 @@
+{{ define "mail_domain_unverified" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">Sending from {{.Domain}} has stopped</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, Nodera can no longer find the DNS records of the sending domain <strong>{{.Domain}}</strong> in the project <strong>{{.ProjectName}}</strong>{{if .TeamName}} of {{.TeamName}}{{end}}, so the project can no longer send from it. Its other verified domains keep sending.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.MailURL}}">Open Mail</a></td></tr>
+              </table>
+              <p class="subtitle">Put the three CNAME records back as Mail shows them; the domain is verified again as soon as Nodera finds them.</p>
+              <p class="subtitle">This email was sent to {{.Email}} because you can see this team's Mail.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

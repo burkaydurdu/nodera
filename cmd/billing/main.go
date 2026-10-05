@@ -102,8 +102,20 @@ var replayStatusCmd = &cobra.Command{
 	},
 }
 
+var samplePaymentMethodCmd = &cobra.Command{
+	Use:   "sample-payment-method",
+	Short: "Dev only: save a Payment method no Payment provider holds for a Team, as a verified card would be",
+	Run: func(cmd *cobra.Command, args []string) {
+		RunSamplePaymentMethod(cmd.Context(), config.InitConfig(viper.GetString("env")), sampleTeam)
+	},
+}
+
+var sampleTeam string
+
 func main() {
-	rootCmd.AddCommand(serverCmd, workerCmd, outboxCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, replayStatusCmd)
+	samplePaymentMethodCmd.Flags().StringVar(&sampleTeam, "team", "", "Team id, shown on the web app's Team page")
+	cobra.CheckErr(samplePaymentMethodCmd.MarkFlagRequired("team"))
+	rootCmd.AddCommand(serverCmd, workerCmd, outboxCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, replayStatusCmd, samplePaymentMethodCmd)
 	rootCmd.PersistentFlags().StringP("env", "e", "dev", "Config file name under .conf (dev|test|alpha|prod)")
 	cobra.CheckErr(rootCmd.MarkPersistentFlagRequired("env"))
 	cobra.CheckErr(viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env")))

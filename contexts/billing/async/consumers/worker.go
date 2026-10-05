@@ -10,7 +10,7 @@ import (
 )
 
 // Source is a consumer together with the routing keys it handles; the usage
-// consumer joins the customer one as a second Source.
+// and Mail Package consumers join the customer one as further Sources.
 type Source interface {
 	rabbitmq.IConsumer
 	RoutingKeys() []string

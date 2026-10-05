@@ -5,6 +5,8 @@
 // the gateway may import it without coupling to another.
 package authz
 
+import "slices"
+
 // Role is a named bundle of Permissions a member holds in one Team.
 type Role string
 
@@ -26,6 +28,10 @@ const (
 	SSHKeyWrite  Permission = "sshkey.write"
 	BillingRead  Permission = "billing.read"
 	BillingWrite Permission = "billing.write"
+	MailRead     Permission = "mail.read"
+	MailWrite    Permission = "mail.write"
+	MailSend     Permission = "mail.send"
+	APIKeyWrite  Permission = "apikey.write"
 )
 
 // Roles lists every Role in a stable order, for enums, validators and UIs.
@@ -34,12 +40,17 @@ var Roles = []Role{RoleOwner, RoleDeveloper, RoleFinance}
 // Permissions lists every Permission in a stable order, for config validation.
 var Permissions = []Permission{
 	TeamRead, TeamManage, ProjectWrite, DropletRead, DropletWrite, SSHKeyWrite, BillingRead, BillingWrite,
+	MailRead, MailWrite, MailSend, APIKeyWrite,
 }
+
+// KeyPermissions are the Permissions an API key may carry (docs/adr/0010).
+// A key still never holds one its creator's Role lacks.
+var KeyPermissions = []Permission{MailSend}
 
 var matrix = map[Role]map[Permission]struct{}{
 	RoleOwner:     set(Permissions...),
-	RoleDeveloper: set(TeamRead, ProjectWrite, DropletRead, DropletWrite, SSHKeyWrite),
-	RoleFinance:   set(TeamRead, DropletRead, BillingRead, BillingWrite),
+	RoleDeveloper: set(TeamRead, ProjectWrite, DropletRead, DropletWrite, SSHKeyWrite, MailRead, MailWrite, MailSend, APIKeyWrite),
+	RoleFinance:   set(TeamRead, DropletRead, BillingRead, BillingWrite, MailRead),
 }
 
 // Allows reports whether the Role holds the Permission. An unknown Role holds
@@ -60,13 +71,12 @@ func IsRole(value string) bool {
 // IsPermission reports whether the value names a Permission this version knows,
 // so a route table cannot guard a route with a word nobody holds.
 func IsPermission(value string) bool {
-	for _, p := range Permissions {
-		if string(p) == value {
-			return true
-		}
-	}
+	return slices.Contains(Permissions, Permission(value))
+}
 
-	return false
+// IsKeyPermission reports whether an API key may carry the value.
+func IsKeyPermission(value string) bool {
+	return slices.Contains(KeyPermissions, Permission(value))
 }
 
 func set(permissions ...Permission) map[Permission]struct{} {

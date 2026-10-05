@@ -155,9 +155,12 @@ type UserProfileUpdatedEvent struct {
 	Payload UserProfileUpdatedBody `json:"payload" validate:"required"`
 }
 
+// ProjectCreatedBody carries the Project's name so a context can show it on an
+// Invoice line or in a Notification without asking the customer context back.
 type ProjectCreatedBody struct {
 	ProjectID uuid.UUID `json:"project_id" validate:"required"`
 	TeamID    uuid.UUID `json:"team_id" validate:"required"`
+	Name      string    `json:"name" validate:"required"`
 	CreatedAt time.Time `json:"created_at" validate:"required"`
 }
 

@@ -185,6 +185,7 @@ func (s *customerSuite) TestProjects_CreatePublishesProjectCreated() {
 	payload := s.outboxPayload(constants.ProjectCreated)
 	s.Equal(created.str("id"), payload["project_id"])
 	s.Equal(teamID, payload["team_id"])
+	s.Equal("First", payload["name"], "mail names the Project on Invoice lines and Notifications from the event alone")
 	s.isRFC3339UTC(payload["created_at"])
 
 	duplicate := s.authed(http.MethodPost, "/v1/teams/"+teamID+"/projects", `{"name":"first","description":""}`, tokens.Access)
@@ -235,6 +236,11 @@ func (s *customerSuite) TestReplayProjects_RepublishesEveryTeamMembershipAndProj
 	s.Equal(ownerEmail, replayedTeam["owner_email"], "a replayed Team carries its owner as the users table knows them")
 	s.Equal("Test Person", replayedTeam["owner_full_name"])
 	s.Equal("en", replayedTeam["owner_locale"])
+
+	replayedProject := s.outboxPayloadWhere(constants.ProjectCreated, map[string]any{"project_id": projectID})
+	s.Equal(firstTeam, replayedProject["team_id"])
+	s.Equal("P1", replayedProject["name"], "a replay names the Projects that predate the name in the event")
+	s.isRFC3339UTC(replayedProject["created_at"])
 
 	replayedMember := s.outboxPayloadWhere(constants.TeamMemberAdded, map[string]any{"team_id": firstTeam, "user_id": s.userID(finEmail)})
 	s.Equal("finance", replayedMember["role"])

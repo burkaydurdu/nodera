@@ -30,6 +30,7 @@ type Config struct {
 	Mail        Mail       `mapstructure:"mail"`
 	SMTP        SMTP       `mapstructure:"smtp"`
 	SendGrid    SendGrid   `mapstructure:"sendgrid"`
+	Domain      Domain     `mapstructure:"domain"`
 	Metrics     Metrics    `mapstructure:"metrics"`
 }
 
@@ -109,6 +110,17 @@ type SMTP struct {
 
 type SendGrid struct {
 	APIKey string `mapstructure:"api_key"`
+}
+
+// Domain.Front is the web app's origin. Mail's events carry no link, so the
+// links their emails carry are built from it here.
+type Domain struct {
+	Front string `mapstructure:"front" validate:"required,url"`
+}
+
+// FrontURL is the origin without a trailing slash, ready for a path.
+func (d Domain) FrontURL() string {
+	return strings.TrimRight(d.Front, "/")
 }
 
 type Metrics struct {

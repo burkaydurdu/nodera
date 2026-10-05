@@ -85,3 +85,32 @@ func (mr *MockIProjectServiceMockRecorder) FindByTeamID(ctx, teamID any) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByTeamID", reflect.TypeOf((*MockIProjectService)(nil).FindByTeamID), ctx, teamID)
 }
+
+// FindInTeam mocks base method.
+func (m *MockIProjectService) FindInTeam(ctx context.Context, teamID, projectID uuid.UUID) (*project.Project, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindInTeam", ctx, teamID, projectID)
+	ret0, _ := ret[0].(*project.Project)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindInTeam indicates an expected call of FindInTeam.
+func (mr *MockIProjectServiceMockRecorder) FindInTeam(ctx, teamID, projectID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindInTeam", reflect.TypeOf((*MockIProjectService)(nil).FindInTeam), ctx, teamID, projectID)
+}
+
+// Lock mocks base method.
+func (m *MockIProjectService) Lock(ctx context.Context, teamID, projectID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Lock", ctx, teamID, projectID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Lock indicates an expected call of Lock.
+func (mr *MockIProjectServiceMockRecorder) Lock(ctx, teamID, projectID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Lock", reflect.TypeOf((*MockIProjectService)(nil).Lock), ctx, teamID, projectID)
+}

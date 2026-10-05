@@ -1,0 +1,17 @@
+gateway:
+  name: nodera-integration-gateway
+  # Software sends no target header: a route's method and path name its
+  # service, so start-up is refused when routes of two services could match
+  # one request. Every route lists the Permissions the API key must carry,
+  # each one an API key can hold; nothing here is public.
+  services:
+    # The sending API. Paths are namespaced by product because Droplets will
+    # share this gateway.
+    mail:
+      # PLACEHOLDER: the mail service's production address, once it is deployed.
+      host: http://nodera-mail:9701
+      endpoints:
+        - path: /v1/mail/messages
+          method: POST
+          permissions:
+            - mail.send

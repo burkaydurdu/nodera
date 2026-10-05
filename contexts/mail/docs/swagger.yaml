@@ -1,0 +1,939 @@
+basePath: /
+definitions:
+  github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+      name:
+        maxLength: 128
+        type: string
+    required:
+    - email
+    type: object
+  github_com_piggystats_nodera_contexts_mail_aggregates_message.AttachmentInput:
+    properties:
+      content:
+        description: Content is base64; its decoded size counts towards MaxSizeBytes.
+        type: string
+      content_id:
+        maxLength: 255
+        type: string
+      content_type:
+        maxLength: 255
+        type: string
+      filename:
+        maxLength: 255
+        type: string
+    required:
+    - content
+    - content_type
+    - filename
+    type: object
+  github_com_piggystats_nodera_contexts_mail_aggregates_message.SendRequest:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AttachmentInput'
+        maxItems: 50
+        type: array
+      bcc:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput'
+        maxItems: 50
+        type: array
+      cc:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput'
+        maxItems: 50
+        type: array
+      from:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      html:
+        type: string
+      reply_to:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput'
+      subject:
+        maxLength: 998
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      text:
+        type: string
+      to:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.AddressInput'
+        maxItems: 50
+        type: array
+    required:
+    - from
+    - subject
+    type: object
+  github_com_piggystats_nodera_contexts_mail_aggregates_packages.ChooseRequest:
+    properties:
+      code:
+        description: Code is a catalog Package, or "none" to cancel.
+        maxLength: 32
+        type: string
+    required:
+    - code
+    type: object
+  github_com_piggystats_nodera_contexts_mail_aggregates_sendingdomain.AddRequest:
+    properties:
+      name:
+        maxLength: 253
+        type: string
+    required:
+    - name
+    type: object
+  github_com_piggystats_nodera_contexts_mail_aggregates_webhook.CreateRequest:
+    properties:
+      events:
+        items:
+          type: string
+        maxItems: 6
+        minItems: 1
+        type: array
+      url:
+        maxLength: 2048
+        type: string
+    required:
+    - events
+    - url
+    type: object
+  github_com_piggystats_nodera_contexts_mail_aggregates_webhook.UpdateRequest:
+    properties:
+      active:
+        type: boolean
+      events:
+        items:
+          type: string
+        maxItems: 6
+        minItems: 1
+        type: array
+      url:
+        maxLength: 2048
+        type: string
+    required:
+    - active
+    - events
+    - url
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.DailyLimit:
+    properties:
+      limit:
+        type: integer
+      resets_at:
+        type: string
+      used:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Delivery:
+    properties:
+      attempts:
+        type: integer
+      created_at:
+        type: string
+      event_count:
+        type: integer
+      id:
+        type: string
+      last_attempt_at:
+        type: string
+      last_error:
+        type: string
+      last_status_code:
+        type: integer
+      next_attempt_at:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.DeliveryPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Delivery'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Event:
+    properties:
+      occurred_at:
+        type: string
+      response:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Response'
+      type:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.HeldPackage:
+    properties:
+      code:
+        type: string
+      monthly_emails:
+        type: integer
+      monthly_price:
+        type: string
+      started_at:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.MessageDetail:
+    properties:
+      created_at:
+        type: string
+      from:
+        type: string
+      id:
+        type: string
+      message_id_header:
+        type: string
+      recipients:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.RecipientDetail'
+        type: array
+      size_bytes:
+        type: integer
+      source:
+        type: string
+      subject:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.MessagePage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.MessageSummary'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.MessageSummary:
+    properties:
+      created_at:
+        type: string
+      from:
+        type: string
+      id:
+        type: string
+      recipients:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.RecipientSummary'
+        type: array
+      source:
+        type: string
+      subject:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Overview:
+    properties:
+      billing_status:
+        type: string
+      daily_limit:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.DailyLimit'
+      package:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.HeldPackage'
+      pause:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Pause'
+      period:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Period'
+      project_id:
+        type: string
+      rates:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Rates'
+      scheduled_change:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.ScheduledChange'
+      sending_state:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Package:
+    properties:
+      code:
+        type: string
+      monthly_emails:
+        type: integer
+      monthly_price:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Pause:
+    properties:
+      paused_at:
+        type: string
+      reason:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Period:
+    properties:
+      allowance:
+        type: integer
+      end:
+        type: string
+      start:
+        type: string
+      used:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Rates:
+    properties:
+      bounce_rate:
+        type: string
+      complaint_rate:
+        type: string
+      sent:
+        type: integer
+      window_days:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.RecipientDetail:
+    properties:
+      address:
+        type: string
+      events:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Event'
+        type: array
+      kind:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.RecipientSummary:
+    properties:
+      address:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Record:
+    properties:
+      checked_at:
+        type: string
+      host:
+        type: string
+      purpose:
+        type: string
+      type:
+        type: string
+      valid:
+        type: boolean
+      value:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Response:
+    properties:
+      code:
+        type: integer
+      enhanced_code:
+        type: string
+      text:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.ScheduledChange:
+    properties:
+      code:
+        description: Code is a Package, or "none" for a cancellation.
+        type: string
+      effective_at:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain:
+    properties:
+      created_at:
+        type: string
+      dmarc_found:
+        type: boolean
+      id:
+        type: string
+      last_checked_at:
+        type: string
+      name:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Record'
+        type: array
+      status:
+        type: string
+      verified_at:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Sent:
+    properties:
+      accepted:
+        type: integer
+      id:
+        type: string
+      suppressed:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Suppression:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      message_id:
+        type: string
+      reason:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.SuppressionPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Suppression'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_mail_application_dto.Webhook:
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      secret:
+        description: Secret is answered once, when the Webhook is created.
+        type: string
+      url:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: 'Mail inside a Project: Packages, Sending domains, logs, Suppressions
+    and Webhooks, and the sending API software reaches with an API key. Prices are
+    USD excluding taxes.'
+  title: Nodera Mail API
+  version: "1.0"
+paths:
+  /v1/mail/messages:
+    post:
+      consumes:
+      - application/json
+      description: At most 50 recipients and 10 MB decoded. 202 with the Message id
+        once accepted; suppressed recipients are dropped and named. 402 without a
+        Package, 429 with Retry-After when the Daily limit or the Package is used
+        up, 423 when the Project is Paused or the Team suspended, 422 when the sender
+        is not on a verified Sending domain. A repeated Idempotency-Key within 24
+        hours answers the first Message.
+      parameters:
+      - description: Repeat-safe request id
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: The Message
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_message.SendRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Sent'
+      security:
+      - BearerAuth: []
+      summary: Send a Message
+      tags:
+      - sending
+  /v1/mail/packages:
+    get:
+      description: Prices are USD per month, excluding taxes.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Package'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Packages a Project can choose, smallest first
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail:
+    get:
+      description: The Package and any scheduled change, this Period's usage, today's
+        Daily limit, the seven-day rates, a Pause and the Team's Billing status. sending_state
+        says whether a Message would be accepted now. 403 without mail.read; 404 for
+        a Project the caller is not a member of.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Overview'
+      security:
+      - BearerAuth: []
+      summary: A Project's Mail at a glance
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/domains:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: A Project's Sending domains
+      tags:
+      - mail
+    post:
+      consumes:
+      - application/json
+      description: Answers the three CNAME records to add. 409 when the Project already
+        has the domain or holds 10. 403 without mail.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: The domain
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_sendingdomain.AddRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain'
+      security:
+      - BearerAuth: []
+      summary: Add a Sending domain
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/domains/{domainID}:
+    delete:
+      description: Sending from it stops at once; its Messages' logs stay until they
+        expire.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Sending domain id
+        in: path
+        name: domainID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete a Sending domain
+      tags:
+      - mail
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Sending domain id
+        in: path
+        name: domainID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain'
+      security:
+      - BearerAuth: []
+      summary: A Sending domain with its records and what the last check found
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/domains/{domainID}/verify:
+    post:
+      description: At most once a minute per domain (429 with Retry-After).
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Sending domain id
+        in: path
+        name: domainID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SendingDomain'
+      security:
+      - BearerAuth: []
+      summary: Check a Sending domain's records now
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/messages:
+    get:
+      description: A status or a recipient filter matches a Message when one of its
+        recipients does. Nodera keeps no Message body.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: accepted | delivered | deferred | bounced | suppressed | complained
+        in: query
+        name: status
+        type: string
+      - description: Recipient address
+        in: query
+        name: recipient
+        type: string
+      - description: Sender address
+        in: query
+        name: from
+        type: string
+      - description: Tag
+        in: query
+        name: tag
+        type: string
+      - description: RFC 3339
+        in: query
+        name: since
+        type: string
+      - description: RFC 3339
+        in: query
+        name: until
+        type: string
+      - description: next_cursor of the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: 1-100, default 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.MessagePage'
+      security:
+      - BearerAuth: []
+      summary: A Project's Messages of the last 30 days, newest first
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/messages/{messageID}:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Message id
+        in: path
+        name: messageID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.MessageDetail'
+      security:
+      - BearerAuth: []
+      summary: A Message with each recipient's Message events
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/package:
+    put:
+      consumes:
+      - application/json
+      description: A first Package and a larger one apply at once (the used count
+        carries over); a smaller one and "none" apply from the next Period, and choosing
+        the current Package again undoes them. Starting or upgrading needs a payment
+        method (402) and a Team that is not suspended (423). 403 without mail.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: A Package code or none
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_packages.ChooseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Overview'
+      security:
+      - BearerAuth: []
+      summary: Choose, change or cancel a Project's Package
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/suppressions:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Part of an address
+        in: query
+        name: search
+        type: string
+      - description: next_cursor of the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: 1-100, default 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.SuppressionPage'
+      security:
+      - BearerAuth: []
+      summary: A Project's Suppressions, newest first
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/suppressions/{suppressionID}:
+    delete:
+      description: Only a bounce Suppression can be removed; a complaint answers 409.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Suppression id
+        in: path
+        name: suppressionID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Mail an address again
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/webhooks:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Webhook'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: A Project's Webhooks
+      tags:
+      - mail
+    post:
+      consumes:
+      - application/json
+      description: 'Answers the signing secret this once. Deliveries are batched JSON
+        arrays signed with Nodera-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "t.body">.
+        At most 3 per Project (409); a public HTTPS URL only (400).'
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: URL and Message events
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_webhook.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Webhook'
+      security:
+      - BearerAuth: []
+      summary: Add a Webhook
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/webhooks/{webhookID}:
+    delete:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Webhook id
+        in: path
+        name: webhookID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete a Webhook
+      tags:
+      - mail
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Webhook id
+        in: path
+        name: webhookID
+        required: true
+        type: string
+      - description: URL, events and active
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_aggregates_webhook.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.Webhook'
+      security:
+      - BearerAuth: []
+      summary: Change a Webhook's URL, events or active flag
+      tags:
+      - mail
+  /v1/projects/{projectID}/mail/webhooks/{webhookID}/deliveries:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Webhook id
+        in: path
+        name: webhookID
+        required: true
+        type: string
+      - description: next_cursor of the previous page
+        in: query
+        name: cursor
+        type: string
+      - description: 1-100, default 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_mail_application_dto.DeliveryPage'
+      security:
+      - BearerAuth: []
+      summary: A Webhook's deliveries of the last 30 days, newest first
+      tags:
+      - mail
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -112,9 +112,9 @@ func (r *Repository) Create(ctx context.Context, inv *Invoice) error {
 
 	for i, l := range inv.Lines {
 		if _, err := executor.Exec(ctx, `
-			INSERT INTO invoice_lines (invoice_id, position, droplet_id, hostname, plan_code, hours, hourly_price, amount)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-			inv.ID, i, l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice, l.Amount); err != nil {
+			INSERT INTO invoice_lines (invoice_id, position, kind, droplet_id, hostname, plan_code, hours, hourly_price,
+				project_id, project_name, package_code, amount)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, lineValues(inv.ID, i, l)...); err != nil {
 			return ErrorCannotStore.Copy().SetError(err)
 		}
 	}
@@ -173,33 +173,45 @@ func (r *Repository) PeriodInvoiceExists(ctx context.Context, teamID uuid.UUID, 
 	return n > 0, nil
 }
 
+// billedLines selects the lines of one kind that the Team's live Invoices of
+// a Period carry; it takes the Team, the Period's start, StatusVoid and the
+// kind as $1 to $4.
+const billedLines = `
+	FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id
+	WHERE i.team_id = $1 AND i.period_start = $2 AND i.status <> $3 AND l.kind = $4`
+
 func (r *Repository) BilledHours(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]int, error) {
-	rows, err := r.queries.Executor(ctx).Query(ctx, `
-		SELECT l.droplet_id, sum(l.hours)
-		FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id
-		WHERE i.team_id = $1 AND i.period_start = $2 AND i.status <> $3
-		GROUP BY l.droplet_id`, teamID, periodStart, StatusVoid)
+	return scanSums[int](r.queries.Executor(ctx).Query(ctx,
+		`SELECT l.droplet_id, sum(l.hours)`+billedLines+` GROUP BY l.droplet_id`, teamID, periodStart, StatusVoid, LineDroplet))
+}
+
+func (r *Repository) BilledMail(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error) {
+	return scanSums[decimal.Decimal](r.queries.Executor(ctx).Query(ctx,
+		`SELECT l.project_id, sum(l.amount)`+billedLines+` GROUP BY l.project_id`, teamID, periodStart, StatusVoid, LineMail))
+}
+
+func scanSums[V any](rows pgx.Rows, err error) (map[uuid.UUID]V, error) {
 	if err != nil {
 		return nil, ErrorCannotRead.Copy().SetError(err)
 	}
 	defer rows.Close()
 
-	billed := make(map[uuid.UUID]int)
+	sums := make(map[uuid.UUID]V)
 	for rows.Next() {
 		var (
-			id    uuid.UUID
-			hours int
+			id  uuid.UUID
+			sum V
 		)
-		if err := rows.Scan(&id, &hours); err != nil {
+		if err := rows.Scan(&id, &sum); err != nil {
 			return nil, ErrorCannotRead.Copy().SetError(err)
 		}
-		billed[id] = hours
+		sums[id] = sum
 	}
 	if err := rows.Err(); err != nil {
 		return nil, ErrorCannotRead.Copy().SetError(err)
 	}
 
-	return billed, nil
+	return sums, nil
 }
 
 // Find answers an Invoice with its lines and Tax lines; a teamID confines
@@ -297,18 +309,18 @@ func (r *Repository) UnpaidExists(ctx context.Context, teamID uuid.UUID) (bool, 
 func (r *Repository) loadLines(ctx context.Context, inv *Invoice) error {
 	executor := r.queries.Executor(ctx)
 	rows, err := executor.Query(ctx, `
-		SELECT droplet_id, hostname, plan_code, hours, hourly_price, amount
+		SELECT kind, droplet_id, hostname, plan_code, hours, hourly_price, project_id, project_name, package_code, amount
 		FROM invoice_lines WHERE invoice_id = $1 ORDER BY position`, inv.ID)
 	if err != nil {
 		return ErrorCannotRead.Copy().SetError(err)
 	}
 	inv.Lines = make([]Line, 0)
 	for rows.Next() {
-		var l Line
-		if err := rows.Scan(&l.DropletID, &l.Hostname, &l.PlanCode, &l.Hours, &l.HourlyPrice, &l.Amount); err != nil {
+		l, err := scanLine(rows)
+		if err != nil {
 			rows.Close()
 
-			return ErrorCannotRead.Copy().SetError(err)
+			return err
 		}
 		inv.Lines = append(inv.Lines, l)
 	}
@@ -337,6 +349,41 @@ func (r *Repository) loadLines(ctx context.Context, inv *Invoice) error {
 	}
 
 	return nil
+}
+
+// lineValues answers a line's row: its own kind's columns and NULL for the
+// other kind's, as the table's checks require.
+func lineValues(invoiceID uuid.UUID, position int, l Line) []any {
+	if l.Kind == LineMail {
+		return []any{invoiceID, position, l.Kind, nil, nil, nil, nil, nil, l.ProjectID, l.ProjectName, l.PackageCode, l.Amount}
+	}
+
+	return []any{invoiceID, position, l.Kind, l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice, nil, nil, nil, l.Amount}
+}
+
+func scanLine(row pgx.Row) (Line, error) {
+	var (
+		l           Line
+		dropletID   *uuid.UUID
+		hostname    *string
+		planCode    *string
+		hours       *int
+		hourlyPrice decimal.NullDecimal
+		projectID   *uuid.UUID
+		projectName *string
+		packageCode *string
+	)
+	if err := row.Scan(&l.Kind, &dropletID, &hostname, &planCode, &hours, &hourlyPrice, &projectID, &projectName, &packageCode, &l.Amount); err != nil {
+		return Line{}, ErrorCannotRead.Copy().SetError(err)
+	}
+	if l.Kind == LineMail {
+		l.ProjectID, l.ProjectName, l.PackageCode = *projectID, *projectName, *packageCode
+
+		return l, nil
+	}
+	l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice = *dropletID, *hostname, *planCode, *hours, hourlyPrice.Decimal
+
+	return l, nil
 }
 
 func nullable(d *decimal.Decimal) decimal.NullDecimal {

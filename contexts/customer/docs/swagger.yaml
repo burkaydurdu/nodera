@@ -1,5 +1,21 @@
 basePath: /
 definitions:
+  github_com_piggystats_nodera_contexts_customer_aggregates_apikey.CreateRequest:
+    properties:
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      permissions:
+        items:
+          type: string
+        minItems: 1
+        type: array
+        uniqueItems: true
+    required:
+    - name
+    - permissions
+    type: object
   github_com_piggystats_nodera_contexts_customer_aggregates_invitation.CreateRequest:
     properties:
       email:
@@ -208,10 +224,50 @@ definitions:
     x-enum-varnames:
     - MethodNone
     - MethodEmail
+  github_com_piggystats_nodera_contexts_customer_application_dto.APIKey:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      prefix:
+        type: string
+    type: object
   github_com_piggystats_nodera_contexts_customer_application_dto.AcceptedInvitation:
     properties:
       team:
         $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.Team'
+    type: object
+  github_com_piggystats_nodera_contexts_customer_application_dto.CreatedAPIKey:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      key:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      prefix:
+        type: string
     type: object
   github_com_piggystats_nodera_contexts_customer_application_dto.Invitation:
     properties:
@@ -923,6 +979,96 @@ paths:
       summary: Create a Project in a Team the caller belongs to
       tags:
       - teams
+  /v1/teams/{teamID}/projects/{projectID}/api-keys:
+    get:
+      description: Never shows a key's secret. last_used_at is when the key last authenticated,
+        null if it never has. Needs apikey.write.
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.APIKey'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The active API keys of a Project, newest first
+      tags:
+      - api-keys
+    post:
+      consumes:
+      - application/json
+      description: Answers the whole key, nd_<id>.<secret>, the only time it is shown.
+        A key carries only Permissions a key may hold (mail.send) and the caller's
+        Role holds; a Project holds at most 20 active keys.
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: API key
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_aggregates_apikey.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_customer_application_dto.CreatedAPIKey'
+      security:
+      - BearerAuth: []
+      summary: Create an API key for a Project
+      tags:
+      - api-keys
+  /v1/teams/{teamID}/projects/{projectID}/api-keys/{keyID}:
+    delete:
+      parameters:
+      - description: Team id
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: API key id
+        in: path
+        name: keyID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Revoke an API key; it is refused from the next request on
+      tags:
+      - api-keys
   /v1/teams/{teamID}/ssh-keys:
     get:
       parameters:

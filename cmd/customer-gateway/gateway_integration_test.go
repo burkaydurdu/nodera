@@ -16,6 +16,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/piggystats/nodera/cmd/customer-gateway/config"
@@ -45,6 +47,7 @@ const (
 	targetDroplet      = "droplet"
 	targetBilling      = "billing"
 	targetNotification = "notification"
+	targetMail         = "mail"
 )
 
 // stubUpstream records what reached it; that is how the suite reads what
@@ -89,10 +92,16 @@ type gatewaySuite struct {
 	droplet      *stubUpstream
 	billing      *stubUpstream
 	notification *stubUpstream
+	mail         *stubUpstream
 	// realtime answers WebSockets: it echoes every text frame.
 	realtime *httptest.Server
 
 	server *echo.Echo
+
+	// clientAddr is the current scenario's own address. The gateway limits
+	// each client IP, and one scenario must not spend another's budget.
+	clientAddr string
+	scenarios  int
 }
 
 func TestGatewaySuite(t *testing.T) {
@@ -136,6 +145,7 @@ func (s *gatewaySuite) SetupSuite() {
 	s.droplet = newStubUpstream("droplet")
 	s.billing = newStubUpstream("billing")
 	s.notification = newStubUpstream("notification")
+	s.mail = newStubUpstream("mail")
 	s.realtime = newEchoSocketUpstream()
 
 	routeTable := &gatewayConfig.GatewayConfig{Gateway: gatewayConfig.Gateway{Services: map[string]gatewayConfig.Service{
@@ -145,6 +155,9 @@ func (s *gatewaySuite) SetupSuite() {
 			{Path: "/v1/teams/:teamID/projects", Method: "POST"},
 			{Path: "/v1/teams/:teamID/invitations", Method: "POST", Permissions: []string{"team.manage"}},
 			{Path: "/v1/teams/:teamID/members", Method: "GET", Permissions: []string{"team.read"}},
+			{Path: "/v1/teams/:teamID/projects/:projectID/api-keys", Method: "GET", Permissions: []string{"apikey.write"}},
+			{Path: "/v1/teams/:teamID/projects/:projectID/api-keys", Method: "POST", Permissions: []string{"apikey.write"}},
+			{Path: "/v1/teams/:teamID/projects/:projectID/api-keys/:keyID", Method: "DELETE", Permissions: []string{"apikey.write"}},
 		}},
 		"droplet": {Host: s.droplet.server.URL, Endpoints: gatewayConfig.Endpoints{
 			{Path: "/v1/catalog/regions", Method: "GET"},
@@ -165,6 +178,11 @@ func (s *gatewaySuite) SetupSuite() {
 		"realtime": {Host: s.realtime.URL, Endpoints: gatewayConfig.Endpoints{
 			{Path: "/v1/realtime", Method: "GET", Public: true, Headerless: true},
 		}},
+		"mail": {Host: s.mail.server.URL, Endpoints: gatewayConfig.Endpoints{
+			{Path: "/v1/mail/packages", Method: "GET"},
+			{Path: "/v1/projects/:projectID/mail/domains", Method: "GET"},
+			{Path: "/v1/projects/:projectID/mail/domains/:domainID/verify", Method: "POST"},
+		}},
 	}}}
 	routeTable.InitEndpoints()
 
@@ -182,7 +200,7 @@ func (s *gatewaySuite) SetupSuite() {
 }
 
 func (s *gatewaySuite) TearDownSuite() {
-	for _, u := range []*stubUpstream{s.customer, s.droplet, s.billing, s.notification} {
+	for _, u := range []*stubUpstream{s.customer, s.droplet, s.billing, s.notification, s.mail} {
 		if u != nil {
 			u.server.Close()
 		}
@@ -195,10 +213,16 @@ func (s *gatewaySuite) TearDownSuite() {
 	}
 }
 
+func (s *gatewaySuite) SetupTest() {
+	s.scenarios++
+	s.clientAddr = fmt.Sprintf("198.18.%d.%d:40000", s.scenarios/250, s.scenarios%250+1)
+}
+
 // do sends a request through the gateway; an empty target leaves the
 // target-service header off entirely.
 func (s *gatewaySuite) do(method, path, token, target string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, nil)
+	req.RemoteAddr = s.clientAddr
 	if target != "" {
 		req.Header.Set(constants.TargetServerHeader, target)
 	}
@@ -569,6 +593,126 @@ func (s *gatewaySuite) TestHeaderlessRoute_WithAWrongTargetHeader_FollowsTheHead
 
 	unknown := s.do(http.MethodPost, "/v1/billing/webhooks/stripe", "", "payments")
 	s.Equal(http.StatusNotFound, unknown.Code, "an unknown target stays unknown: %s", unknown.Body.String())
+}
+
+func (s *gatewaySuite) TestMailRoute_LiveSession_IsProxiedToTheMailUpstream() {
+	token := s.token(liveSessionID, "access", time.Minute)
+
+	rec := s.do(http.MethodPost, "/v1/projects/019a0000-0000-7000-8000-0000000000a1/mail/domains/019a0000-0000-7000-8000-0000000000d1/verify", token, targetMail)
+
+	s.Equal(http.StatusOK, rec.Code, rec.Body.String())
+	s.Equal("mail", rec.Header().Get("X-Upstream"))
+	path, headers := s.mail.seen()
+	s.Equal("/v1/projects/019a0000-0000-7000-8000-0000000000a1/mail/domains/019a0000-0000-7000-8000-0000000000d1/verify", path)
+	s.Equal("Bearer "+token, headers.Get(echo.HeaderAuthorization), "the mail service authorizes the Project off the same token")
+	s.Equal(targetMail, headers.Get(constants.TargetServerHeader))
+}
+
+func (s *gatewaySuite) TestUnlistedMailRoute_IsNotFound_EvenWithAValidToken() {
+	rec := s.do(http.MethodGet, "/v1/projects/019a0000-0000-7000-8000-0000000000a1/mail/dkim-keys", s.token(liveSessionID, "access", time.Minute), targetMail)
+
+	s.Equal(http.StatusNotFound, rec.Code, rec.Body.String())
+	s.Contains(rec.Body.String(), `"domain":100`)
+}
+
+// apiKeyRoutes are the three API key routes of the customer table, under a Team.
+func apiKeyRoutes(teamID string) [][2]string {
+	keys := "/v1/teams/" + teamID + "/projects/019a0000-0000-7000-8000-0000000000a1/api-keys"
+
+	return [][2]string{{http.MethodGet, keys}, {http.MethodPost, keys}, {http.MethodDelete, keys + "/AbCdEf012345"}}
+}
+
+func (s *gatewaySuite) TestAPIKeyRoutes_FinanceLacksAPIKeyWrite_IsForbidden() {
+	token := s.token(liveSessionID, "access", time.Minute)
+
+	for _, route := range apiKeyRoutes(financeTeamID) {
+		rec := s.do(route[0], route[1], token, targetCustomer)
+
+		s.Equal(http.StatusForbidden, rec.Code, "%s %s: %s", route[0], route[1], rec.Body.String())
+		s.Contains(rec.Body.String(), `"domain":100`)
+	}
+}
+
+func (s *gatewaySuite) TestAPIKeyRoutes_Developer_IsProxied() {
+	developer := s.tokenWith(liveSessionID, "access", time.Minute, func(claims jwt.MapClaims) {
+		claims["teams"] = map[string]string{otherTeamID: "developer"}
+		claims["pv"] = permVersion
+	})
+
+	for _, route := range apiKeyRoutes(otherTeamID) {
+		rec := s.do(route[0], route[1], developer, targetCustomer)
+
+		s.Equal(http.StatusOK, rec.Code, "%s %s: %s", route[0], route[1], rec.Body.String())
+		s.Equal("customer", rec.Header().Get("X-Upstream"))
+		path, _ := s.customer.seen()
+		s.Equal(route[1], path)
+	}
+}
+
+func (s *gatewaySuite) TestAPIKeyRoutes_NotAMember_IsNotFound() {
+	token := s.token(liveSessionID, "access", time.Minute)
+
+	for _, route := range apiKeyRoutes(otherTeamID) {
+		rec := s.do(route[0], route[1], token, targetCustomer)
+
+		s.Equal(http.StatusNotFound, rec.Code, "%s %s: %s", route[0], route[1], rec.Body.String())
+	}
+}
+
+// A route ships only once every environment's table carries it under the
+// right service. The tables are read the way the binary reads them.
+func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyAndMailRoutes(t *testing.T) {
+	mailHosts := map[string]string{
+		"dev":   "http://localhost:9700",
+		"test":  "http://localhost:9700",
+		"alpha": "http://nodera-mail:9700",
+		"prod":  "http://nodera-mail:9700",
+	}
+	project := "/v1/projects/019a0000-0000-7000-8000-0000000000a1"
+	mailRoutes := [][2]string{
+		{http.MethodGet, "/v1/mail/packages"},
+		{http.MethodGet, project + "/mail"},
+		{http.MethodPut, project + "/mail/package"},
+		{http.MethodGet, project + "/mail/domains"},
+		{http.MethodPost, project + "/mail/domains"},
+		{http.MethodGet, project + "/mail/domains/d1"},
+		{http.MethodDelete, project + "/mail/domains/d1"},
+		{http.MethodPost, project + "/mail/domains/d1/verify"},
+		{http.MethodGet, project + "/mail/messages"},
+		{http.MethodGet, project + "/mail/messages/m1"},
+		{http.MethodGet, project + "/mail/suppressions"},
+		{http.MethodDelete, project + "/mail/suppressions/s1"},
+		{http.MethodGet, project + "/mail/webhooks"},
+		{http.MethodPost, project + "/mail/webhooks"},
+		{http.MethodPut, project + "/mail/webhooks/w1"},
+		{http.MethodDelete, project + "/mail/webhooks/w1"},
+		{http.MethodGet, project + "/mail/webhooks/w1/deliveries"},
+	}
+
+	for env, mailHost := range mailHosts {
+		t.Run(env, func(t *testing.T) {
+			table := config.InitGatewayConfig(env).ConvertToGateway()
+			require.NoError(t, table.Validate())
+
+			customer, ok := table.Service(targetCustomer)
+			require.True(t, ok)
+			for _, route := range apiKeyRoutes(ownerTeamID) {
+				endpoint := customer.PrivateEndpoint(route[1], route[0])
+				require.NotNil(t, endpoint, "%s %s", route[0], route[1])
+				assert.Equal(t, []string{"apikey.write"}, endpoint.Permissions, "%s %s", route[0], route[1])
+			}
+
+			mail, ok := table.Service(targetMail)
+			require.True(t, ok)
+			assert.Equal(t, mailHost, mail.Host)
+			assert.Len(t, mail.Endpoints, len(mailRoutes), "the mail target lists the management routes and nothing else")
+			for _, route := range mailRoutes {
+				endpoint := mail.PrivateEndpoint(route[1], route[0])
+				require.NotNil(t, endpoint, "%s %s", route[0], route[1])
+				assert.Empty(t, endpoint.Permissions, "%s %s: no Team in the path, so the mail service authorizes it", route[0], route[1])
+			}
+		})
+	}
 }
 
 // The route table is checked before the first request: permissions on a route
