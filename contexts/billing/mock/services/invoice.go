@@ -74,6 +74,21 @@ func (mr *MockIInvoiceServiceMockRecorder) BilledMail(ctx, teamID, periodStart a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BilledMail", reflect.TypeOf((*MockIInvoiceService)(nil).BilledMail), ctx, teamID, periodStart)
 }
 
+// BilledStorage mocks base method.
+func (m *MockIInvoiceService) BilledStorage(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BilledStorage", ctx, teamID, periodStart)
+	ret0, _ := ret[0].(map[uuid.UUID]decimal.Decimal)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BilledStorage indicates an expected call of BilledStorage.
+func (mr *MockIInvoiceServiceMockRecorder) BilledStorage(ctx, teamID, periodStart any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BilledStorage", reflect.TypeOf((*MockIInvoiceService)(nil).BilledStorage), ctx, teamID, periodStart)
+}
+
 // CreditBalance mocks base method.
 func (m *MockIInvoiceService) CreditBalance(ctx context.Context, teamID uuid.UUID) (decimal.Decimal, error) {
 	m.ctrl.T.Helper()

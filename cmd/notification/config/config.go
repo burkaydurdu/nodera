@@ -112,8 +112,8 @@ type SendGrid struct {
 	APIKey string `mapstructure:"api_key"`
 }
 
-// Domain.Front is the web app's origin. Mail's events carry no link, so the
-// links their emails carry are built from it here.
+// Domain.Front is the web app's origin. Mail's and Storage's events carry no
+// link, so the links their emails carry are built from it here.
 type Domain struct {
 	Front string `mapstructure:"front" validate:"required,url"`
 }

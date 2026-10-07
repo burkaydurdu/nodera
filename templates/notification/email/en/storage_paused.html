@@ -1,0 +1,28 @@
+{{ define "storage_paused" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.BucketName}} is paused</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, Nodera has paused the Storage <strong>{{.BucketName}}</strong> of the project {{.ProjectName}}{{if .TeamName}} in {{.TeamName}}{{end}} because {{t .ReasonKey}}.</p>
+              <p class="subtitle">While the pause lasts, nothing in it can be read or written, published objects included; what it holds stays. Only Nodera can lift a pause: write to support@nodera.io.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.StorageURL}}">Open Storage</a></td></tr>
+              </table>
+              <p class="subtitle">This email was sent to {{.Email}} because you can see this team's Storage.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

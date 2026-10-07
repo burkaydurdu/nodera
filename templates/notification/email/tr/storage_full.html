@@ -1,0 +1,28 @@
+{{ define "storage_full" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.BucketName}} doldu</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{if .TeamName}}{{.TeamName}} takımındaki {{end}}{{.ProjectName}} projesinin <strong>{{.BucketName}}</strong> adlı Storage'ı, <strong>{{.PackageCode}}</strong> paketinin tanıdığı {{size .SizeBytes}} alanın tamamını kullanıyor (<strong>{{size .UsedBytes}}</strong>) ve artık yazma kabul etmez. Okuma ve silme çalışmaya devam eder.</p>
+              <p class="subtitle">Hemen geçerli olan daha büyük bir pakete geç ya da yer açmak için dosya sil. Storage paketine yeniden sığar sığmaz yazmalar sürer.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.StorageURL}}">Storage'ı aç</a></td></tr>
+              </table>
+              <p class="subtitle">Bu e-posta, bu takımın Storage'ını görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

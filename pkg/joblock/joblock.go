@@ -1,4 +1,7 @@
-package jobs
+// Package joblock serializes a periodic job across a service's worker
+// replicas with a Redis lease. It lives outside the contexts because a context
+// never imports another.
+package joblock
 
 import (
 	"context"

@@ -33,6 +33,11 @@ const (
 	TypeMailRatesWarning     Type = "mail_rates_warning"
 	TypeMailPaused           Type = "mail_paused"
 
+	TypeStorageNearlyFull       Type = "storage_nearly_full"
+	TypeStorageFull             Type = "storage_full"
+	TypeStoragePaused           Type = "storage_paused"
+	TypeStorageDowngradeSkipped Type = "storage_downgrade_skipped"
+
 	TypeTeamInvitation    Type = "team_invitation"
 	TypeTeamRoleChanged   Type = "team_role_changed"
 	TypeTeamMemberRemoved Type = "team_member_removed"
@@ -94,6 +99,15 @@ var catalog = map[Type]Definition{
 	TypeMailPackageExhausted: {Channels: inAppByEmail, Permission: authz.MailRead},
 	TypeMailRatesWarning:     {Channels: inAppByEmail, Permission: authz.MailRead},
 	TypeMailPaused:           {Channels: inAppByEmail, Permission: authz.MailRead},
+
+	// A Storage's news reaches whoever may see it, finance too since its
+	// Package is a line on the Invoice, and goes by email as well: a full or
+	// Paused Storage breaks the software writing to it while nobody may be
+	// looking.
+	TypeStorageNearlyFull:       {Channels: inAppByEmail, Permission: authz.StorageRead},
+	TypeStorageFull:             {Channels: inAppByEmail, Permission: authz.StorageRead},
+	TypeStoragePaused:           {Channels: inAppByEmail, Permission: authz.StorageRead},
+	TypeStorageDowngradeSkipped: {Channels: inAppByEmail, Permission: authz.StorageRead},
 
 	// An invitation reaches an address that may have no account yet; the
 	// Inbox shows it to one that has.

@@ -10,11 +10,11 @@
           <tr>
             <td class="content">
               <p class="title">{{.TeamName}} has been suspended</p>
-              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, invoice {{.InvoiceNumber}} is still unpaid after several attempts, so every droplet of {{.TeamName}} has been powered off. No new droplets can be created while the team is suspended.</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, invoice {{.InvoiceNumber}} is still unpaid after several attempts, so every droplet of {{.TeamName}} has been powered off and its Storages take no reads or writes. Nothing new can be created while the team is suspended.</p>
               <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr><td><a class="btn" href="{{.PayURL}}">Pay the invoice now</a></td></tr>
               </table>
-              <p class="subtitle">Your droplets are powered back on as soon as the payment goes through. If the invoice stays unpaid, the droplets and their data are deleted after 21 days; we will warn you before that happens.</p>
+              <p class="subtitle">Your droplets are powered back on and your Storages reopen as soon as the payment goes through. If the invoice stays unpaid, the droplets, their data and everything your Storages hold are deleted after 21 days; we will warn you before that happens.</p>
               <p class="subtitle">This email was sent to {{.Email}} because it is a billing contact of {{.TeamName}}.</p>
             </td>
           </tr>

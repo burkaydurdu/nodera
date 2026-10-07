@@ -48,6 +48,7 @@ const (
 	targetBilling      = "billing"
 	targetNotification = "notification"
 	targetMail         = "mail"
+	targetStorage      = "storage"
 )
 
 // stubUpstream records what reached it; that is how the suite reads what
@@ -661,7 +662,7 @@ func (s *gatewaySuite) TestAPIKeyRoutes_NotAMember_IsNotFound() {
 
 // A route ships only once every environment's table carries it under the
 // right service. The tables are read the way the binary reads them.
-func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyAndMailRoutes(t *testing.T) {
+func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyMailAndStorageRoutes(t *testing.T) {
 	mailHosts := map[string]string{
 		"dev":   "http://localhost:9700",
 		"test":  "http://localhost:9700",
@@ -689,6 +690,33 @@ func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyAndMailRoutes(t *testing.T)
 		{http.MethodGet, project + "/mail/webhooks/w1/deliveries"},
 	}
 
+	storageHosts := map[string]string{
+		"dev":   "http://localhost:9710",
+		"test":  "http://localhost:9710",
+		"alpha": "http://nodera-storage:9710",
+		"prod":  "http://nodera-storage:9710",
+	}
+	storageRoutes := [][2]string{
+		{http.MethodGet, "/v1/storage/regions"},
+		{http.MethodGet, "/v1/storage/packages"},
+		{http.MethodGet, project + "/storages"},
+		{http.MethodPost, project + "/storages"},
+		{http.MethodGet, project + "/storages/s1"},
+		{http.MethodDelete, project + "/storages/s1"},
+		{http.MethodPut, project + "/storages/s1/package"},
+		{http.MethodGet, project + "/storages/s1/access-keys"},
+		{http.MethodPost, project + "/storages/s1/access-keys"},
+		{http.MethodDelete, project + "/storages/s1/access-keys/k1"},
+		{http.MethodGet, project + "/storages/s1/objects"},
+		{http.MethodPost, project + "/storages/s1/objects/delete"},
+		{http.MethodPost, project + "/storages/s1/objects/download-url"},
+		{http.MethodPost, project + "/storages/s1/objects/upload-url"},
+		{http.MethodGet, project + "/storages/s1/objects/access"},
+		{http.MethodPut, project + "/storages/s1/objects/access"},
+		{http.MethodPut, project + "/storages/s1/browser-access"},
+		{http.MethodGet, project + "/storages/s1/usage"},
+	}
+
 	for env, mailHost := range mailHosts {
 		t.Run(env, func(t *testing.T) {
 			table := config.InitGatewayConfig(env).ConvertToGateway()
@@ -710,6 +738,16 @@ func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyAndMailRoutes(t *testing.T)
 				endpoint := mail.PrivateEndpoint(route[1], route[0])
 				require.NotNil(t, endpoint, "%s %s", route[0], route[1])
 				assert.Empty(t, endpoint.Permissions, "%s %s: no Team in the path, so the mail service authorizes it", route[0], route[1])
+			}
+
+			storage, ok := table.Service(targetStorage)
+			require.True(t, ok)
+			assert.Equal(t, storageHosts[env], storage.Host)
+			assert.Len(t, storage.Endpoints, len(storageRoutes), "the storage target lists the management routes and nothing else")
+			for _, route := range storageRoutes {
+				endpoint := storage.PrivateEndpoint(route[1], route[0])
+				require.NotNil(t, endpoint, "%s %s", route[0], route[1])
+				assert.Empty(t, endpoint.Permissions, "%s %s: no Team in the path, so the storage service authorizes it", route[0], route[1])
 			}
 		})
 	}

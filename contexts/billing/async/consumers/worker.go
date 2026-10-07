@@ -9,8 +9,9 @@ import (
 	"github.com/piggystats/nodera/logger"
 )
 
-// Source is a consumer together with the routing keys it handles; the usage
-// and Mail Package consumers join the customer one as further Sources.
+// Source is a consumer together with the routing keys it handles; the usage,
+// Mail Package and Storage Package consumers join the customer one as
+// further Sources.
 type Source interface {
 	rabbitmq.IConsumer
 	RoutingKeys() []string

@@ -46,6 +46,14 @@
   {{range .MailLines}}<tr><td>Mail · {{.ProjectName}} · {{.PackageCode}}</td><td class="num">{{.Amount}}</td></tr>
   {{end}}
   </tbody>
+</table>{{end}}{{if .StorageLines}}
+
+<table class="lines">
+  <thead><tr><th>Storage paketi</th><th class="num">Tutar</th></tr></thead>
+  <tbody>
+  {{range .StorageLines}}<tr><td>Storage · {{.BucketName}} · {{.PackageCode}}</td><td class="num">{{.Amount}}</td></tr>
+  {{end}}
+  </tbody>
 </table>{{end}}
 
 <table class="totals">
@@ -58,6 +66,6 @@
   <tr class="rate"><td colspan="2">Türkiye Cumhuriyet Merkez Bankası'nın {{date "02.01.2006" .RateDate}} tarihli USD döviz alış kuru ile çevrilmiştir: 1 USD = {{.Rate}} {{.Currency}}</td></tr>{{end}}
 </table>
 
-<footer>Fiyatlar ABD doları cinsindendir.{{if .DropletLines}} Saatler, Droplet'in aktif olduğu andan silinmesinin istendiği ana kadar sayılır, tam saate yukarı yuvarlanır ve dönem başına Droplet başına en fazla 672 saattir.{{end}}{{if .MailLines}} Mail satırı, projenin dönem içinde sahip olduğu en büyük paketin fiyatıdır; dönemin daha önceki bir hesap özetinde alınan tutar bundan düşülür.{{end}}</footer>
+<footer>Fiyatlar ABD doları cinsindendir.{{if .DropletLines}} Saatler, Droplet'in aktif olduğu andan silinmesinin istendiği ana kadar sayılır, tam saate yukarı yuvarlanır ve dönem başına Droplet başına en fazla 672 saattir.{{end}}{{if .MailLines}} Mail satırı, projenin dönem içinde sahip olduğu en büyük paketin fiyatıdır; dönemin daha önceki bir hesap özetinde alınan tutar bundan düşülür.{{end}}{{if .StorageLines}} Storage satırı, Storage'ın dönem içinde sahip olduğu en büyük paketin fiyatıdır; dönemin daha önceki bir hesap özetinde alınan tutar bundan düşülür.{{end}}</footer>
 </body>
 </html>{{end}}

@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/piggystats/nodera/contexts/mail/aggregates/webhook"
-	"github.com/piggystats/nodera/contexts/mail/secrets"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/secrets"
 )
 
 const (

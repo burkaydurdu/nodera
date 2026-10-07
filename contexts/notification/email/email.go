@@ -41,6 +41,11 @@ const (
 	KindMailPackageExhausted Kind = "mail_package_exhausted"
 	KindMailRatesWarning     Kind = "mail_rates_warning"
 	KindMailPaused           Kind = "mail_paused"
+
+	KindStorageNearlyFull       Kind = "storage_nearly_full"
+	KindStorageFull             Kind = "storage_full"
+	KindStoragePaused           Kind = "storage_paused"
+	KindStorageDowngradeSkipped Kind = "storage_downgrade_skipped"
 )
 
 // shared templates carry no copy; per-locale ones do.
@@ -107,8 +112,12 @@ func (s *Sender) render(kind Kind, lang string, params map[string]any) (string, 
 	// html/template context-escapes the params, so a person's name cannot
 	// inject markup into their own or anyone else's email. "t" lets a body
 	// name an enum (a Role) in the reader's language from the same locale file
-	// the subject comes from.
-	funcs := template.FuncMap{"t": func(key string) string { return s.locale.Translate(lang, key, params) }}
+	// the subject comes from. "size" prints a byte count for the reader, so the
+	// event can carry bytes and the web app and the email each word them.
+	funcs := template.FuncMap{
+		"t":    func(key string) string { return s.locale.Translate(lang, key, params) },
+		"size": func(bytes int64) string { return humanSize(bytes, lang) },
+	}
 	tpl, err := template.New(string(kind)).Funcs(funcs).ParseFiles(files...)
 	if err != nil {
 		return "", err

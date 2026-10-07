@@ -82,6 +82,24 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  # Nodera Storage's object store (docs/adr/0012): a whole Ceph cluster in one
+  # container, bootstrapped by deploy/ceph/bootstrap.sh, the same script the
+  # contract test runs. bluestore keeps the buckets across restarts; the
+  # gateway is reached by path (http://localhost:7490/<bucket>/...).
+  ceph:
+    image: quay.io/ceph/ceph:v20.2.4
+    restart: always
+    entrypoint: ["/nodera/bootstrap.sh"]
+    ports:
+      - "${CEPH_RGW_HOST_PORT:-7490}:7480"
+    volumes:
+      - ./deploy/ceph:/nodera:ro
+      - ceph-data:/var/lib/nodera-ceph
+    environment:
+      - CEPH_OBJECTSTORE=bluestore
+      - RGW_ADMIN_ACCESS_KEY=dev-storage-admin
+      - RGW_ADMIN_SECRET_KEY=dev-storage-admin-secret
+
   # Renders Invoice PDFs from HTML for the billing service.
   gotenberg:
     image: gotenberg/gotenberg:8
@@ -96,3 +114,4 @@ volumes:
   rabbitmq-data:
   kumomta-spool:
   kumomta-logs:
+  ceph-data:

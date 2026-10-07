@@ -1,9 +1,10 @@
 # Billing
 
-The context that turns a Team's Droplet hours and Mail Packages into money: what the Team owes,
-how it pays, and what it is told about both. It knows a Team by its identifier, a Droplet by the
-usage events the droplet context publishes and a Project's Package by the events the mail context
-publishes; it never reads another context's tables.
+The context that turns a Team's Droplet hours and its Mail and Storage Packages into money: what
+the Team owes, how it pays, and what it is told about both. It knows a Team by its identifier, a
+Droplet by the usage events the droplet context publishes, a Project's Mail Package by the events
+the mail context publishes and a Storage's Package by the events the storage context publishes; it
+never reads another context's tables.
 
 ## Language
 
@@ -28,8 +29,8 @@ _Avoid_: PSP, gateway (that is Nodera's own API gateway), processor
 
 **Billing status**:
 Whether a Team may spend: `no_payment_method` (no Droplet can be created and no Package chosen),
-`active`, `suspended` (an unpaid invoice stopped its Droplets and its Mail sending). The droplet
-and mail contexts learn it from events.
+`active`, `suspended` (an unpaid invoice stopped its Droplets, its Mail sending and its Storage).
+The droplet, mail and storage contexts learn it from events.
 _Avoid_: account status, blocked, frozen
 
 ### Usage and money
@@ -38,14 +39,14 @@ _Avoid_: account status, blocked, frozen
 What a Team used in a Period and pays for. For a Droplet, the hours it was rented, counted from
 the moment it became active until its deletion was requested, powered off or not, rounded up to
 whole hours, capped at 672 per Droplet per period and priced at the Droplet's Locked price. For
-Mail, the Packages each Project held.
+Mail, the Packages each Project held; for Storage, the Packages each Storage held.
 _Avoid_: consumption, metering, meter (the mechanism, not the thing)
 
 **Package**:
-The Mail allowance a Project is on, as the mail context reports it: intervals from a start to a
-stop, each at the monthly price the Package was chosen at. A Period charges a Project the highest
-monthly price among the intervals it held in that Period, never prorated, less what earlier
-Invoices of the Period already charged for that Project.
+The allowance a Project's Mail or one Storage is on, as the mail and storage contexts report it:
+intervals from a start to a stop, each at the monthly price the Package was chosen at. A Period
+charges a Project's Mail, and each Storage, the highest monthly price among the intervals it held
+in that Period, never prorated, less what earlier Invoices of the Period already charged for it.
 _Avoid_: plan (the Droplet catalog's word), subscription, tier
 
 **Period**:
@@ -53,8 +54,8 @@ A calendar month in UTC. Usage is grouped and invoiced per Period.
 _Avoid_: billing cycle, month (ambiguous), term
 
 **Invoice**:
-A Team's statement for a Period or a Threshold: one Invoice line per Droplet and per Project's
-Package, the Tax lines, any Credit applied, totals in USD and, for Turkish Teams, the TRY
+A Team's statement for a Period or a Threshold: one Invoice line per Droplet, per Project's Mail
+Package and per Storage, the Tax lines, any Credit applied, totals in USD and, for Turkish Teams, the TRY
 equivalent at the Exchange rate of its issue date. It moves `draft` → `issued` → `paid` or
 `payment_failed` → `void`. It is numbered on issue. Until an e-invoice issuer is connected it is a
 statement, not a legal invoice.
@@ -63,7 +64,8 @@ but one word in the product)
 
 **Invoice line**:
 One priced row of an Invoice, of one kind: a Droplet line carries the Droplet's hostname, Plan,
-hours, hourly price and amount; a Mail line the Project, its name, the Package and the amount.
+hours, hourly price and amount; a Mail line the Project, its name, the Package and the amount; a
+Storage line the Storage's Bucket name, the Package and the amount.
 _Avoid_: item, entry
 
 **Threshold**:
@@ -77,8 +79,8 @@ _Avoid_: charge, transaction, collection
 
 **Dunning**:
 The retries and emails after a failed Payment: retries on days 1, 3 and 7, suspension on day 7,
-deletion of the Team's Droplets and the end of its Packages on day 21, with warnings before each
-step.
+deletion of the Team's Droplets and of what its Storage holds and the end of its Packages on day
+21, with warnings before each step.
 _Avoid_: collections, reminder flow
 
 **Credit**:

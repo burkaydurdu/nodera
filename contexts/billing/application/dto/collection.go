@@ -21,14 +21,18 @@ const (
 // UsageLine is one priced row of a draft or an issued Invoice, told apart by
 // its kind. A droplet line is a Droplet's hours and carries the droplet
 // fields; a mail line is the Mail Package a Project held in the Period and
-// carries the project fields. Each kind omits the other's fields.
+// carries the project fields; a storage line is the Package one Storage held
+// in the Period and carries the storage fields beside the project ones. Each
+// kind omits the others' fields.
 type UsageLine struct {
-	Kind        string     `json:"kind" enums:"droplet,mail"`
+	Kind        string     `json:"kind" enums:"droplet,mail,storage"`
 	DropletID   *uuid.UUID `json:"droplet_id,omitempty"`
 	Hostname    *string    `json:"hostname,omitempty"`
 	PlanCode    *string    `json:"plan_code,omitempty"`
 	Hours       *int       `json:"hours,omitempty" example:"3"`
 	HourlyPrice *string    `json:"hourly_price,omitempty" example:"0.2766"`
+	StorageID   *uuid.UUID `json:"storage_id,omitempty"`
+	BucketName  *string    `json:"bucket_name,omitempty" example:"shop-assets"`
 	ProjectID   *uuid.UUID `json:"project_id,omitempty"`
 	ProjectName *string    `json:"project_name,omitempty" example:"Shop"`
 	PackageCode *string    `json:"package_code,omitempty" example:"10k"`
@@ -63,7 +67,13 @@ func ToUsageLines(lines []invoice.Line) []UsageLine {
 
 func toLine(l invoice.Line) UsageLine {
 	out := UsageLine{Kind: string(l.Kind), Amount: l.Amount.StringFixed(centScale)}
-	if l.Kind == invoice.LineMail {
+	switch l.Kind {
+	case invoice.LineMail:
+		out.ProjectID, out.ProjectName, out.PackageCode = &l.ProjectID, &l.ProjectName, &l.PackageCode
+
+		return out
+	case invoice.LineStorage:
+		out.StorageID, out.BucketName = &l.StorageID, &l.BucketName
 		out.ProjectID, out.ProjectName, out.PackageCode = &l.ProjectID, &l.ProjectName, &l.PackageCode
 
 		return out

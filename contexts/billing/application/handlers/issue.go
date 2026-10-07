@@ -239,13 +239,15 @@ func statementOf(inv *invoice.Invoice, teamName string) *pdf.Statement {
 		HasCredit: inv.CreditApplied.IsPositive(), TotalDue: inv.TotalDue.StringFixed(2),
 	}
 	for _, l := range inv.Lines {
-		if l.Kind == invoice.LineMail {
+		switch l.Kind {
+		case invoice.LineMail:
 			s.MailLines = append(s.MailLines, pdf.MailLine{ProjectName: l.ProjectName, PackageCode: l.PackageCode, Amount: l.Amount.StringFixed(2)})
-
-			continue
+		case invoice.LineStorage:
+			s.StorageLines = append(s.StorageLines, pdf.StorageLine{BucketName: l.BucketName, PackageCode: l.PackageCode, Amount: l.Amount.StringFixed(2)})
+		default:
+			s.DropletLines = append(s.DropletLines, pdf.DropletLine{Hostname: l.Hostname, PlanCode: l.PlanCode, Hours: l.Hours,
+				HourlyPrice: l.HourlyPrice.StringFixed(4), Amount: l.Amount.StringFixed(2)})
 		}
-		s.DropletLines = append(s.DropletLines, pdf.DropletLine{Hostname: l.Hostname, PlanCode: l.PlanCode, Hours: l.Hours,
-			HourlyPrice: l.HourlyPrice.StringFixed(4), Amount: l.Amount.StringFixed(2)})
 	}
 	for _, t := range inv.TaxLines {
 		s.TaxLines = append(s.TaxLines, pdf.TaxLine{Label: t.Label, RateBps: t.RateBps, Base: t.Base.StringFixed(2), Amount: t.Amount.StringFixed(2)})

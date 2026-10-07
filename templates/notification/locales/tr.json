@@ -12,7 +12,7 @@
   "payment_failed_subject": "{{.TeamName}} için ödeme alınamadı: {{.InvoiceNumber}} numaralı fatura",
   "payment_confirmation_required_subject": "{{.TeamName}} için ödemeni onayla",
   "team_suspended_subject": "{{.TeamName}} Nodera'da askıya alındı",
-  "droplets_deletion_warning_subject": "İşlem gerekli: {{.TeamName}} droplet'leri silinecek",
+  "droplets_deletion_warning_subject": "İşlem gerekli: {{.TeamName}} droplet'leri ve Storage dosyaları silinecek",
   "card_expiring_subject": "{{.TeamName}} için {{.Last4}} ile biten kartının süresi dolmak üzere",
   "droplet_failed_subject": "{{.Hostname}} oluşturulamadı",
   "droplet_failure_rejected": "sipariş reddedildi",
@@ -27,5 +27,13 @@
   "mail_rates_warning_subject": "{{.ProjectName}} projesinde geri dönme ya da şikâyet oranı yüksek",
   "mail_paused_subject": "{{.ProjectName}} projesinin Mail gönderimi duraklatıldı",
   "mail_pause_reason_bounce_rate": "e-postalarının çok fazlası geri döndü",
-  "mail_pause_reason_complaint_rate": "çok fazla alıcı e-postalarını spam olarak bildirdi"
+  "mail_pause_reason_complaint_rate": "çok fazla alıcı e-postalarını spam olarak bildirdi",
+  "storage_nearly_full_subject": "{{.BucketName}} adlı Storage dolmak üzere",
+  "storage_full_subject": "{{.BucketName}} adlı Storage doldu",
+  "storage_paused_subject": "{{.BucketName}} adlı Storage duraklatıldı",
+  "storage_downgrade_skipped_subject": "{{.BucketName}} adlı Storage {{.PackageCode}} paketinde kalıyor",
+  "storage_pause_reason_abuse_complaint": "barındırdığı ya da yayımladığı içerik hakkında bir şikâyet alındı",
+  "storage_pause_reason_malware": "zararlı yazılım barındırdığı ya da yaydığı tespit edildi",
+  "storage_pause_reason_phishing": "oltalama içeriği barındırdığı tespit edildi",
+  "storage_pause_reason_legal": "yasal bir talep bunu gerektiriyor"
 }

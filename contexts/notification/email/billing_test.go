@@ -148,22 +148,28 @@ func TestSender_TeamSuspended_LinksThePayURL(t *testing.T) {
 	assert.Equal(t, "Acme has been suspended on Nodera", client.message.Subject)
 	assert.Contains(t, client.message.Body, "NDR-2026-000042")
 	assert.Contains(t, client.message.Body, `href="http://localhost:3002/dashboard/team/billing?tab=invoices&amp;invoice=i1"`)
+	assert.Contains(t, client.message.Body, "everything your Storages hold", "the day-21 deletion takes the Storages' files with the droplets")
 
 	require.NoError(t, sender.Send(context.Background(), KindTeamSuspended, "ada@example.com", "tr", billingParams()))
 	assert.Equal(t, "Acme Nodera'da askıya alındı", client.message.Subject)
 	assert.Contains(t, client.message.Body, `href="http://localhost:3002/dashboard/team/billing?tab=invoices&amp;invoice=i1"`)
+	assert.Contains(t, client.message.Body, "Storage'larının tuttuğu her şey")
 }
 
 func TestSender_DropletsDeletionWarning_ShowsTheDeadlineAndPayURL(t *testing.T) {
 	sender, client := newSender(t)
 
 	require.NoError(t, sender.Send(context.Background(), KindDropletsDeletionWarning, "ada@example.com", "en", billingParams()))
+	assert.Equal(t, "Action required: Acme droplets and Storage files will be deleted", client.message.Subject)
 	assert.Contains(t, client.message.Body, "October 22, 2026")
 	assert.Contains(t, client.message.Body, "NDR-2026-000042")
 	assert.Contains(t, client.message.Body, `href="http://localhost:3002/dashboard/team/billing?tab=invoices&amp;invoice=i1"`)
+	assert.Contains(t, client.message.Body, "everything its Storages hold", "the Storages' files go with the droplets")
 
 	require.NoError(t, sender.Send(context.Background(), KindDropletsDeletionWarning, "ada@example.com", "tr", billingParams()))
+	assert.Equal(t, "İşlem gerekli: Acme droplet'leri ve Storage dosyaları silinecek", client.message.Subject)
 	assert.Contains(t, client.message.Body, "22.10.2026")
+	assert.Contains(t, client.message.Body, "Storage'larının tuttuğu her şey")
 }
 
 func TestSender_CardExpiring_ShowsBrandLast4AndExpiry(t *testing.T) {

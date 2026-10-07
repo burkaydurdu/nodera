@@ -1,0 +1,80 @@
+environment = "alpha"
+
+# The management API sits behind the customer gateway.
+[server]
+name = "nodera-storage"
+port = ":9710"
+
+# The object store of the one Region this phase serves (docs/adr/0012):
+# admin_endpoint and s3_endpoint are where the service reaches it,
+# public_endpoint where software and browsers do. path_style puts a bucket
+# under the endpoint as a path instead of a subdomain. The rate limit is per
+# Storage and per minute.
+[engine]
+region = "vno1"
+admin_endpoint = "http://nodera-ceph:7480"
+s3_endpoint = "http://nodera-ceph:7480"
+# PLACEHOLDER: the registered Storage domain is not chosen yet (docs/adr/0012).
+public_endpoint = "https://vno1.storage.nodera.io"
+path_style = false
+admin_access_key = ""
+admin_secret_key = ""
+s3_region = "vno1"
+web_origin = "https://app.nodera.io"
+timeout_seconds = 30
+
+[engine.rate_limit]
+read_ops = 6000
+write_ops = 3000
+read_bytes = 6000000000
+write_bytes = 3000000000
+
+[postgresql]
+uri = ""
+
+[postgresql.pool]
+max_conns = 8
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = ""
+port = 0
+username = ""
+password = ""
+db = 0
+
+# The outbox lives here and nothing else does (docs/adr/0001).
+[mongodb]
+host = ""
+port = 0
+username = ""
+password = ""
+database = "nodera_storage_outbox"
+uri = ""
+
+[rabbitmq]
+host = ""
+username = ""
+password = ""
+virtualhost = "/nodera"
+auth_secret = ""
+
+# The same JWT secret the customer service signs access tokens with; the
+# encryption key (32 bytes, base64) seals the Projects' account root keys.
+[secret]
+jwt = ""
+encryption_key = ""
+
+[jobs]
+measure_minutes = 5
+traffic_minutes = 15
+rollover_minutes = 15
+purge_seconds = 30
+reconcile_minutes = 1
+
+[metrics]
+enabled = true
+port = ":9107"

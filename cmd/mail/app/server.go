@@ -29,13 +29,13 @@ import (
 	"github.com/piggystats/nodera/contexts/mail/async/producers"
 	"github.com/piggystats/nodera/contexts/mail/dns"
 	"github.com/piggystats/nodera/contexts/mail/mta/kumomta"
-	"github.com/piggystats/nodera/contexts/mail/secrets"
 	"github.com/piggystats/nodera/contexts/mail/smtp"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/internal/persistence/redis"
 	"github.com/piggystats/nodera/logger"
 	"github.com/piggystats/nodera/pkg/echo_middleware"
 	"github.com/piggystats/nodera/pkg/http"
+	"github.com/piggystats/nodera/pkg/secrets"
 	"github.com/piggystats/nodera/utils/str"
 )
 

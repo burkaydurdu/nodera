@@ -130,9 +130,9 @@ func NewCollection(deps CollectionDeps) *Collection {
 
 // Draft is the next Invoice of a Team as of windowEnd: each Droplet's hours
 // in the Period that no earlier Invoice of the Period has billed, then each
-// Project's Mail Package less what earlier Invoices of the Period charged
-// for it. Both kinds of line count alike toward the Threshold, tax, Credit
-// and the TRY equivalent.
+// Project's Mail Package and each Storage's Package less what earlier
+// Invoices of the Period charged for it. Every kind of line counts alike
+// toward the Threshold, tax, Credit and the TRY equivalent.
 type Draft struct {
 	Period   usage.Period
 	Lines    []invoice.Line
@@ -167,6 +167,12 @@ func (c *Collection) draft(ctx context.Context, teamID uuid.UUID, period usage.P
 	}
 	lines = append(lines, mail...)
 
+	storage, err := c.storageLines(ctx, teamID, period, windowEnd)
+	if err != nil {
+		return nil, err
+	}
+	lines = append(lines, storage...)
+
 	return &Draft{Period: period, Lines: lines, Subtotal: invoice.Subtotal(lines)}, nil
 }
 
@@ -190,6 +196,31 @@ func (c *Collection) mailLines(ctx context.Context, teamID uuid.UUID, period usa
 		lines = append(lines, invoice.Line{
 			Kind: invoice.LineMail, ProjectID: l.ProjectID, ProjectName: l.ProjectName,
 			PackageCode: l.PackageCode, Amount: l.Amount,
+		})
+	}
+
+	return lines, nil
+}
+
+// storageLines charges the Packages the Team's Storages held in the Period,
+// from the cutover on like Mail's.
+func (c *Collection) storageLines(ctx context.Context, teamID uuid.UUID, period usage.Period, windowEnd time.Time) ([]invoice.Line, error) {
+	from, to := maxTime(period.Start, c.BillingStart), minTime(period.End, windowEnd)
+	intervals, err := c.Usage.FindStorageForTeam(ctx, teamID, from, to)
+	if err != nil || len(intervals) == 0 {
+		return nil, err
+	}
+	billed, err := c.Invoices.BilledStorage(ctx, teamID, period.Start)
+	if err != nil {
+		return nil, err
+	}
+
+	storage := usage.StorageLines(intervals, from, to, billed)
+	lines := make([]invoice.Line, 0, len(storage))
+	for _, l := range storage {
+		lines = append(lines, invoice.Line{
+			Kind: invoice.LineStorage, StorageID: l.StorageID, BucketName: l.BucketName, ProjectID: l.ProjectID,
+			ProjectName: l.ProjectName, PackageCode: l.PackageCode, Amount: l.Amount,
 		})
 	}
 

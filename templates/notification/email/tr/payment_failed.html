@@ -11,7 +11,7 @@
             <td class="content">
               <p class="title">{{.TeamName}} için ödeme alınamadı</p>
               <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{.InvoiceNumber}} numaralı fatura için <strong>{{.Amount}} {{.Currency}}</strong> tutarını kartından çekemedik ({{.Attempt}}. deneme).{{if .FailureReason}} Bankanın yanıtı: {{.FailureReason}}.{{end}}</p>
-              <p class="subtitle">{{if .NextRetryAt}}{{ .NextRetryAt.UTC.Format "02.01.2006" }} tarihinde yeniden deneyeceğiz. {{end}}Droplet'lerinin çalışmaya devam etmesi için fatura panelinden kartını kontrol et ya da yeni bir kart ekle. Faturası ödenmeyen takımlar tekrarlanan başarısız denemelerden sonra askıya alınır.</p>
+              <p class="subtitle">{{if .NextRetryAt}}{{ .NextRetryAt.UTC.Format "02.01.2006" }} tarihinde yeniden deneyeceğiz. {{end}}Droplet'lerinin ve Storage'larının çalışmaya devam etmesi için fatura panelinden kartını kontrol et ya da yeni bir kart ekle. Faturası ödenmeyen takımlar tekrarlanan başarısız denemelerden sonra askıya alınır.</p>
               <p class="subtitle">Bu e-posta {{.TeamName}} takımının fatura iletişim adresi olduğu için {{.Email}} adresine gönderildi.</p>
             </td>
           </tr>

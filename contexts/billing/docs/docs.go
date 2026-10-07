@@ -252,7 +252,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "A line's kind (droplet or mail) says which fields it carries; the other kind's are omitted. 404 invoice 33-10001 for an unknown Invoice or another Team's. Needs billing.read.",
+                "description": "A line's kind (droplet, mail or storage) says which fields it carries; the other kinds' are omitted. 404 invoice 33-10001 for an unknown Invoice or another Team's. Needs billing.read.",
                 "produces": [
                     "application/json"
                 ],
@@ -689,7 +689,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Each Droplet's hours not yet on an Invoice this Period (rounded up, capped at 672), priced at its Locked price, and each Project's Mail Package: the highest monthly price it held in the Period, less what earlier Invoices of the Period charged for it. A line's kind (droplet or mail) says which fields it carries; the other kind's are omitted. Tax estimated with the Billing profile's Tax rule (0 without a profile); and the Threshold that issues it early. Needs billing.read.",
+                "description": "Each Droplet's hours not yet on an Invoice this Period (rounded up, capped at 672), priced at its Locked price, and each Project's Mail Package and each Storage's Package: the highest monthly price it held in the Period, less what earlier Invoices of the Period charged for it. A line's kind (droplet, mail or storage) says which fields it carries; the other kinds' are omitted. Tax estimated with the Billing profile's Tax rule (0 without a profile); and the Threshold that issues it early. Needs billing.read.",
                 "produces": [
                     "application/json"
                 ],
@@ -953,6 +953,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "0.83"
                 },
+                "bucket_name": {
+                    "type": "string",
+                    "example": "shop-assets"
+                },
                 "droplet_id": {
                     "type": "string"
                 },
@@ -971,7 +975,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "droplet",
-                        "mail"
+                        "mail",
+                        "storage"
                     ]
                 },
                 "package_code": {
@@ -987,6 +992,9 @@ const docTemplate = `{
                 "project_name": {
                     "type": "string",
                     "example": "Shop"
+                },
+                "storage_id": {
+                    "type": "string"
                 }
             }
         },
@@ -1233,6 +1241,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "0.83"
                 },
+                "bucket_name": {
+                    "type": "string",
+                    "example": "shop-assets"
+                },
                 "droplet_id": {
                     "type": "string"
                 },
@@ -1251,7 +1263,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "droplet",
-                        "mail"
+                        "mail",
+                        "storage"
                     ]
                 },
                 "package_code": {
@@ -1267,6 +1280,9 @@ const docTemplate = `{
                 "project_name": {
                     "type": "string",
                     "example": "Shop"
+                },
+                "storage_id": {
+                    "type": "string"
                 }
             }
         },

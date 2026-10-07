@@ -34,6 +34,12 @@ const (
 	MailRatesWarning     = "MailRatesWarning"
 	MailSendingPaused    = "MailSendingPaused"
 
+	// The storage context's news about a Storage.
+	StorageNearlyFull       = "StorageNearlyFull"
+	StorageFull             = "StorageFull"
+	StoragePaused           = "StoragePaused"
+	StorageDowngradeSkipped = "StorageDowngradeSkipped"
+
 	// QueuePrefix keeps this context's queues for the shared domain events
 	// apart from the droplet and billing contexts' queues of the same events.
 	QueuePrefix = "notification."

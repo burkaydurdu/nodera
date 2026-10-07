@@ -9,12 +9,12 @@
           {{template "navbar" .}}
           <tr>
             <td class="content">
-              <p class="title">{{.TeamName}} droplets will be deleted on {{ .DeletionAt.UTC.Format "January 2, 2006" }}</p>
-              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, invoice {{.InvoiceNumber}} is still unpaid. Unless it is paid before {{ .DeletionAt.UTC.Format "January 2, 2006" }}, every droplet of {{.TeamName}} and all of its data will be permanently deleted. This cannot be undone.</p>
+              <p class="title">{{.TeamName}} droplets and Storage files will be deleted on {{ .DeletionAt.UTC.Format "January 2, 2006" }}</p>
+              <p class="subtitle">Hi{{if .FullName}} {{.FullName}}{{end}}, invoice {{.InvoiceNumber}} is still unpaid. Unless it is paid before {{ .DeletionAt.UTC.Format "January 2, 2006" }}, every droplet of {{.TeamName}}, all of its data and everything its Storages hold will be permanently deleted. This cannot be undone.</p>
               <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr><td><a class="btn" href="{{.PayURL}}">Pay the invoice now</a></td></tr>
               </table>
-              <p class="subtitle">Paying the invoice cancels the deletion and powers your droplets back on.</p>
+              <p class="subtitle">Paying the invoice cancels the deletion, powers your droplets back on and reopens your Storages.</p>
               <p class="subtitle">This email was sent to {{.Email}} because it is a billing contact of {{.TeamName}}.</p>
             </td>
           </tr>

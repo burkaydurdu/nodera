@@ -19,6 +19,11 @@ const (
 	MailPackageStarted = "MailPackageStarted"
 	MailPackageStopped = "MailPackageStopped"
 
+	// Routing keys of the storage context's Package events (consumed by the
+	// usage aggregate).
+	StoragePackageStarted = "StoragePackageStarted"
+	StoragePackageStopped = "StoragePackageStopped"
+
 	// Routing keys of the events this context publishes.
 	TeamBillingStatusChanged      = "TeamBillingStatusChanged"
 	TeamDropletsDeletionRequested = "TeamDropletsDeletionRequested"

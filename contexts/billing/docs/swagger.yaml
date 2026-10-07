@@ -165,6 +165,9 @@ definitions:
       amount:
         example: "0.83"
         type: string
+      bucket_name:
+        example: shop-assets
+        type: string
       droplet_id:
         type: string
       hostname:
@@ -179,6 +182,7 @@ definitions:
         enum:
         - droplet
         - mail
+        - storage
         type: string
       package_code:
         example: 10k
@@ -189,6 +193,8 @@ definitions:
         type: string
       project_name:
         example: Shop
+        type: string
+      storage_id:
         type: string
     type: object
   github_com_piggystats_nodera_contexts_billing_application_dto.InvoiceSummary:
@@ -361,6 +367,9 @@ definitions:
       amount:
         example: "0.83"
         type: string
+      bucket_name:
+        example: shop-assets
+        type: string
       droplet_id:
         type: string
       hostname:
@@ -375,6 +384,7 @@ definitions:
         enum:
         - droplet
         - mail
+        - storage
         type: string
       package_code:
         example: 10k
@@ -385,6 +395,8 @@ definitions:
         type: string
       project_name:
         example: Shop
+        type: string
+      storage_id:
         type: string
     type: object
   github_com_piggystats_nodera_contexts_billing_application_dto.UsageThreshold:
@@ -576,9 +588,9 @@ paths:
       - billing
   /v1/teams/{teamID}/billing/invoices/{invoiceID}:
     get:
-      description: A line's kind (droplet or mail) says which fields it carries; the
-        other kind's are omitted. 404 invoice 33-10001 for an unknown Invoice or another
-        Team's. Needs billing.read.
+      description: A line's kind (droplet, mail or storage) says which fields it carries;
+        the other kinds' are omitted. 404 invoice 33-10001 for an unknown Invoice
+        or another Team's. Needs billing.read.
       parameters:
       - description: Team id
         in: path
@@ -865,12 +877,12 @@ paths:
   /v1/teams/{teamID}/billing/usage:
     get:
       description: 'Each Droplet''s hours not yet on an Invoice this Period (rounded
-        up, capped at 672), priced at its Locked price, and each Project''s Mail Package:
-        the highest monthly price it held in the Period, less what earlier Invoices
-        of the Period charged for it. A line''s kind (droplet or mail) says which
-        fields it carries; the other kind''s are omitted. Tax estimated with the Billing
-        profile''s Tax rule (0 without a profile); and the Threshold that issues it
-        early. Needs billing.read.'
+        up, capped at 672), priced at its Locked price, and each Project''s Mail Package
+        and each Storage''s Package: the highest monthly price it held in the Period,
+        less what earlier Invoices of the Period charged for it. A line''s kind (droplet,
+        mail or storage) says which fields it carries; the other kinds'' are omitted.
+        Tax estimated with the Billing profile''s Tax rule (0 without a profile);
+        and the Threshold that issues it early. Needs billing.read.'
       parameters:
       - description: Team id
         in: path

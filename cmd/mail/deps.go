@@ -11,10 +11,10 @@ import (
 	"github.com/piggystats/nodera/contexts/mail/aggregates/message"
 	"github.com/piggystats/nodera/contexts/mail/async/producers"
 	"github.com/piggystats/nodera/contexts/mail/mta/kumomta"
-	"github.com/piggystats/nodera/contexts/mail/secrets"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/internal/persistence/redis"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/secrets"
 )
 
 // returnPathPurpose draws the key that tags return paths from the configured

@@ -12,7 +12,7 @@
   "payment_failed_subject": "Payment failed for {{.TeamName}}: invoice {{.InvoiceNumber}}",
   "payment_confirmation_required_subject": "Confirm your payment for {{.TeamName}}",
   "team_suspended_subject": "{{.TeamName}} has been suspended on Nodera",
-  "droplets_deletion_warning_subject": "Action required: {{.TeamName}} droplets will be deleted",
+  "droplets_deletion_warning_subject": "Action required: {{.TeamName}} droplets and Storage files will be deleted",
   "card_expiring_subject": "Your card ending in {{.Last4}} for {{.TeamName}} is about to expire",
   "droplet_failed_subject": "{{.Hostname}} could not be created",
   "droplet_failure_rejected": "the order was refused",
@@ -27,5 +27,13 @@
   "mail_rates_warning_subject": "High bounce or complaint rate in {{.ProjectName}}",
   "mail_paused_subject": "Mail sending is paused for {{.ProjectName}}",
   "mail_pause_reason_bounce_rate": "too much of its mail bounced",
-  "mail_pause_reason_complaint_rate": "too many recipients reported its mail as spam"
+  "mail_pause_reason_complaint_rate": "too many recipients reported its mail as spam",
+  "storage_nearly_full_subject": "Storage {{.BucketName}} is nearly full",
+  "storage_full_subject": "Storage {{.BucketName}} is full",
+  "storage_paused_subject": "Storage {{.BucketName}} is paused",
+  "storage_downgrade_skipped_subject": "Storage {{.BucketName}} stays on its {{.PackageCode}} package",
+  "storage_pause_reason_abuse_complaint": "a complaint was made about what it holds or publishes",
+  "storage_pause_reason_malware": "it was found to hold or spread malware",
+  "storage_pause_reason_phishing": "it was found to host phishing content",
+  "storage_pause_reason_legal": "a legal request requires it"
 }

@@ -23,9 +23,14 @@ Nodera's second product: a Team's software sends email from the Team's own domai
 delivers it from its own mail servers. Lives in a Project. Defined in the mail context as well.
 _Avoid_: email (the notification Channel), mail provider
 
+**Storage**:
+Nodera's third product: a Team keeps its files in S3 buckets on Nodera's own storage servers, each
+bucket a Storage on its own Package. Lives in a Project. Defined in the storage context as well.
+_Avoid_: Space, bucket (bare), storage provider
+
 **App**:
-One product's own area of the web app, with its own side menu, that a User switches to: Droplets
-or Mail. An arrangement of the web app; Nodera keeps no record of it.
+One product's own area of the web app, with its own side menu, that a User switches to: Droplets,
+Mail or Storage. An arrangement of the web app; Nodera keeps no record of it.
 _Avoid_: module, product page, service (a service is a backend binary)
 
 ### People and groups
@@ -43,8 +48,8 @@ _Avoid_: workspace, organisation, customer, tenant, personal account
 **Role**:
 What a member may do inside one Team, as a named bundle of Permissions. A member holds exactly
 one Role per Team. `owner` runs the Team and its members (the creator starts as one; a Team may
-have several), `developer` works with Projects, Droplets, SSH keys, Mail and API keys, `finance`
-sees Droplets and Mail and handles invoices and payment methods.
+have several), `developer` works with Projects, Droplets, SSH keys, Mail, Storage and API keys,
+`finance` sees Droplets, Mail and Storage and handles invoices and payment methods.
 _Avoid_: admin (that is Nodera's own operator side), permission (a Role is made of them), group
 
 **Permission**:
@@ -61,7 +66,7 @@ _Avoid_: invite (the verb), request (that would come from the joiner), share
 
 **Project**:
 A named grouping of a Team's resources, like a namespace. Belongs to exactly one Team. A User
-creates their first one right after signing in; Droplets and Mail live inside it.
+creates their first one right after signing in; Droplets, Mail and Storage live inside it.
 _Avoid_: workspace, folder, environment
 
 **SSH key**:
@@ -105,4 +110,5 @@ _Avoid_: token (bare), login
 A secret a Team's software presents to call Nodera through the integration gateway instead of a
 User signing in (ADR-0010). Belongs to one Project, acts only on it, and carries Permissions chosen
 when it is created, never wider than its creator's.
-_Avoid_: token (bare; that is a Session's), access key, credential, secret
+_Avoid_: token (bare; that is a Session's), access key (that is Storage's, for S3), credential,
+secret

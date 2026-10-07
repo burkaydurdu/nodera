@@ -46,6 +46,14 @@
   {{range .MailLines}}<tr><td>Mail · {{.ProjectName}} · {{.PackageCode}}</td><td class="num">{{.Amount}}</td></tr>
   {{end}}
   </tbody>
+</table>{{end}}{{if .StorageLines}}
+
+<table class="lines">
+  <thead><tr><th>Storage package</th><th class="num">Amount</th></tr></thead>
+  <tbody>
+  {{range .StorageLines}}<tr><td>Storage · {{.BucketName}} · {{.PackageCode}}</td><td class="num">{{.Amount}}</td></tr>
+  {{end}}
+  </tbody>
 </table>{{end}}
 
 <table class="totals">
@@ -58,6 +66,6 @@
   <tr class="rate"><td colspan="2">Converted at the Central Bank of the Republic of Türkiye USD buying rate of {{date "2 January 2006" .RateDate}}: 1 USD = {{.Rate}} {{.Currency}}</td></tr>{{end}}
 </table>
 
-<footer>Prices are in US dollars.{{if .DropletLines}} Hours are counted from the moment a Droplet became active until its deletion was requested, rounded up to whole hours and capped at 672 per Droplet per period.{{end}}{{if .MailLines}} A Mail line is the price of the largest Package the Project held in the period, less what an earlier statement of the period already charged for it.{{end}}</footer>
+<footer>Prices are in US dollars.{{if .DropletLines}} Hours are counted from the moment a Droplet became active until its deletion was requested, rounded up to whole hours and capped at 672 per Droplet per period.{{end}}{{if .MailLines}} A Mail line is the price of the largest Package the Project held in the period, less what an earlier statement of the period already charged for it.{{end}}{{if .StorageLines}} A Storage line is the price of the largest Package the Storage held in the period, less what an earlier statement of the period already charged for it.{{end}}</footer>
 </body>
 </html>{{end}}

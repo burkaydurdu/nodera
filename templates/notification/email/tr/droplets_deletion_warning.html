@@ -9,12 +9,12 @@
           {{template "navbar" .}}
           <tr>
             <td class="content">
-              <p class="title">{{.TeamName}} droplet'leri {{ .DeletionAt.UTC.Format "02.01.2006" }} tarihinde silinecek</p>
-              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{.InvoiceNumber}} numaralı fatura hâlâ ödenmedi. {{ .DeletionAt.UTC.Format "02.01.2006" }} tarihinden önce ödenmezse {{.TeamName}} takımının tüm droplet'leri ve verileri kalıcı olarak silinecek. Bu işlem geri alınamaz.</p>
+              <p class="title">{{.TeamName}} droplet'leri ve Storage dosyaları {{ .DeletionAt.UTC.Format "02.01.2006" }} tarihinde silinecek</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{.InvoiceNumber}} numaralı fatura hâlâ ödenmedi. {{ .DeletionAt.UTC.Format "02.01.2006" }} tarihinden önce ödenmezse {{.TeamName}} takımının tüm droplet'leri, verileri ve Storage'larının tuttuğu her şey kalıcı olarak silinecek. Bu işlem geri alınamaz.</p>
               <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr><td><a class="btn" href="{{.PayURL}}">Faturayı şimdi öde</a></td></tr>
               </table>
-              <p class="subtitle">Faturayı ödemek silme işlemini iptal eder ve droplet'lerini yeniden açar.</p>
+              <p class="subtitle">Faturayı ödemek silme işlemini iptal eder, droplet'lerini yeniden açar ve Storage'larını yeniden erişilir kılar.</p>
               <p class="subtitle">Bu e-posta {{.TeamName}} takımının fatura iletişim adresi olduğu için {{.Email}} adresine gönderildi.</p>
             </td>
           </tr>

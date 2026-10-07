@@ -51,7 +51,7 @@ password = ""
 [sendgrid]
 api_key = ""
 
-# The web app's origin: the links in Mail's emails open there.
+# The web app's origin: the links in Mail's and Storage's emails open there.
 [domain]
 front = "http://localhost:3002"
 

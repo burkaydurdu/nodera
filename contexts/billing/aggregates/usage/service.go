@@ -18,11 +18,17 @@ type IService interface {
 	// and tolerate arriving in either order.
 	StartMail(ctx context.Context, i *MailInterval) error
 	StopMail(ctx context.Context, projectID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error
+	// StartStorage and StopStorage do the same for a Storage's Package
+	// intervals, named by the Storage and their start.
+	StartStorage(ctx context.Context, i *StorageInterval) error
+	StopStorage(ctx context.Context, storageID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error
 	// FindForTeam answers the Team's Droplets that ran at some point in
-	// [from, to), FindMailForTeam its Package intervals held at some point in
-	// it; TeamsWithUsage the Teams that have either.
+	// [from, to), FindMailForTeam and FindStorageForTeam its Mail and Storage
+	// Package intervals held at some point in it; TeamsWithUsage the Teams
+	// that have any of the three.
 	FindForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*Usage, error)
 	FindMailForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*MailInterval, error)
+	FindStorageForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*StorageInterval, error)
 	TeamsWithUsage(ctx context.Context, from, to time.Time) ([]uuid.UUID, error)
 	// FirstStartedAt answers when the Team's first Droplet started; nil
 	// without one.
@@ -34,8 +40,11 @@ type IRepository interface {
 	Stop(ctx context.Context, dropletID, teamID uuid.UUID, stoppedAt time.Time) error
 	StartMail(ctx context.Context, i *MailInterval) error
 	StopMail(ctx context.Context, projectID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error
+	StartStorage(ctx context.Context, i *StorageInterval) error
+	StopStorage(ctx context.Context, storageID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error
 	FindForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*Usage, error)
 	FindMailForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*MailInterval, error)
+	FindStorageForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*StorageInterval, error)
 	TeamsWithUsage(ctx context.Context, from, to time.Time) ([]uuid.UUID, error)
 	FirstStartedAt(ctx context.Context, teamID uuid.UUID) (*time.Time, error)
 }
@@ -64,12 +73,24 @@ func (s *Service) StopMail(ctx context.Context, projectID, teamID uuid.UUID, sta
 	return s.repository.StopMail(ctx, projectID, teamID, startedAt, stoppedAt)
 }
 
+func (s *Service) StartStorage(ctx context.Context, i *StorageInterval) error {
+	return s.repository.StartStorage(ctx, i)
+}
+
+func (s *Service) StopStorage(ctx context.Context, storageID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error {
+	return s.repository.StopStorage(ctx, storageID, teamID, startedAt, stoppedAt)
+}
+
 func (s *Service) FindForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*Usage, error) {
 	return s.repository.FindForTeam(ctx, teamID, from, to)
 }
 
 func (s *Service) FindMailForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*MailInterval, error) {
 	return s.repository.FindMailForTeam(ctx, teamID, from, to)
+}
+
+func (s *Service) FindStorageForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*StorageInterval, error) {
+	return s.repository.FindStorageForTeam(ctx, teamID, from, to)
 }
 
 func (s *Service) TeamsWithUsage(ctx context.Context, from, to time.Time) ([]uuid.UUID, error) {

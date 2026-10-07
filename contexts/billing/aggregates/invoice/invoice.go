@@ -71,11 +71,13 @@ type LineKind string
 const (
 	LineDroplet LineKind = "droplet"
 	LineMail    LineKind = "mail"
+	LineStorage LineKind = "storage"
 )
 
 // Line is one priced row of the Invoice: a Droplet's hours at its Locked
-// price, or the Mail Package a Project held in the Period. Each kind fills
-// its own fields and leaves the other's empty.
+// price, the Mail Package a Project held in the Period, or the Package one
+// Storage held in it. Each kind fills its own fields and leaves the others'
+// empty.
 type Line struct {
 	Kind   LineKind
 	Amount decimal.Decimal
@@ -85,10 +87,13 @@ type Line struct {
 	PlanCode    string
 	Hours       int
 	HourlyPrice decimal.Decimal
-	// Mail lines only.
+	// Mail and Storage lines: the Project and the Package.
 	ProjectID   uuid.UUID
 	ProjectName string
 	PackageCode string
+	// Storage lines only.
+	StorageID  uuid.UUID
+	BucketName string
 }
 
 // TaxLine keeps the rule's label key for the e-invoice issuer and the label

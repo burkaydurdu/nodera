@@ -34,6 +34,7 @@ type Statement struct {
 	Payer        Payer
 	DropletLines []DropletLine
 	MailLines    []MailLine
+	StorageLines []StorageLine
 	TaxLines     []TaxLine
 	Currency     string
 	Subtotal     string
@@ -69,6 +70,14 @@ type DropletLine struct {
 // are names the Team chose or saw in the product, never translated.
 type MailLine struct {
 	ProjectName string
+	PackageCode string
+	Amount      string
+}
+
+// StorageLine is printed "Storage · <bucket name> · <package>" in every
+// locale, for the same reason.
+type StorageLine struct {
+	BucketName  string
 	PackageCode string
 	Amount      string
 }

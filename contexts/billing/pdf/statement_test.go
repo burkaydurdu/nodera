@@ -83,6 +83,47 @@ func TestHTML_ADropletOnlyStatementMentionsNoMail(t *testing.T) {
 	}
 }
 
+func TestHTML_StorageLinesNameTheBucketAndThePackageInBothLocales(t *testing.T) {
+	for locale, footer := range map[string]string{
+		"en": "the largest Package the Storage held in the period",
+		"tr": "Storage'ın dönem içinde sahip olduğu en büyük paketin",
+	} {
+		s := statement(locale)
+		s.StorageLines = []pdf.StorageLine{{BucketName: "shop-assets", PackageCode: "250gb", Amount: "10.00"}, {BucketName: "shop-backups", PackageCode: "50gb", Amount: "3.00"}}
+		html, err := pdf.HTML(s)
+		require.NoError(t, err)
+
+		assert.Contains(t, html, `<tr><td>Storage · shop-assets · 250gb</td><td class="num">10.00</td></tr>`, locale)
+		assert.Contains(t, html, `<tr><td>Storage · shop-backups · 50gb</td><td class="num">3.00</td></tr>`, locale)
+		assert.Contains(t, html, "web-1", "%s: the Droplet lines stay", locale)
+		assert.Contains(t, html, footer, locale)
+		assert.NotContains(t, html, "Mail", "%s: no Mail table without Mail lines", locale)
+	}
+}
+
+func TestHTML_AStorageOnlyStatementShowsNoDropletTable(t *testing.T) {
+	s := statement("en")
+	s.DropletLines = nil
+	s.StorageLines = []pdf.StorageLine{{BucketName: "shop-assets", PackageCode: "250gb", Amount: "10.00"}}
+	html, err := pdf.HTML(s)
+	require.NoError(t, err)
+
+	assert.Contains(t, html, "Storage · shop-assets · 250gb")
+	assert.NotContains(t, html, "Hourly price")
+	assert.NotContains(t, html, "Hours are counted", "the Droplet hours rule has nothing to explain")
+}
+
+func TestHTML_AStatementWithoutStorageMentionsNoStorage(t *testing.T) {
+	for _, locale := range []string{"en", "tr"} {
+		s := statement(locale)
+		s.MailLines = []pdf.MailLine{{ProjectName: "Shop", PackageCode: "10k", Amount: "9.00"}}
+		html, err := pdf.HTML(s)
+		require.NoError(t, err)
+
+		assert.NotContains(t, html, "Storage", locale)
+	}
+}
+
 func TestTaxLineRate(t *testing.T) {
 	assert.Equal(t, "20", pdf.TaxLine{RateBps: 2000}.Rate())
 	assert.Equal(t, "0", pdf.TaxLine{RateBps: 0}.Rate())

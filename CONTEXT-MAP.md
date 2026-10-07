@@ -3,8 +3,9 @@
 Nodera is a self-service cloud platform: a customer asks for a CPU/RAM/disk/region combination and
 receives a Droplet, which is a bare-metal server the platform rents from an integrated provider and
 sets up on the customer's behalf. The customer never sees the provider. Its second product, Mail,
-delivers a Team's email from the Team's own domains on Nodera's own mail servers. Each product is
-an App the web app switches between.
+delivers a Team's email from the Team's own domains on Nodera's own mail servers. Its third product, Storage, keeps a
+Team's files in S3 buckets on Nodera's own storage servers. Each product is an App the web app
+switches between.
 
 Bounded contexts live under `contexts/<name>/`. A context gets a `CONTEXT.md` when its vocabulary
 is first written down, so this list grows as terms are settled.
@@ -29,6 +30,8 @@ is first written down, so this list grows as terms are settled.
 - Realtime (`contexts/realtime/`): platform infrastructure, like the gateway, not a bounded
   context: the web app's live socket, which knows Users, Teams and Permissions from the access
   token and nothing else (ADR-0007).
+- [Storage](./contexts/storage/CONTEXT.md): the third product — a Team's files in S3 buckets on
+  Nodera's own storage servers, each a Storage on its own Package (ADR-0012).
 - Admin (planned): the operator-facing side. Not started.
 
 ## Relationships
@@ -79,3 +82,14 @@ is first written down, so this list grows as terms are settled.
   carries no domain event and never goes from one context to another (ADR-0007).
 - **Customer gateway → Realtime**: the socket's route is headerless and public; the realtime
   service authenticates the token in the first frame.
+- **Customer → Storage**: customer emits Team and Project events; storage keeps its own Project
+  access read model from them, like droplet and mail (ADR-0004).
+- **Storage → Billing**: storage tells billing the Package each Storage is on, as intervals;
+  billing charges each Storage on the Team's Invoice for the Period.
+- **Billing → Storage**: billing emits a Team's Billing status; storage refuses opening a Storage
+  or changing its Package without a Payment method, stops a suspended Team's Storages, and deletes
+  them on the day its Droplets are deleted.
+- **Storage → Notification**: storage emits what happened to a Storage (nearly full, full, Paused,
+  a smaller Package not applied); notification tells the members holding `storage.read`.
+- **Customer gateway → Storage**: the gateway fronts the Storage management API as a sixth target;
+  the storage service authorizes each route through its Project access read model.

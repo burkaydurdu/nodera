@@ -113,8 +113,8 @@ func (r *Repository) Create(ctx context.Context, inv *Invoice) error {
 	for i, l := range inv.Lines {
 		if _, err := executor.Exec(ctx, `
 			INSERT INTO invoice_lines (invoice_id, position, kind, droplet_id, hostname, plan_code, hours, hourly_price,
-				project_id, project_name, package_code, amount)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, lineValues(inv.ID, i, l)...); err != nil {
+				project_id, project_name, package_code, storage_id, bucket_name, amount)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, lineValues(inv.ID, i, l)...); err != nil {
 			return ErrorCannotStore.Copy().SetError(err)
 		}
 	}
@@ -188,6 +188,11 @@ func (r *Repository) BilledHours(ctx context.Context, teamID uuid.UUID, periodSt
 func (r *Repository) BilledMail(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error) {
 	return scanSums[decimal.Decimal](r.queries.Executor(ctx).Query(ctx,
 		`SELECT l.project_id, sum(l.amount)`+billedLines+` GROUP BY l.project_id`, teamID, periodStart, StatusVoid, LineMail))
+}
+
+func (r *Repository) BilledStorage(ctx context.Context, teamID uuid.UUID, periodStart time.Time) (map[uuid.UUID]decimal.Decimal, error) {
+	return scanSums[decimal.Decimal](r.queries.Executor(ctx).Query(ctx,
+		`SELECT l.storage_id, sum(l.amount)`+billedLines+` GROUP BY l.storage_id`, teamID, periodStart, StatusVoid, LineStorage))
 }
 
 func scanSums[V any](rows pgx.Rows, err error) (map[uuid.UUID]V, error) {
@@ -309,7 +314,7 @@ func (r *Repository) UnpaidExists(ctx context.Context, teamID uuid.UUID) (bool, 
 func (r *Repository) loadLines(ctx context.Context, inv *Invoice) error {
 	executor := r.queries.Executor(ctx)
 	rows, err := executor.Query(ctx, `
-		SELECT kind, droplet_id, hostname, plan_code, hours, hourly_price, project_id, project_name, package_code, amount
+		SELECT kind, droplet_id, hostname, plan_code, hours, hourly_price, project_id, project_name, package_code, storage_id, bucket_name, amount
 		FROM invoice_lines WHERE invoice_id = $1 ORDER BY position`, inv.ID)
 	if err != nil {
 		return ErrorCannotRead.Copy().SetError(err)
@@ -352,13 +357,16 @@ func (r *Repository) loadLines(ctx context.Context, inv *Invoice) error {
 }
 
 // lineValues answers a line's row: its own kind's columns and NULL for the
-// other kind's, as the table's checks require.
+// other kinds', as the table's checks require.
 func lineValues(invoiceID uuid.UUID, position int, l Line) []any {
-	if l.Kind == LineMail {
-		return []any{invoiceID, position, l.Kind, nil, nil, nil, nil, nil, l.ProjectID, l.ProjectName, l.PackageCode, l.Amount}
+	switch l.Kind {
+	case LineMail:
+		return []any{invoiceID, position, l.Kind, nil, nil, nil, nil, nil, l.ProjectID, l.ProjectName, l.PackageCode, nil, nil, l.Amount}
+	case LineStorage:
+		return []any{invoiceID, position, l.Kind, nil, nil, nil, nil, nil, l.ProjectID, l.ProjectName, l.PackageCode, l.StorageID, l.BucketName, l.Amount}
+	default:
+		return []any{invoiceID, position, l.Kind, l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice, nil, nil, nil, nil, nil, l.Amount}
 	}
-
-	return []any{invoiceID, position, l.Kind, l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice, nil, nil, nil, l.Amount}
 }
 
 func scanLine(row pgx.Row) (Line, error) {
@@ -372,16 +380,22 @@ func scanLine(row pgx.Row) (Line, error) {
 		projectID   *uuid.UUID
 		projectName *string
 		packageCode *string
+		storageID   *uuid.UUID
+		bucketName  *string
 	)
-	if err := row.Scan(&l.Kind, &dropletID, &hostname, &planCode, &hours, &hourlyPrice, &projectID, &projectName, &packageCode, &l.Amount); err != nil {
+	if err := row.Scan(&l.Kind, &dropletID, &hostname, &planCode, &hours, &hourlyPrice, &projectID, &projectName, &packageCode,
+		&storageID, &bucketName, &l.Amount); err != nil {
 		return Line{}, ErrorCannotRead.Copy().SetError(err)
 	}
-	if l.Kind == LineMail {
+	switch l.Kind {
+	case LineMail:
 		l.ProjectID, l.ProjectName, l.PackageCode = *projectID, *projectName, *packageCode
-
-		return l, nil
+	case LineStorage:
+		l.ProjectID, l.ProjectName, l.PackageCode = *projectID, *projectName, *packageCode
+		l.StorageID, l.BucketName = *storageID, *bucketName
+	default:
+		l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice = *dropletID, *hostname, *planCode, *hours, hourlyPrice.Decimal
 	}
-	l.DropletID, l.Hostname, l.PlanCode, l.Hours, l.HourlyPrice = *dropletID, *hostname, *planCode, *hours, hourlyPrice.Decimal
 
 	return l, nil
 }

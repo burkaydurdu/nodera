@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Nodera backend (Go, DDD). Bounded contexts under `contexts/` (customer, droplet, billing, mail,
-gateway, notification, and realtime, which is infrastructure); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per-context
+storage, gateway, notification, and realtime, which is infrastructure); binaries under `cmd/`. Vocabulary in `CONTEXT-MAP.md` and the per-context
 `CONTEXT.md`; decisions in `docs/adr/`. Read the glossary before naming anything.
 
 ## Rules that bind
@@ -14,9 +14,9 @@ gateway, notification, and realtime, which is infrastructure); binaries under `c
   idempotent so a redelivery is harmless.
 - **A context never imports another context.** Runtime coupling is events over RabbitMQ;
   each context declares its own event types (`contexts/customer/async/events`,
-  `contexts/notification/events`, `contexts/droplet/async/events`, `contexts/mail/async/events`).
-  The droplet and mail contexts know Projects only through their event-fed read models
-  (docs/adr/0004); they never query customer.
+  `contexts/notification/events`, `contexts/droplet/async/events`, `contexts/mail/async/events`,
+  `contexts/storage/async/events`). The droplet, mail and storage contexts know Projects only
+  through their event-fed read models (docs/adr/0004); they never query customer.
 - **Providers** (Cherry Servers today) are adapters behind `contexts/droplet/providers`; a
   Provider must bill hourly and permit resale (docs/adr/0003). **Payment providers** (Craftgate
   today, Stripe built but unrouted) are adapters behind `contexts/billing/providers`, chosen by a
@@ -28,15 +28,28 @@ gateway, notification, and realtime, which is infrastructure); binaries under `c
   takes the MTA's log records on its internal listener, and it serves the zone the Sending
   domains' CNAMEs point at (`mail dns`, docs/adr/0011). Message bodies are never kept after the
   MTA takes them; logs keep metadata for 30 days.
+- **Storage** has no Provider either: a Storage is one bucket on Nodera's own Ceph cluster
+  (docs/adr/0012), behind the engine port `contexts/storage/engine` (handlers consume
+  `handlers.Engine`; adapters `engine/ceph` and `engine/fake`). A Project is a Ceph account, a
+  Storage a bucket with its Package as the bucket quota, an Access key an IAM user of the account
+  that reaches one bucket; no key may create or delete a bucket. The storage service is the source
+  of truth: a handler changes the database, announces after the commit, then asks the engine; the
+  reconcile job repeats what the engine did not take (`engine_*` columns trail the row). Access keys
+  are not API keys: Ceph holds the secret and Nodera never does. Pause and a suspended Team use the
+  same engine stop. Public endpoint and path style come from `[engine]` config; the engine's name
+  never reaches a DTO or an error message.
 - **API keys** belong to a Project and live in the customer context; Redis `api_key:<id>` is
   their wire contract with the integration gateway and the mail service, like a Session's
   (docs/adr/0010). A key carries Permissions from `authz.KeyPermissions`, never wider than its
   creator's.
 - **Billing** is postpaid per Team and calendar month (UTC); the droplet context learns a Team's
   Billing status from events and refuses creation without a Payment method (402) or when
-  suspended (423), and the mail context refuses a Package the same way and stops a suspended
-  Team's sending. Usage flows droplet → billing (Droplet hours) and mail → billing (Package
-  intervals) as events; the Invoice model carries the e-invoice fields even while PDFs are
+  suspended (423), the mail context refuses a Package the same way and stops a suspended
+  Team's sending, and the storage context refuses opening a Storage or changing its Package the
+  same way, stops a suspended Team's Storages and deletes them on day 21. Usage flows droplet →
+  billing (Droplet hours), mail → billing (Package intervals) and storage → billing (Package
+  intervals per Storage) as events; the highest-price-in-Period rule lives once in
+  `contexts/billing/aggregates/usage` and serves both; the Invoice model carries the e-invoice fields even while PDFs are
   statements.
 - **Notifications** are recorded for good and delivered per Channel (`email`, `sms`, `in_app`),
   each Channel's delivery tracked so a redelivery never sends twice. The notification context
@@ -63,14 +76,14 @@ gateway, notification, and realtime, which is infrastructure); binaries under `c
   `c.Bind` + `c.Validate`, never `c.Param`. Responses are `application/dto`.
 - **Errors** are `piggystats/rerror` values with a repo-wide unique `Domain` per aggregate
   (`error.go`) and an explicit `HttpStatus`. Taken domains: customer 1–9, 12, 13; droplet
-  20–24; billing 30–39; notification 40–41; mail 50–58; common 100. Never mutate a var: `.Copy()` first. Sign-in
+  20–24; billing 30–39; notification 40–41; mail 50–58; storage 60–66; common 100. Never mutate a var: `.Copy()` first. Sign-in
   answers `user.ErrorNotFound` for a wrong email and a wrong password alike.
 - **Transactions** ride the context (`transactions.Begin(ctx)`); repositories reach them
   through `queries.Executor(ctx)`. An outbox publish runs after `Commit`, never inside
   (docs/adr/0001).
 - **Gateway route table** (`cmd/customer-gateway/.conf/gateway/{dev,test,alpha,prod}.yaml`)
   is deny-by-default and split per upstream (`customer`, `droplet`, `billing`, `notification`,
-  `mail`, selected by `X-Target-Server`; `realtime` has only the headerless socket route). A new or renamed route is not shipped until all four files carry it
+  `mail`, `storage`, selected by `X-Target-Server`; `realtime` has only the headerless socket route). A new or renamed route is not shipped until all four files carry it
   under the right service.
 - **Integration gateway route table** (`cmd/integration-gateway/.conf/gateway/{dev,test,alpha,prod}.yaml`)
   fronts the services for software holding a Project API key (docs/adr/0010). Deny-by-default with
@@ -98,30 +111,34 @@ gateway, notification, and realtime, which is infrastructure); binaries under `c
   `cmd/realtime/integration-test` (redis, two replicas, real WebSocket clients),
   `cmd/mail/integration-test` (postgres:18, redis, mongo:8.2, the fake MTA, a fake resolver, a
   recording Webhook receiver, the SMTP relay on a real socket, jobs and consumers called directly,
-  a controllable clock), `cmd/customer-gateway/gateway_integration_test.go` and
+  a controllable clock), `cmd/storage/integration-test` (postgres:18, redis, mongo:8.2, the fake
+  engine, jobs and consumers called directly, a controllable clock), `cmd/customer-gateway/gateway_integration_test.go` and
   `cmd/integration-gateway/gateway_integration_test.go` (redis, a stub mail upstream); gated by
   `INTEGRATION=true`; assert the exact `HttpStatus` of the triggered rerror. The customer and
-  droplet suites are the primary seams and every user-facing flow gets a scenario there; so is
-  the mail suite for Mail. The real Cherry API is touched only by the read-only contract test
+  droplet suites are the primary seams and every user-facing flow gets a scenario there; so are
+  the mail suite for Mail and the storage suite for Storage. The real Cherry API is touched only by the read-only contract test
   under `NODERA_DROPLET_SMOKE`; a real KumoMTA runs the policy only in the contract test under
-  `NODERA_MAIL_SMOKE`.
+  `NODERA_MAIL_SMOKE`; a real Ceph runs only in the contract test under `NODERA_STORAGE_SMOKE`.
 - Tools built with this module's Go version live in `.local/bin` (`make tools`); the
   Makefile prepends it to PATH.
 
 ## Commands
 
 `make docker-up`, `make migrate-customer` / `make migrate-droplet` / `make migrate-billing` /
-`make migrate-notification` / `make migrate-mail`, `make seed-customer` /
-`make seed-droplet` / `make seed-mail`, `make create-db-mail` (an older postgres volume), `make start`
+`make migrate-notification` / `make migrate-mail` / `make migrate-storage`, `make seed-customer` /
+`make seed-droplet` / `make seed-mail` / `make seed-storage`, `make create-db-mail` /
+`make create-db-storage` (an older postgres volume), `make start`
 / `make stop` / `make logs-tail`, `make test`, `make test-all`,
 `make test-droplet-integration`, `make test-billing-integration`, `make test-notification-integration`,
-`make test-realtime-integration`, `make test-mail-integration`, `make test-integration-gateway`,
-`make test-kumomta-contract`, `make lint`, `make swagger-customer` / `make swagger-droplet` /
-`make swagger-notification` / `make swagger-mail`,
+`make test-realtime-integration`, `make test-mail-integration`, `make test-storage-integration`,
+`make test-integration-gateway`, `make test-kumomta-contract`, `make test-ceph-contract`, `make lint`,
+`make swagger-customer` / `make swagger-droplet` / `make swagger-notification` / `make swagger-mail` /
+`make swagger-storage`,
 `make generate`. One-off: `go run ./cmd/customer replay-projects --env=dev` republishes Team and
 Project events for rows that predate them; `go run ./cmd/customer sync-api-keys --env=dev` rewrites
 every API key into Redis from the database. Operator: `make unpause-mail PROJECT=<id>` lifts a
-Project's Pause. Dev only: `make sample-notification TEAM=<id> [TYPE=…|all]`
+Project's Pause; `make pause-storage STORAGE=<id> REASON=<code>` / `make unpause-storage STORAGE=<id>`
+stop and reopen a Storage. Dev only: `make sample-notification TEAM=<id> [TYPE=…|all]`
 sends a sample Notification through RabbitMQ; `make sample-payment-method TEAM=<id>` saves a
 Payment method no provider holds (dev has no provider credentials), which makes a Team active;
 `make verify-sending-domain SENDING_DOMAIN=<id>` verifies a Sending domain as if its DNS records

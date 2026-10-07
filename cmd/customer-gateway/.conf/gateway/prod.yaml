@@ -312,3 +312,46 @@ gateway:
           method: DELETE
         - path: /v1/projects/:projectID/mail/webhooks/:webhookID/deliveries
           method: GET
+    # Selected by X-Target-Server: storage. No route names a Team, so none lists
+    # permissions: the storage service authorizes each one itself through its
+    # Project access read model, storage.read to read and storage.write to change.
+    storage:
+      # PLACEHOLDER: the storage service's prod address, once it is deployed.
+      host: http://nodera-storage:9710
+      endpoints:
+        - path: /v1/storage/regions
+          method: GET
+        - path: /v1/storage/packages
+          method: GET
+        - path: /v1/projects/:projectID/storages
+          method: GET
+        - path: /v1/projects/:projectID/storages
+          method: POST
+        - path: /v1/projects/:projectID/storages/:storageID
+          method: GET
+        - path: /v1/projects/:projectID/storages/:storageID
+          method: DELETE
+        - path: /v1/projects/:projectID/storages/:storageID/package
+          method: PUT
+        - path: /v1/projects/:projectID/storages/:storageID/access-keys
+          method: GET
+        - path: /v1/projects/:projectID/storages/:storageID/access-keys
+          method: POST
+        - path: /v1/projects/:projectID/storages/:storageID/access-keys/:accessKeyID
+          method: DELETE
+        - path: /v1/projects/:projectID/storages/:storageID/objects
+          method: GET
+        - path: /v1/projects/:projectID/storages/:storageID/objects/delete
+          method: POST
+        - path: /v1/projects/:projectID/storages/:storageID/objects/download-url
+          method: POST
+        - path: /v1/projects/:projectID/storages/:storageID/objects/upload-url
+          method: POST
+        - path: /v1/projects/:projectID/storages/:storageID/objects/access
+          method: GET
+        - path: /v1/projects/:projectID/storages/:storageID/objects/access
+          method: PUT
+        - path: /v1/projects/:projectID/storages/:storageID/browser-access
+          method: PUT
+        - path: /v1/projects/:projectID/storages/:storageID/usage
+          method: GET

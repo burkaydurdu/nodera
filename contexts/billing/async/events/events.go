@@ -111,6 +111,37 @@ type MailPackageStoppedEvent struct {
 }
 
 // ---------------------------------------------------------------------------
+// Consumed: storage context (Packages)
+// ---------------------------------------------------------------------------
+
+// StoragePackageStartedEvent opens the interval (storage_id, started_at); the
+// monthly price is USD with two decimals, copied when the Package was chosen.
+type StoragePackageStartedEvent struct {
+	Payload struct {
+		StorageID    uuid.UUID `json:"storage_id"`
+		TeamID       uuid.UUID `json:"team_id"`
+		ProjectID    uuid.UUID `json:"project_id"`
+		ProjectName  string    `json:"project_name"`
+		BucketName   string    `json:"bucket_name"`
+		Region       string    `json:"region"`
+		PackageCode  string    `json:"package_code"`
+		SizeBytes    int64     `json:"size_bytes"`
+		MonthlyPrice string    `json:"monthly_price"`
+		StartedAt    time.Time `json:"started_at"`
+	} `json:"payload"`
+}
+
+// StoragePackageStoppedEvent closes the interval its started_at names.
+type StoragePackageStoppedEvent struct {
+	Payload struct {
+		StorageID uuid.UUID `json:"storage_id"`
+		TeamID    uuid.UUID `json:"team_id"`
+		StartedAt time.Time `json:"started_at"`
+		StoppedAt time.Time `json:"stopped_at"`
+	} `json:"payload"`
+}
+
+// ---------------------------------------------------------------------------
 // Published
 // ---------------------------------------------------------------------------
 

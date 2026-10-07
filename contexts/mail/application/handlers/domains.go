@@ -14,10 +14,10 @@ import (
 	"github.com/piggystats/nodera/contexts/mail/aggregates/access"
 	"github.com/piggystats/nodera/contexts/mail/aggregates/sendingdomain"
 	"github.com/piggystats/nodera/contexts/mail/application/dto"
-	"github.com/piggystats/nodera/contexts/mail/secrets"
 	"github.com/piggystats/nodera/internal/persistence/postgresql"
 	"github.com/piggystats/nodera/logger"
 	"github.com/piggystats/nodera/pkg/authz"
+	"github.com/piggystats/nodera/pkg/secrets"
 )
 
 const tokenAttempts = 3

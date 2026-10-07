@@ -192,7 +192,7 @@ func BuildJobs(d Dependencies) *jobs.Jobs {
 
 // BuildConsumers answers every event consumer the worker binds.
 func BuildConsumers(d Dependencies) []consumers.Source {
-	return []consumers.Source{BuildCustomerConsumer(d), BuildUsageConsumer(d), BuildMailPackageConsumer(d)}
+	return []consumers.Source{BuildCustomerConsumer(d), BuildUsageConsumer(d), BuildMailPackageConsumer(d), BuildStoragePackageConsumer(d)}
 }
 
 func BuildUsageConsumer(d Dependencies) *consumers.UsageEvents {
@@ -201,6 +201,10 @@ func BuildUsageConsumer(d Dependencies) *consumers.UsageEvents {
 
 func BuildMailPackageConsumer(d Dependencies) *consumers.MailPackageEvents {
 	return consumers.NewMailPackageEvents(NewServices(d.Pool).Usage)
+}
+
+func BuildStoragePackageConsumer(d Dependencies) *consumers.StoragePackageEvents {
+	return consumers.NewStoragePackageEvents(NewServices(d.Pool).Usage)
 }
 
 func BuildCustomerConsumer(d Dependencies) *consumers.CustomerEvents {

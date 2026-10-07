@@ -48,10 +48,10 @@ import (
 	"github.com/piggystats/nodera/contexts/mail/async/constants"
 	"github.com/piggystats/nodera/contexts/mail/async/consumers"
 	"github.com/piggystats/nodera/contexts/mail/mta/fake"
-	"github.com/piggystats/nodera/contexts/mail/secrets"
 	"github.com/piggystats/nodera/contexts/mail/smtp"
 	"github.com/piggystats/nodera/internal/persistence/redis"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/secrets"
 	"github.com/piggystats/nodera/utils/str"
 )
 

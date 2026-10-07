@@ -13,11 +13,12 @@ spec: [docs/specs](docs/specs).
 | Binary | Purpose | Dev port |
 | --- | --- | --- |
 | `cmd/customer` | customer service: sign-up, sign-in, MFA, profile, teams, projects, SSH keys (`server`, `outbox`, `migrate`, `seed`, `replay-projects`) | 9650 |
-| `cmd/customer-gateway` | reverse proxy in front of the customer, droplet, billing, notification and mail services and the realtime socket; `X-Target-Server` (`customer`, `droplet`, `billing`, `notification` or `mail`) picks the upstream, the headerless `/v1/realtime` route reaches the realtime service, and the route table per upstream is the authorization source of truth | 3460 |
+| `cmd/customer-gateway` | reverse proxy in front of the customer, droplet, billing, notification, mail and storage services and the realtime socket; `X-Target-Server` (`customer`, `droplet`, `billing`, `notification`, `mail` or `storage`) picks the upstream, the headerless `/v1/realtime` route reaches the realtime service, and the route table per upstream is the authorization source of truth | 3460 |
 | `cmd/droplet` | droplet service: catalog and Droplets inside a Project (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-billing`); the worker runs the catalog sync, the status poller and the customer- and billing-events consumers | 9660 |
 | `cmd/notification` | Notifications (`server`, `worker`, `migrate`): the worker records a Notification for what happened and delivers it by email and In-app, and sends the platform's other emails; the server is the User's Inbox. Gateway target `notification` | 9680 |
 | `cmd/realtime` | the web app's live socket (`server`): one WebSocket per tab at `/v1/realtime`, fed by the contexts' realtime messages over RabbitMQ and shared between replicas over Redis pub/sub ([ADR-0007](docs/adr/0007-live-updates-reach-realtime-over-rabbitmq.md)) | 9690 |
 | `cmd/mail` | Mail ([ADR-0009](docs/adr/0009-mail-delivers-from-its-own-mta.md)): Sending domains, Packages, the send API, the SMTP relay, logs, Suppressions and Webhooks (`server`, `smtp`, `dns`, `worker`, `outbox`, `migrate`, `seed`, `unpause`, dev-only `verify-sending-domain`); `server` answers the web app (9700), software through the integration gateway (9701) and the MTA's log records (9702), `dns` serves the zone the Sending domains' CNAMEs point at ([ADR-0011](docs/adr/0011-mail-serves-its-own-dns-zone-for-dkim-keys.md)). Gateway target `mail` | 9700, SMTP 1587/1465/2525, DNS 5354 |
+| `cmd/storage` | Storage ([ADR-0012](docs/adr/0012-storage-keeps-objects-on-its-own-ceph-cluster.md)): Storages on Packages, Access keys, the file browser and usage inside a Project (`server`, `worker`, `outbox`, `migrate`, `seed`, `pause`, `unpause`); the worker measures what each Storage holds, reads its traffic, applies scheduled Packages, purges deleted Storages and reconciles the engine. Gateway target `storage` | 9710 (metrics 9107) |
 | `cmd/integration-gateway` | reverse proxy for software holding a Project API key (`Authorization: Bearer nd_<id>.<secret>`): method and path pick the service, and every route names the Permissions a key needs ([ADR-0010](docs/adr/0010-software-reaches-nodera-through-an-integration-gateway.md)) | 3470 |
 | `cmd/billing` | billing service: Billing profile, Payment methods, usage, Invoices, Payments, Dunning, Billing status and provider webhooks (`server`, `worker`, `outbox`, `migrate`, `seed`, `replay-status`, dev-only `sample-payment-method`); the worker runs the exchange-rate fetch, Period close, Threshold check, Dunning, reconciliation, the collection sweep, the card-expiry warning and the customer- and usage-events consumers. Gateway target `billing` | 9670 (metrics 9104) |
 
@@ -34,6 +35,7 @@ cp cmd/customer-gateway/.conf/dev.toml.example cmd/customer-gateway/.conf/dev.to
 cp cmd/notification/.conf/dev.toml.example cmd/notification/.conf/dev.toml
 cp cmd/realtime/.conf/dev.toml.example cmd/realtime/.conf/dev.toml
 cp cmd/mail/.conf/dev.toml.example cmd/mail/.conf/dev.toml
+cp cmd/storage/.conf/dev.toml.example cmd/storage/.conf/dev.toml
 cp cmd/integration-gateway/.conf/dev.toml.example cmd/integration-gateway/.conf/dev.toml
 
 make docker-up                  # Postgres 18, Redis, MongoDB (outbox only), RabbitMQ, MailHog on ports +10, KumoMTA
@@ -41,6 +43,7 @@ make mongo-init                 # once: single-node replica set
 make migrate-customer seed-customer
 make migrate-notification       # `make create-db-notification` first on a volume older than the database
 make migrate-mail seed-mail      # `make create-db-mail` first on a volume older than the database
+make migrate-storage seed-storage  # `make create-db-storage` first on a volume older than the database
 make start                      # every server, worker and outbox, the gateway and the realtime socket
 ```
 
@@ -252,6 +255,26 @@ curl -X POST http://localhost:3470/v1/mail/messages \
 ```
 
 The answer is `202` with the Message's id; the Message then shows in the logs and in MailHog.
+
+### Storage
+
+The storage service ([spec](docs/specs/2026-10-06-phase-6-storage.md)) has its own database
+`nodera_storage`. In dev, docker-compose's `ceph` service is a single-container Ceph cluster
+started by `deploy/ceph`; its gateway is what `cmd/storage/.conf/dev.toml.example` points at, with
+buckets addressed by path. A Storage opened in the web app is a real bucket there: the Access key
+the web app shows once works with any S3 tool against the endpoint on the Storage's page.
+
+On a database that predates Storage, the storage service knows no Team or Project yet and answers
+404 to everything: republish the events it missed with `go run ./cmd/customer replay-projects
+--env=dev` and `go run ./cmd/billing replay-status --env=dev` while the storage worker is running.
+
+```bash
+aws --endpoint-url http://localhost:7490 s3 cp ./photo.png s3://<bucket name>/photo.png
+```
+
+Until the Admin side exists, a Storage someone complained about is stopped with
+`make pause-storage STORAGE=<id> REASON=abuse_complaint|malware|phishing|legal` and reopened with
+`make unpause-storage STORAGE=<id>`.
 
 ## Tests
 

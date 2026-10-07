@@ -1,0 +1,804 @@
+basePath: /
+definitions:
+  github_com_piggystats_nodera_contexts_storage_aggregates_accesskey.CreateRequest:
+    properties:
+      name:
+        maxLength: 64
+        type: string
+      permission:
+        description: Permission is read or read_write.
+        enum:
+        - read
+        - read_write
+        type: string
+    required:
+    - name
+    - permission
+    type: object
+  github_com_piggystats_nodera_contexts_storage_aggregates_object.DeleteRequest:
+    properties:
+      keys:
+        items:
+          type: string
+        maxItems: 1000
+        minItems: 1
+        type: array
+    required:
+    - keys
+    type: object
+  github_com_piggystats_nodera_contexts_storage_aggregates_object.SetAccessRequest:
+    properties:
+      key:
+        maxLength: 1024
+        type: string
+      public:
+        type: boolean
+    required:
+    - key
+    type: object
+  github_com_piggystats_nodera_contexts_storage_aggregates_object.URLRequest:
+    properties:
+      content_type:
+        maxLength: 255
+        type: string
+      key:
+        maxLength: 1024
+        type: string
+    required:
+    - key
+    type: object
+  github_com_piggystats_nodera_contexts_storage_aggregates_storage.ChoosePackageRequest:
+    properties:
+      code:
+        maxLength: 32
+        type: string
+    required:
+    - code
+    type: object
+  github_com_piggystats_nodera_contexts_storage_aggregates_storage.OpenRequest:
+    properties:
+      bucket_name:
+        maxLength: 128
+        type: string
+      package:
+        description: Package is a code of the catalog.
+        maxLength: 32
+        type: string
+      region:
+        maxLength: 16
+        type: string
+    required:
+    - bucket_name
+    - package
+    - region
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.AccessKey:
+    properties:
+      access_key_id:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      permission:
+        enum:
+        - read
+        - read_write
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.CreatedAccessKey:
+    properties:
+      access_key_id:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      permission:
+        enum:
+        - read
+        - read_write
+        type: string
+      secret_key:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.HeldPackage:
+    properties:
+      code:
+        type: string
+      monthly_price:
+        type: string
+      size_bytes:
+        type: integer
+      started_at:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Listing:
+    properties:
+      folders:
+        items:
+          type: string
+        type: array
+      next_cursor:
+        type: string
+      objects:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Object'
+        type: array
+      prefix:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Object:
+    properties:
+      key:
+        type: string
+      modified_at:
+        type: string
+      size:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.ObjectAccess:
+    properties:
+      key:
+        type: string
+      public:
+        type: boolean
+      url:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Package:
+    properties:
+      code:
+        type: string
+      monthly_price:
+        type: string
+      size_bytes:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Pause:
+    properties:
+      paused_at:
+        type: string
+      reason:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.PresignedURL:
+    properties:
+      content_type:
+        type: string
+      expires_at:
+        type: string
+      method:
+        type: string
+      url:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Region:
+    properties:
+      city:
+        type: string
+      code:
+        type: string
+      country:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.ScheduledChange:
+    properties:
+      code:
+        type: string
+      effective_at:
+        type: string
+      monthly_price:
+        type: string
+      size_bytes:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Storage:
+    properties:
+      billing_status:
+        type: string
+      bucket_name:
+        type: string
+      created_at:
+        type: string
+      endpoint:
+        type: string
+      id:
+        type: string
+      measured_at:
+        type: string
+      object_count:
+        type: integer
+      package:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.HeldPackage'
+      pause:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Pause'
+      project_id:
+        type: string
+      region:
+        type: string
+      scheduled_change:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.ScheduledChange'
+      state:
+        enum:
+        - deleting
+        - suspended
+        - paused
+        - full
+        - active
+        type: string
+      status:
+        enum:
+        - active
+        - deleting
+        type: string
+      url:
+        type: string
+      used_bytes:
+        type: integer
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.Usage:
+    properties:
+      days:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.UsageDay'
+        type: array
+      storage_id:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_storage_application_dto.UsageDay:
+    properties:
+      bytes_received:
+        type: integer
+      bytes_sent:
+        type: integer
+      day:
+        type: string
+      object_count:
+        type: integer
+      requests:
+        type: integer
+      used_bytes:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: 'Storage inside a Project: Storages on Packages, their Access keys,
+    files and usage. Sizes are bytes; prices are USD excluding taxes.'
+  title: Nodera Storage API
+  version: "1.0"
+paths:
+  /v1/projects/{projectID}/storages:
+    get:
+      description: 403 without storage.read; 404 for a Project the caller is not a
+        member of.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Storage'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: A Project's Storages
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: The Bucket name is 3 to 63 lower-case letters, digits and hyphens,
+        unique in its Region (409 when taken), never changed. Needs a payment method
+        (402) and a Team that is not suspended (423); 403 without storage.write. The
+        Storage is usable when the request returns; 503 when the storage servers could
+        not be reached, and nothing is kept.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Bucket name, Region and Package
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_storage.OpenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Storage'
+      security:
+      - BearerAuth: []
+      summary: Open a Storage
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}:
+    delete:
+      consumes:
+      - application/json
+      description: The request repeats the Bucket name (409 when it does not match).
+        The Access keys stop and the Package ends at once; the files go shortly after,
+        and the Storage is shown as deleting until they are gone. 403 without storage.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: The Storage's Bucket name, repeated
+        in: query
+        name: bucket_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Storage'
+      security:
+      - BearerAuth: []
+      summary: Delete a Storage and everything in it
+      tags:
+      - storage
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Storage'
+      security:
+      - BearerAuth: []
+      summary: One Storage
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/access-keys:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.AccessKey'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: A Storage's Access keys, oldest first
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: The secret key is in this answer and nowhere else. A Storage holds
+        at most 20 (409); a Paused Storage or a suspended Team's takes none (423).
+        403 without storage.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: A name and read or read_write
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_accesskey.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.CreatedAccessKey'
+      security:
+      - BearerAuth: []
+      summary: Make an Access key for a Storage
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/access-keys/{accessKeyID}:
+    delete:
+      description: The key is refused on its next request. 503 when the storage servers
+        could not be reached; the key then stays listed.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: Access key id
+        in: path
+        name: accessKeyID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Revoke an Access key
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/browser-access:
+    put:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Put Nodera's CORS rule back so the browser can upload again
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/objects:
+    get:
+      description: prefix is the folder ("" for the root, "images/" for a folder);
+        cursor continues a listing. 423 while the Storage is stopped.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: Folder
+        in: query
+        name: prefix
+        type: string
+      - description: Where the previous page ended
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Listing'
+      security:
+      - BearerAuth: []
+      summary: One page of a folder of the Storage
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/objects/access:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: The object key
+        in: query
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.ObjectAccess'
+      security:
+      - BearerAuth: []
+      summary: Whether anyone may read an object without a key
+      tags:
+      - storage
+    put:
+      consumes:
+      - application/json
+      description: A published object answers GET at its URL without a key; writing
+        it still needs an Access key. 403 without storage.write; 404 for a key the
+        Storage does not hold.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: The object key and whether it is public
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_object.SetAccessRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.ObjectAccess'
+      security:
+      - BearerAuth: []
+      summary: Let anyone read an object, or take that back
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/objects/delete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: The object keys
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_object.DeleteRequest'
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete up to 1,000 files
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/objects/download-url:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: The object key
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_object.URLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.PresignedURL'
+      security:
+      - BearerAuth: []
+      summary: A URL the browser downloads one file from, valid five minutes
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/objects/upload-url:
+    post:
+      consumes:
+      - application/json
+      description: The file goes straight to the Storage, never through Nodera; one
+        file is at most 5 GB. content_type is signed into the URL and must be sent
+        with the file. An upload is always private. 403 without storage.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: The object key
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_object.URLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.PresignedURL'
+      security:
+      - BearerAuth: []
+      summary: A URL the browser puts one file to, valid fifteen minutes
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/package:
+    put:
+      consumes:
+      - application/json
+      description: A larger Package applies at once; a smaller one from the next Period,
+        only if the Storage fits it (409 otherwise), and choosing the current Package
+        again undoes it. Needs a payment method (402) and a Team that is not suspended
+        (423); 403 without storage.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      - description: A Package code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_aggregates_storage.ChoosePackageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Storage'
+      security:
+      - BearerAuth: []
+      summary: Move a Storage to another Package
+      tags:
+      - storage
+  /v1/projects/{projectID}/storages/{storageID}/usage:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Storage id
+        in: path
+        name: storageID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Usage'
+      security:
+      - BearerAuth: []
+      summary: A Storage's size and traffic per UTC day, the last 30 days
+      tags:
+      - storage
+  /v1/storage/packages:
+    get:
+      description: Sizes are bytes (1 GB is 1,000,000,000 bytes); prices are USD per
+        month, excluding taxes.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Package'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Packages a Storage can be on, smallest first
+      tags:
+      - storage
+  /v1/storage/regions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_storage_application_dto.Region'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Regions a Storage can be opened in
+      tags:
+      - storage
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

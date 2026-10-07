@@ -1,6 +1,8 @@
-// Package secrets seals what mail must read back but never store in clear:
-// DKIM private keys and Webhook signing secrets. It also draws the keys of
-// other purposes from the same configured key.
+// Package secrets seals what a context must read back but never store in
+// clear: mail's DKIM private keys and Webhook signing secrets, storage's
+// account root keys. It also draws the keys of other purposes from the same
+// configured key. It lives outside the contexts because a context never
+// imports another.
 package secrets
 
 import (

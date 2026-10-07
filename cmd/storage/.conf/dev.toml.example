@@ -1,0 +1,80 @@
+# Copy to dev.toml (gitignored). Values match docker-compose.yml and cmd/customer/.conf/dev.toml.example.
+environment = "dev"
+
+# The management API sits behind the customer gateway.
+[server]
+name = "nodera-storage"
+port = ":9710"
+
+# The object store of the one Region this phase serves (docs/adr/0012):
+# admin_endpoint and s3_endpoint are where the service reaches it,
+# public_endpoint where software and browsers do. path_style puts a bucket
+# under the endpoint as a path instead of a subdomain. The rate limit is per
+# Storage and per minute.
+[engine]
+region = "vno1"
+admin_endpoint = "http://localhost:7490"
+s3_endpoint = "http://localhost:7490"
+public_endpoint = "http://localhost:7490"
+path_style = true
+admin_access_key = "dev-storage-admin"
+admin_secret_key = "dev-storage-admin-secret"
+s3_region = "vno1"
+web_origin = "http://localhost:3002"
+timeout_seconds = 30
+
+[engine.rate_limit]
+read_ops = 6000
+write_ops = 3000
+read_bytes = 6000000000
+write_bytes = 3000000000
+
+[postgresql]
+uri = "postgres://postgres:postgres@localhost:5442/nodera_storage?sslmode=disable"
+
+[postgresql.pool]
+max_conns = 8
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = "localhost"
+port = 6389
+username = ""
+password = ""
+db = 0
+
+# The outbox lives here and nothing else does (docs/adr/0001).
+[mongodb]
+host = "localhost"
+port = 27027
+username = ""
+password = ""
+database = "nodera_storage_outbox"
+uri = "mongodb://localhost:27027/?directConnection=true"
+
+[rabbitmq]
+host = "127.0.0.1:5682"
+username = "guest"
+password = "guest"
+virtualhost = "/nodera"
+auth_secret = "dev-rabbitmq-auth-secret"
+
+# The same JWT secret the customer service signs access tokens with; the
+# encryption key (32 bytes, base64) seals the Projects' account root keys.
+[secret]
+jwt = "dev-jwt-secret-change-me"
+encryption_key = "ZGV2LXN0b3JhZ2UtZW5jcnlwdGlvbi1rZXktMzJieXQ="
+
+[jobs]
+measure_minutes = 5
+traffic_minutes = 15
+rollover_minutes = 15
+purge_seconds = 30
+reconcile_minutes = 1
+
+[metrics]
+enabled = false
+port = ":9107"

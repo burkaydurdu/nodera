@@ -1,0 +1,28 @@
+{{ define "storage_paused" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.BucketName}} duraklatıldı</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, Nodera, {{if .TeamName}}{{.TeamName}} takımındaki {{end}}{{.ProjectName}} projesinin <strong>{{.BucketName}}</strong> adlı Storage'ını duraklattı, çünkü {{t .ReasonKey}}.</p>
+              <p class="subtitle">Duraklatma sürdükçe içindeki hiçbir şey, yayımlanmış nesneler dahil, okunamaz ve yazılamaz; sakladıkları yerinde kalır. Duraklatmayı yalnızca Nodera kaldırabilir: support@nodera.io adresine yaz.</p>
+              <table role="presentation" class="action" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><a class="btn" href="{{.StorageURL}}">Storage'ı aç</a></td></tr>
+              </table>
+              <p class="subtitle">Bu e-posta, bu takımın Storage'ını görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

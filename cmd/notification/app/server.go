@@ -88,6 +88,7 @@ func BuildConsumers(d Dependencies) *Consumers {
 		Billing:  consumers.NewBillingEvents(dispatcher),
 		Droplets: consumers.NewDropletEvents(handlers.NewDroplets(dispatcher)),
 		Mail:     consumers.NewMailEvents(dispatcher, d.Conf.Domain.FrontURL()),
+		Storage:  consumers.NewStorageEvents(dispatcher, d.Conf.Domain.FrontURL()),
 	}
 }
 
@@ -97,8 +98,9 @@ type Consumers struct {
 	Billing  *consumers.BillingEvents
 	Droplets *consumers.DropletEvents
 	Mail     *consumers.MailEvents
+	Storage  *consumers.StorageEvents
 }
 
 func (c *Consumers) Sources() []consumers.Source {
-	return []consumers.Source{c.Customer, c.Emails, c.Billing, c.Droplets, c.Mail}
+	return []consumers.Source{c.Customer, c.Emails, c.Billing, c.Droplets, c.Mail, c.Storage}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/piggystats/nodera/contexts/mail/application/jobs"
 	"github.com/piggystats/nodera/contexts/mail/async/consumers"
 	"github.com/piggystats/nodera/logger"
+	"github.com/piggystats/nodera/pkg/joblock"
 	"github.com/piggystats/nodera/pkg/metrics"
 	"github.com/piggystats/nodera/pkg/recover"
 )
@@ -43,7 +44,7 @@ func RunWorker(conf *config.Config) {
 	defer pool.Close()
 	handlers := app.NewHandlers(deps)
 	workerJobs := app.BuildJobs(deps, handlers)
-	locker := jobs.NewLocker(deps.Redis)
+	locker := joblock.NewLocker(deps.Redis)
 
 	for _, job := range []struct {
 		lock     string
@@ -69,10 +70,10 @@ func RunWorker(conf *config.Config) {
 // loop runs the job at once and then on every tick; the lease outlives a
 // late tick so a slow run is not taken over, and a crashed replica frees the
 // job within it.
-func loop(ctx context.Context, log logger.ILog, locker *jobs.Locker, lock string, interval time.Duration, run jobs.Runner) {
+func loop(ctx context.Context, log logger.ILog, locker *joblock.Locker, lock string, interval time.Duration, run jobs.Runner) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	ttl := jobs.LockTTL(interval)
+	ttl := joblock.LockTTL(interval)
 
 	for {
 		ran, err := locker.WithLock(ctx, lock, ttl, run)

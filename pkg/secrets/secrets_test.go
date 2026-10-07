@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/piggystats/nodera/contexts/mail/secrets"
+	"github.com/piggystats/nodera/pkg/secrets"
 )
 
 func TestSealer_RoundTrips(t *testing.T) {

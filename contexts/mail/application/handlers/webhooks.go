@@ -10,8 +10,8 @@ import (
 	"github.com/piggystats/nodera/contexts/mail/aggregates/message"
 	"github.com/piggystats/nodera/contexts/mail/aggregates/webhook"
 	"github.com/piggystats/nodera/contexts/mail/application/dto"
-	"github.com/piggystats/nodera/contexts/mail/secrets"
 	"github.com/piggystats/nodera/pkg/authz"
+	"github.com/piggystats/nodera/pkg/secrets"
 )
 
 type Webhooks struct {

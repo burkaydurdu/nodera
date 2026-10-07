@@ -154,14 +154,84 @@ func (r *Repository) FindMailForTeam(ctx context.Context, teamID uuid.UUID, from
 	return out, nil
 }
 
-// TeamsWithUsage answers the Teams with a Droplet that ran or a Package held
-// at some point in [from, to).
+// StartStorage fills a new interval or one whose stop arrived first, and
+// leaves a started one alone, so a redelivered or replayed start never moves
+// the price the Package was chosen at. The stop already heard of stays.
+func (r *Repository) StartStorage(ctx context.Context, i *StorageInterval) error {
+	_, err := r.queries.Executor(ctx).Exec(ctx, `
+		INSERT INTO storage_package_intervals (storage_id, started_at, team_id, project_id, project_name, bucket_name, region,
+			package_code, size_bytes, monthly_price)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		ON CONFLICT (storage_id, started_at) DO UPDATE SET
+			team_id = EXCLUDED.team_id, project_id = EXCLUDED.project_id, project_name = EXCLUDED.project_name,
+			bucket_name = EXCLUDED.bucket_name, region = EXCLUDED.region, package_code = EXCLUDED.package_code,
+			size_bytes = EXCLUDED.size_bytes, monthly_price = EXCLUDED.monthly_price, updated_at = now()
+		WHERE storage_package_intervals.monthly_price IS NULL`,
+		i.StorageID, i.StartedAt, i.TeamID, i.ProjectID, i.ProjectName, i.BucketName, i.Region, i.PackageCode, i.SizeBytes, i.MonthlyPrice)
+	if err != nil {
+		return ErrorCannotStore.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+// StopStorage keeps the earliest stop it has heard of; a stop whose start
+// has not arrived yet is kept for it.
+func (r *Repository) StopStorage(ctx context.Context, storageID, teamID uuid.UUID, startedAt, stoppedAt time.Time) error {
+	_, err := r.queries.Executor(ctx).Exec(ctx, `
+		INSERT INTO storage_package_intervals (storage_id, started_at, team_id, stopped_at)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (storage_id, started_at) DO UPDATE SET
+			stopped_at = LEAST(storage_package_intervals.stopped_at, EXCLUDED.stopped_at), updated_at = now()`,
+		storageID, startedAt, teamID, stoppedAt)
+	if err != nil {
+		return ErrorCannotStore.Copy().SetError(err)
+	}
+
+	return nil
+}
+
+// FindStorageForTeam answers the started intervals only: one still waiting
+// for its start has no price to charge.
+func (r *Repository) FindStorageForTeam(ctx context.Context, teamID uuid.UUID, from, to time.Time) ([]*StorageInterval, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `
+		SELECT storage_id, team_id, project_id, project_name, bucket_name, region, package_code, size_bytes, monthly_price,
+			started_at, stopped_at
+		FROM storage_package_intervals
+		WHERE team_id = $1 AND monthly_price IS NOT NULL AND started_at < $3 AND (stopped_at IS NULL OR stopped_at > $2)
+		ORDER BY started_at, storage_id`, teamID, from, to)
+	if err != nil {
+		return nil, ErrorCannotRead.Copy().SetError(err)
+	}
+	defer rows.Close()
+
+	out := make([]*StorageInterval, 0)
+	for rows.Next() {
+		var i StorageInterval
+		if err := rows.Scan(&i.StorageID, &i.TeamID, &i.ProjectID, &i.ProjectName, &i.BucketName, &i.Region, &i.PackageCode,
+			&i.SizeBytes, &i.MonthlyPrice, &i.StartedAt, &i.StoppedAt); err != nil {
+			return nil, ErrorCannotRead.Copy().SetError(err)
+		}
+		out = append(out, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ErrorCannotRead.Copy().SetError(err)
+	}
+
+	return out, nil
+}
+
+// TeamsWithUsage answers the Teams with a Droplet that ran or a Mail or
+// Storage Package held at some point in [from, to).
 func (r *Repository) TeamsWithUsage(ctx context.Context, from, to time.Time) ([]uuid.UUID, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
 		SELECT team_id FROM usage
 		WHERE started_at IS NOT NULL AND started_at < $2 AND (stopped_at IS NULL OR stopped_at > $1)
 		UNION
 		SELECT team_id FROM mail_package_intervals
+		WHERE monthly_price IS NOT NULL AND started_at < $2 AND (stopped_at IS NULL OR stopped_at > $1)
+		UNION
+		SELECT team_id FROM storage_package_intervals
 		WHERE monthly_price IS NOT NULL AND started_at < $2 AND (stopped_at IS NULL OR stopped_at > $1)
 		ORDER BY team_id`, from, to)
 	if err != nil {

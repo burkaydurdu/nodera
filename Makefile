@@ -273,6 +273,58 @@ swagger-mail:
 	$(LOCAL_BIN)/swag init -q -d ./cmd/mail,./contexts/mail -g server.go -o contexts/mail/docs --parseDependency --parseInternal
 
 # =============================================================================
+# Storage
+# =============================================================================
+
+server-storage:
+	$(MAKE) -s swagger-storage
+	go run ./cmd/storage server --env=dev
+
+worker-storage:
+	go run ./cmd/storage worker --env=dev
+
+outbox-storage:
+	go run ./cmd/storage outbox --env=dev
+
+migrate-storage:
+	go run ./cmd/storage migrate --env=dev
+
+rollback-storage:
+	go run ./cmd/storage rollback --env=dev
+
+seed-storage:
+	go run ./cmd/storage seed --env=dev
+
+seed-rollback-storage:
+	go run ./cmd/storage seed-rollback --env=dev
+
+# Operator: stop a Storage after a complaint, or reopen it.
+#   make pause-storage STORAGE=<storage id> REASON=abuse_complaint|malware|phishing|legal
+#   make unpause-storage STORAGE=<storage id>
+pause-storage:
+	@test -n "$(STORAGE)" -a -n "$(REASON)" || (echo "usage: make pause-storage STORAGE=<storage id> REASON=<reason>" && exit 1)
+	go run ./cmd/storage pause --env=dev --storage=$(STORAGE) --reason=$(REASON)
+
+unpause-storage:
+	@test -n "$(STORAGE)" || (echo "usage: make unpause-storage STORAGE=<storage id>" && exit 1)
+	go run ./cmd/storage unpause --env=dev --storage=$(STORAGE)
+
+# The database is created by scripts/init-db.sql on a fresh volume; this is
+# for a volume that predates it.
+create-db-storage:
+	docker compose exec -T postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'nodera_storage'" | grep -q 1 || \
+		docker compose exec -T postgres psql -U postgres -c 'CREATE DATABASE nodera_storage;'
+
+# DESTRUCTIVE: drop and recreate the storage database, then migrate and seed.
+reset-db-storage:
+	docker compose exec -T postgres psql -U postgres -c 'DROP DATABASE IF EXISTS nodera_storage WITH (FORCE);' -c 'CREATE DATABASE nodera_storage;'
+	$(MAKE) -s migrate-storage
+	$(MAKE) -s seed-storage
+
+swagger-storage:
+	$(LOCAL_BIN)/swag init -q -d ./cmd/storage,./contexts/storage -g server.go -o contexts/storage/docs --parseDependency --parseInternal
+
+# =============================================================================
 # Integration gateway
 # =============================================================================
 
@@ -296,6 +348,7 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@$(MAKE) -s swagger-billing
 	@$(MAKE) -s swagger-notification
 	@$(MAKE) -s swagger-mail
+	@$(MAKE) -s swagger-storage
 	@touch $(LOG_DIR)/customer-server.log $(LOG_DIR)/customer-outbox.log $(LOG_DIR)/customer-gateway.log $(LOG_DIR)/notification-worker.log $(LOG_DIR)/droplet-server.log $(LOG_DIR)/droplet-worker.log
 	@( go run ./cmd/customer server --env=dev > $(LOG_DIR)/customer-server.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-server.pid
 	@( go run ./cmd/customer outbox --env=dev > $(LOG_DIR)/customer-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-outbox.pid
@@ -319,6 +372,10 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@( go run ./cmd/mail worker --env=dev > $(LOG_DIR)/mail-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-worker.pid
 	@( go run ./cmd/mail outbox --env=dev > $(LOG_DIR)/mail-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/mail-outbox.pid
 	@( go run ./cmd/integration-gateway server --env=dev > $(LOG_DIR)/integration-gateway.log 2>&1 ) & echo $$! > $(PID_DIR)/integration-gateway.pid
+	@touch $(LOG_DIR)/storage-server.log $(LOG_DIR)/storage-worker.log $(LOG_DIR)/storage-outbox.log
+	@( go run ./cmd/storage server --env=dev > $(LOG_DIR)/storage-server.log 2>&1 ) & echo $$! > $(PID_DIR)/storage-server.pid
+	@( go run ./cmd/storage worker --env=dev > $(LOG_DIR)/storage-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/storage-worker.pid
+	@( go run ./cmd/storage outbox --env=dev > $(LOG_DIR)/storage-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/storage-outbox.pid
 	@echo "started. Tailing logs (Ctrl-C to stop)."
 	@trap '$(MAKE) -s stop' INT TERM EXIT; tail -f $(LOG_DIR)/*.log
 
@@ -370,9 +427,16 @@ test-mail-integration:
 test-integration-gateway:
 	INTEGRATION=true go test ./cmd/integration-gateway/ -count=1 -v
 
+test-storage-integration:
+	INTEGRATION=true go test ./cmd/storage/integration-test/ -count=1 -v
+
 # Pulls the KumoMTA image and runs deploy/kumomta's policy against a real MTA.
 test-kumomta-contract:
 	NODERA_MAIL_SMOKE=true go test ./contexts/mail/mta/kumomta/ -run TestKumoMTAContract -count=1 -v
+
+# Pulls the Ceph image and runs the adapter against a real single-container cluster.
+test-ceph-contract:
+	NODERA_STORAGE_SMOKE=true go test ./contexts/storage/engine/ceph/ -run TestCephContract -count=1 -v
 
 lint:
 	$(LOCAL_BIN)/golangci-lint run --config .golangci.yml ./...
