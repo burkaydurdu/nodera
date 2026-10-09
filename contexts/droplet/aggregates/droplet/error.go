@@ -26,4 +26,7 @@ var (
 	// (docs/adr/0006): no card yet, or suspended for an unpaid Invoice.
 	ErrorPaymentMethodRequired = rerror.Error{Code: 10009, Domain: Domain, HttpStatus: http.StatusPaymentRequired, Message: "payment method required"}
 	ErrorTeamSuspended         = rerror.Error{Code: 10010, Domain: Domain, HttpStatus: http.StatusLocked, Message: "team suspended"}
+	// ErrorManagedByCluster answers a power action or a deletion asked of a
+	// Node Droplet here: its Cluster releases it or nobody does (docs/adr/0014).
+	ErrorManagedByCluster = rerror.Error{Code: 10011, Domain: Domain, HttpStatus: http.StatusConflict, Message: "this droplet is a node of a kubernetes cluster and is managed through it"}
 )

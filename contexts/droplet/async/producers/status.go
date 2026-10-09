@@ -54,6 +54,10 @@ func (p *StatusChanged) Publish(ctx context.Context, d *droplet.Droplet, from *d
 	if d.Status == droplet.StatusFailed && d.FailureCode != nil {
 		body.FailureCode = string(*d.FailureCode)
 	}
+	if d.Node != nil {
+		nodeID, clusterID := d.Node.NodeID, d.Node.ClusterID
+		body.NodeID, body.ClusterID = &nodeID, &clusterID
+	}
 	if err := publish(ctx, p.client, constants.DropletStatusChanged, &events.DropletStatusChangedEvent{Payload: body}); err != nil {
 		return err
 	}

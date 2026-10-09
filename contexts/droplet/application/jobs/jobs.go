@@ -36,6 +36,13 @@ type StatusAnnouncer interface {
 	Announce(ctx context.Context, d *droplet.Droplet, from *droplet.Status)
 }
 
+// CatalogProducer publishes one Plan or Region for the kubernetes context's
+// catalog read model (docs/adr/0014).
+type CatalogProducer interface {
+	PublishPlan(ctx context.Context, plan *catalog.Plan, at time.Time) error
+	PublishRegion(ctx context.Context, region *catalog.Region, at time.Time) error
+}
+
 type Jobs struct {
 	log          logger.ILog
 	providers    provider.IService
@@ -46,6 +53,7 @@ type Jobs struct {
 	transactions postgresql.ITransactionManager
 	meter        BillingMeter
 	status       StatusAnnouncer
+	announcer    *CatalogAnnouncer
 	now          func() time.Time
 }
 
@@ -59,6 +67,7 @@ func New(
 	transactions postgresql.ITransactionManager,
 	meter BillingMeter,
 	status StatusAnnouncer,
+	catalogProducer CatalogProducer,
 ) *Jobs {
 	return &Jobs{
 		log:          log,
@@ -70,6 +79,7 @@ func New(
 		transactions: transactions,
 		meter:        meter,
 		status:       status,
+		announcer:    NewCatalogAnnouncer(log, catalogService, catalogProducer),
 		now:          time.Now,
 	}
 }

@@ -6,6 +6,9 @@ package cherry
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,6 +33,11 @@ const (
 	ipv4Family     = 4
 	ipv6Family     = 6
 	userAgent      = "nodera-droplet"
+
+	// labelNameLength and labelSuffixLength keep an uploaded key's label at 64
+	// characters: the name's start and a short fingerprint of the key.
+	labelNameLength   = 55
+	labelSuffixLength = 8
 )
 
 type Config struct {
@@ -144,26 +152,55 @@ func (c *Cherry) ListImages(ctx context.Context, planRef string) ([]providers.Im
 }
 
 // EnsureSSHKey matches on the key material, not the label: the same key
-// under two names is one Cherry key.
+// under two names is one Cherry key. Two orders uploading one key at the same
+// moment both find nothing and both create; the second is refused for the
+// label, and the key the first uploaded is the answer.
 func (c *Cherry) EnsureSSHKey(ctx context.Context, name, publicKey string) (string, error) {
 	want := keyMaterial(publicKey)
 
+	ref, err := c.findSSHKey(ctx, want)
+	if err != nil || str.IsNotEmpty(ref) {
+		return ref, err
+	}
+
+	created, resp, err := c.api.sshKeys.Create(ctx, &cherrygo.CreateSSHKey{Label: keyLabel(name, want), Key: strings.TrimSpace(publicKey)})
+	if err != nil {
+		if ref, findErr := c.findSSHKey(ctx, want); findErr == nil && str.IsNotEmpty(ref) {
+			return ref, nil
+		}
+
+		return "", c.wrap("create ssh key", resp, err)
+	}
+
+	return strconv.Itoa(created.ID), nil
+}
+
+// findSSHKey answers the reference of the key with this material, or empty.
+func (c *Cherry) findSSHKey(ctx context.Context, material string) (string, error) {
 	existing, resp, err := c.api.sshKeys.List(ctx, nil)
 	if err != nil {
 		return "", c.wrap("list ssh keys", resp, err)
 	}
 	for _, k := range existing {
-		if keyMaterial(k.Key) == want {
+		if keyMaterial(k.Key) == material {
 			return strconv.Itoa(k.ID), nil
 		}
 	}
 
-	created, resp, err := c.api.sshKeys.Create(ctx, &cherrygo.CreateSSHKey{Label: name, Key: strings.TrimSpace(publicKey)})
-	if err != nil {
-		return "", c.wrap("create ssh key", resp, err)
-	}
+	return "", nil
+}
 
-	return strconv.Itoa(created.ID), nil
+// keyLabel is the label a key is uploaded under. Cherry wants a label unique
+// across the account, and the names customers give their keys are not: two
+// Teams each with a "laptop" key would refuse each other's orders. A short
+// fingerprint of the material keeps one key on one label and two keys apart.
+func keyLabel(name, material string) string {
+	if len(name) > labelNameLength {
+		name = name[:labelNameLength]
+	}
+	sum := sha256.Sum256([]byte(material))
+
+	return name + "-" + hex.EncodeToString(sum[:])[:labelSuffixLength]
 }
 
 func (c *Cherry) CreateServer(ctx context.Context, spec providers.ServerSpec) (string, error) {
@@ -174,6 +211,7 @@ func (c *Cherry) CreateServer(ctx context.Context, spec providers.ServerSpec) (s
 		Image:     spec.ImageRef,
 		Hostname:  spec.Hostname,
 		SSHKeys:   spec.SSHKeyRefs,
+		UserData:  userData(spec.UserData),
 		Cycle:     cycleHourly,
 	})
 	if err != nil {
@@ -314,6 +352,15 @@ func keyMaterial(line string) string {
 	}
 
 	return fields[0] + " " + fields[1]
+}
+
+// userData is the cloud-init as Cherry takes it: base64, or nothing.
+func userData(script string) string {
+	if str.IsEmpty(script) {
+		return ""
+	}
+
+	return base64.StdEncoding.EncodeToString([]byte(script))
 }
 
 func serverID(ref string) (int, error) {

@@ -46,6 +46,8 @@ const (
 	KindStorageFull             Kind = "storage_full"
 	KindStoragePaused           Kind = "storage_paused"
 	KindStorageDowngradeSkipped Kind = "storage_downgrade_skipped"
+
+	KindKubernetesClusterFailed Kind = "kubernetes_cluster_failed"
 )
 
 // shared templates carry no copy; per-locale ones do.

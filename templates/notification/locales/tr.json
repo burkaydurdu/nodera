@@ -20,6 +20,8 @@
   "droplet_failure_timed_out": "sunucu zamanında teslim edilmedi",
   "droplet_failure_server_gone": "sunucu artık mevcut değil",
   "droplet_failure_provider_failed": "sunucu çalışmayı durdurdu",
+  "kubernetes_cluster_failed_subject": "{{.Name}} cluster'ı kurulamadı",
+  "kubernetes_failure_control_plane_failed": "control plane zamanında hazır olmadı",
   "mail_domain_verified_subject": "{{.Domain}}, {{.ProjectName}} projesi için doğrulandı",
   "mail_domain_unverified_subject": "{{.Domain}}, {{.ProjectName}} projesi için artık doğrulanmış değil",
   "mail_package_near_limit_subject": "{{.ProjectName}} projesi {{.PackageCode}} Mail paketinin sınırına yaklaştı",

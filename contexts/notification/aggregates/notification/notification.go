@@ -38,6 +38,9 @@ const (
 	TypeStoragePaused           Type = "storage_paused"
 	TypeStorageDowngradeSkipped Type = "storage_downgrade_skipped"
 
+	TypeKubernetesClusterRunning Type = "kubernetes_cluster_running"
+	TypeKubernetesClusterFailed  Type = "kubernetes_cluster_failed"
+
 	TypeTeamInvitation    Type = "team_invitation"
 	TypeTeamRoleChanged   Type = "team_role_changed"
 	TypeTeamMemberRemoved Type = "team_member_removed"
@@ -108,6 +111,11 @@ var catalog = map[Type]Definition{
 	TypeStorageFull:             {Channels: inAppByEmail, Permission: authz.StorageRead},
 	TypeStoragePaused:           {Channels: inAppByEmail, Permission: authz.StorageRead},
 	TypeStorageDowngradeSkipped: {Channels: inAppByEmail, Permission: authz.StorageRead},
+
+	// A Cluster's news reaches whoever may see Kubernetes; a failure goes by
+	// email too, since it may come long after the customer left the page.
+	TypeKubernetesClusterRunning: {Channels: inApp, Permission: authz.KubernetesRead},
+	TypeKubernetesClusterFailed:  {Channels: inAppByEmail, Permission: authz.KubernetesRead},
 
 	// An invitation reaches an address that may have no account yet; the
 	// Inbox shows it to one that has.

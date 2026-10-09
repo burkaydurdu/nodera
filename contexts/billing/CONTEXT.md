@@ -30,7 +30,7 @@ _Avoid_: PSP, gateway (that is Nodera's own API gateway), processor
 **Billing status**:
 Whether a Team may spend: `no_payment_method` (no Droplet can be created and no Package chosen),
 `active`, `suspended` (an unpaid invoice stopped its Droplets, its Mail sending and its Storage).
-The droplet, mail and storage contexts learn it from events.
+The droplet, mail, storage and kubernetes contexts learn it from events.
 _Avoid_: account status, blocked, frozen
 
 ### Usage and money

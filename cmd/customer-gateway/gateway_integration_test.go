@@ -49,6 +49,7 @@ const (
 	targetNotification = "notification"
 	targetMail         = "mail"
 	targetStorage      = "storage"
+	targetKubernetes   = "kubernetes"
 )
 
 // stubUpstream records what reached it; that is how the suite reads what
@@ -717,6 +718,28 @@ func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyMailAndStorageRoutes(t *tes
 		{http.MethodGet, project + "/storages/s1/usage"},
 	}
 
+	kubernetesHosts := map[string]string{
+		"dev":   "http://localhost:9720",
+		"test":  "http://localhost:9720",
+		"alpha": "http://nodera-kubernetes:9720",
+		"prod":  "http://nodera-kubernetes:9720",
+	}
+	kubernetesRoutes := [][2]string{
+		{http.MethodGet, "/v1/kubernetes/versions"},
+		{http.MethodGet, "/v1/kubernetes/regions"},
+		{http.MethodGet, "/v1/kubernetes/regions/vno1/plans"},
+		{http.MethodGet, project + "/clusters"},
+		{http.MethodPost, project + "/clusters"},
+		{http.MethodGet, project + "/clusters/c1"},
+		{http.MethodDelete, project + "/clusters/c1"},
+		{http.MethodPut, project + "/clusters/c1/name"},
+		{http.MethodGet, project + "/clusters/c1/kubeconfig"},
+		{http.MethodGet, project + "/clusters/c1/nodes"},
+		{http.MethodPost, project + "/clusters/c1/node-pools"},
+		{http.MethodPut, project + "/clusters/c1/node-pools/p1/count"},
+		{http.MethodDelete, project + "/clusters/c1/node-pools/p1"},
+	}
+
 	for env, mailHost := range mailHosts {
 		t.Run(env, func(t *testing.T) {
 			table := config.InitGatewayConfig(env).ConvertToGateway()
@@ -748,6 +771,16 @@ func TestRouteTables_EveryEnvironmentCarriesTheAPIKeyMailAndStorageRoutes(t *tes
 				endpoint := storage.PrivateEndpoint(route[1], route[0])
 				require.NotNil(t, endpoint, "%s %s", route[0], route[1])
 				assert.Empty(t, endpoint.Permissions, "%s %s: no Team in the path, so the storage service authorizes it", route[0], route[1])
+			}
+
+			kubernetes, ok := table.Service(targetKubernetes)
+			require.True(t, ok)
+			assert.Equal(t, kubernetesHosts[env], kubernetes.Host)
+			assert.Len(t, kubernetes.Endpoints, len(kubernetesRoutes), "the kubernetes target lists the management routes and nothing else")
+			for _, route := range kubernetesRoutes {
+				endpoint := kubernetes.PrivateEndpoint(route[1], route[0])
+				require.NotNil(t, endpoint, "%s %s", route[0], route[1])
+				assert.Empty(t, endpoint.Permissions, "%s %s: no Team in the path, so the kubernetes service authorizes it", route[0], route[1])
 			}
 		})
 	}

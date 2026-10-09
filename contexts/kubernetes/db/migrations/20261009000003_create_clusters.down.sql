@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS nodes;
+DROP TABLE IF EXISTS node_pools;
+DROP TABLE IF EXISTS clusters;

@@ -20,6 +20,8 @@
   "droplet_failure_timed_out": "the server was not delivered in time",
   "droplet_failure_server_gone": "the server no longer exists",
   "droplet_failure_provider_failed": "the server stopped working",
+  "kubernetes_cluster_failed_subject": "Cluster {{.Name}} could not be set up",
+  "kubernetes_failure_control_plane_failed": "the control plane was not ready in time",
   "mail_domain_verified_subject": "{{.Domain}} is verified for {{.ProjectName}}",
   "mail_domain_unverified_subject": "{{.Domain}} is no longer verified for {{.ProjectName}}",
   "mail_package_near_limit_subject": "{{.ProjectName}} is close to the limit of its {{.PackageCode}} Mail package",

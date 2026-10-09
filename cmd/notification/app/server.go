@@ -83,24 +83,26 @@ func BuildConsumers(d Dependencies) *Consumers {
 	dispatcher := handlers.NewDispatcher(d.Log, services.Notifications, services.Access, services.Transactions, d.Email, d.Realtime, d.now())
 
 	return &Consumers{
-		Customer: consumers.NewCustomerEvents(services.Access, handlers.NewTeams(services.Access, dispatcher)),
-		Emails:   consumers.NewCustomerEmails(dispatcher),
-		Billing:  consumers.NewBillingEvents(dispatcher),
-		Droplets: consumers.NewDropletEvents(handlers.NewDroplets(dispatcher)),
-		Mail:     consumers.NewMailEvents(dispatcher, d.Conf.Domain.FrontURL()),
-		Storage:  consumers.NewStorageEvents(dispatcher, d.Conf.Domain.FrontURL()),
+		Customer:   consumers.NewCustomerEvents(services.Access, handlers.NewTeams(services.Access, dispatcher)),
+		Emails:     consumers.NewCustomerEmails(dispatcher),
+		Billing:    consumers.NewBillingEvents(dispatcher),
+		Droplets:   consumers.NewDropletEvents(handlers.NewDroplets(dispatcher)),
+		Mail:       consumers.NewMailEvents(dispatcher, d.Conf.Domain.FrontURL()),
+		Storage:    consumers.NewStorageEvents(dispatcher, d.Conf.Domain.FrontURL()),
+		Kubernetes: consumers.NewClusterEvents(handlers.NewClusters(dispatcher)),
 	}
 }
 
 type Consumers struct {
-	Customer *consumers.CustomerEvents
-	Emails   *consumers.CustomerEmails
-	Billing  *consumers.BillingEvents
-	Droplets *consumers.DropletEvents
-	Mail     *consumers.MailEvents
-	Storage  *consumers.StorageEvents
+	Customer   *consumers.CustomerEvents
+	Emails     *consumers.CustomerEmails
+	Billing    *consumers.BillingEvents
+	Droplets   *consumers.DropletEvents
+	Mail       *consumers.MailEvents
+	Storage    *consumers.StorageEvents
+	Kubernetes *consumers.ClusterEvents
 }
 
 func (c *Consumers) Sources() []consumers.Source {
-	return []consumers.Source{c.Customer, c.Emails, c.Billing, c.Droplets, c.Mail, c.Storage}
+	return []consumers.Source{c.Customer, c.Emails, c.Billing, c.Droplets, c.Mail, c.Storage, c.Kubernetes}
 }

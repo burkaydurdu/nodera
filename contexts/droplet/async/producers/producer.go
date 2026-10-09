@@ -39,6 +39,9 @@ func (p *Producer) AddPublisher(ctx context.Context) {
 		events.DropletBillingStartedEvent{},
 		events.DropletBillingStoppedEvent{},
 		events.DropletStatusChangedEvent{},
+		events.NodeRejectedEvent{},
+		events.CatalogPlanChangedEvent{},
+		events.CatalogRegionChangedEvent{},
 		realtime.Message{},
 	)
 }

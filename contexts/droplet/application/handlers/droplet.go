@@ -171,7 +171,7 @@ func (h *Droplet) Create(ctx context.Context, req *droplet.CreateRequest) (*dto.
 	accepted := dto.ToDroplet(d)
 	provisionCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), provisionTimeout)
 	defer cancel()
-	h.provision(provisionCtx, adapter, d, plan, image, req.SSHKeys)
+	h.provision(provisionCtx, adapter, d, plan, image, req.SSHKeys, "")
 
 	return accepted, nil
 }
@@ -228,7 +228,7 @@ func (h *Droplet) checkLiveOffer(ctx context.Context, adapter providers.Provider
 // failure fails the Droplet with a customer-safe reason; the raw error is
 // logged for Nodera. It is synchronous so the outcome is recorded before the
 // request returns.
-func (h *Droplet) provision(ctx context.Context, adapter providers.Provider, d *droplet.Droplet, plan *catalog.Plan, image *catalog.ImageMapping, keys []droplet.SSHKeyInput) {
+func (h *Droplet) provision(ctx context.Context, adapter providers.Provider, d *droplet.Droplet, plan *catalog.Plan, image *catalog.ImageMapping, keys []droplet.SSHKeyInput, userData string) {
 	refs := make([]string, 0, len(keys))
 	for _, k := range keys {
 		ref, err := adapter.EnsureSSHKey(ctx, k.Name, k.PublicKey)
@@ -246,6 +246,7 @@ func (h *Droplet) provision(ctx context.Context, adapter providers.Provider, d *
 		ImageRef:   image.ProviderRef,
 		Hostname:   d.Hostname,
 		SSHKeyRefs: refs,
+		UserData:   userData,
 	})
 	if err != nil {
 		h.fail(ctx, d.ID, err)
@@ -332,6 +333,9 @@ func (h *Droplet) Action(ctx context.Context, req *droplet.ActionRequest) (*dto.
 	if err != nil {
 		return nil, err
 	}
+	if authorized.Node != nil {
+		return nil, droplet.ErrorManagedByCluster
+	}
 
 	action := droplet.Action(req.Type)
 	var d *droplet.Droplet
@@ -381,6 +385,9 @@ func (h *Droplet) Delete(ctx context.Context, req *droplet.DeleteRequest) (*dto.
 	authorized, err := h.findAuthorized(ctx, req.DropletID, authz.DropletWrite)
 	if err != nil {
 		return nil, err
+	}
+	if authorized.Node != nil {
+		return nil, droplet.ErrorManagedByCluster
 	}
 
 	d, err := h.release(ctx, authorized.ID, reasonDeleteAsk)

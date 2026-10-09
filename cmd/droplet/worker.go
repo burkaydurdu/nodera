@@ -62,7 +62,11 @@ func RunWorker(conf *config.Config) {
 	go loop(ctx, log, locker, lockSync, conf.Jobs.SyncInterval(), workerJobs.SyncCatalog)
 	go loop(ctx, log, locker, lockPoll, conf.Jobs.PollInterval(), workerJobs.PollDroplets)
 
-	consumers.NewWorker(rabbitMQClient, log, app.BuildCustomerConsumer(pool), app.BuildBillingConsumer(log, pool, registry, outboxInstance)).Consume(ctx)
+	consumers.NewWorker(rabbitMQClient, log,
+		app.BuildCustomerConsumer(pool),
+		app.BuildBillingConsumer(log, pool, registry, outboxInstance),
+		app.BuildKubernetesConsumer(log, conf, pool, redisService, registry, outboxInstance),
+	).Consume(ctx)
 	cobra.CheckErr(rabbitMQClient.RunConsumers(ctx))
 }
 

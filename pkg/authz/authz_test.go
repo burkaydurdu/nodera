@@ -16,19 +16,19 @@ func TestAllows_MatchesTheSpecMatrix(t *testing.T) {
 			authz.TeamRead: true, authz.TeamManage: true, authz.ProjectWrite: true, authz.DropletRead: true,
 			authz.DropletWrite: true, authz.SSHKeyWrite: true, authz.BillingRead: true, authz.BillingWrite: true,
 			authz.MailRead: true, authz.MailWrite: true, authz.MailSend: true, authz.APIKeyWrite: true,
-			authz.StorageRead: true, authz.StorageWrite: true,
+			authz.StorageRead: true, authz.StorageWrite: true, authz.KubernetesRead: true, authz.KubernetesWrite: true,
 		},
 		authz.RoleDeveloper: {
 			authz.TeamRead: true, authz.TeamManage: false, authz.ProjectWrite: true, authz.DropletRead: true,
 			authz.DropletWrite: true, authz.SSHKeyWrite: true, authz.BillingRead: false, authz.BillingWrite: false,
 			authz.MailRead: true, authz.MailWrite: true, authz.MailSend: true, authz.APIKeyWrite: true,
-			authz.StorageRead: true, authz.StorageWrite: true,
+			authz.StorageRead: true, authz.StorageWrite: true, authz.KubernetesRead: true, authz.KubernetesWrite: true,
 		},
 		authz.RoleFinance: {
 			authz.TeamRead: true, authz.TeamManage: false, authz.ProjectWrite: false, authz.DropletRead: true,
 			authz.DropletWrite: false, authz.SSHKeyWrite: false, authz.BillingRead: true, authz.BillingWrite: true,
 			authz.MailRead: true, authz.MailWrite: false, authz.MailSend: false, authz.APIKeyWrite: false,
-			authz.StorageRead: true, authz.StorageWrite: false,
+			authz.StorageRead: true, authz.StorageWrite: false, authz.KubernetesRead: true, authz.KubernetesWrite: false,
 		},
 	}
 
@@ -65,5 +65,6 @@ func TestIsKeyPermission_OnlySendingForNow(t *testing.T) {
 	assert.False(t, authz.IsKeyPermission("mail.write"))
 	assert.False(t, authz.IsKeyPermission("droplet.write"))
 	assert.False(t, authz.IsKeyPermission("storage.write"))
+	assert.False(t, authz.IsKeyPermission("kubernetes.write"))
 	assert.False(t, authz.IsKeyPermission(""))
 }

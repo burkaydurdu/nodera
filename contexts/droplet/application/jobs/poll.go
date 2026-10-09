@@ -130,6 +130,14 @@ func (j *Jobs) applyProviderState(ctx context.Context, d *droplet.Droplet) error
 	reported := droplet.Status(server.Status)
 	changed := applyAddresses(d, server.IPv4, server.IPv6)
 
+	// A server reads powered off for a moment at the end of its install,
+	// before its first boot. Until it has run, off is still being delivered:
+	// settling it as off would stop the polls for good, and the provisioning
+	// timeout decides if it never comes on.
+	if d.Status == droplet.StatusProvisioning && reported == droplet.StatusOff {
+		reported = droplet.StatusProvisioning
+	}
+
 	switch {
 	case reported == droplet.StatusFailed && d.Status.CanTransitionTo(reported):
 		return j.droplets.Fail(ctx, d, droplet.FailureProviderFailed, transitionReason(d, reported))

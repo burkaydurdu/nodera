@@ -20,20 +20,22 @@ const (
 )
 
 const (
-	TeamRead     Permission = "team.read"
-	TeamManage   Permission = "team.manage"
-	ProjectWrite Permission = "project.write"
-	DropletRead  Permission = "droplet.read"
-	DropletWrite Permission = "droplet.write"
-	SSHKeyWrite  Permission = "sshkey.write"
-	BillingRead  Permission = "billing.read"
-	BillingWrite Permission = "billing.write"
-	MailRead     Permission = "mail.read"
-	MailWrite    Permission = "mail.write"
-	MailSend     Permission = "mail.send"
-	APIKeyWrite  Permission = "apikey.write"
-	StorageRead  Permission = "storage.read"
-	StorageWrite Permission = "storage.write"
+	TeamRead        Permission = "team.read"
+	TeamManage      Permission = "team.manage"
+	ProjectWrite    Permission = "project.write"
+	DropletRead     Permission = "droplet.read"
+	DropletWrite    Permission = "droplet.write"
+	SSHKeyWrite     Permission = "sshkey.write"
+	BillingRead     Permission = "billing.read"
+	BillingWrite    Permission = "billing.write"
+	MailRead        Permission = "mail.read"
+	MailWrite       Permission = "mail.write"
+	MailSend        Permission = "mail.send"
+	APIKeyWrite     Permission = "apikey.write"
+	StorageRead     Permission = "storage.read"
+	StorageWrite    Permission = "storage.write"
+	KubernetesRead  Permission = "kubernetes.read"
+	KubernetesWrite Permission = "kubernetes.write"
 )
 
 // Roles lists every Role in a stable order, for enums, validators and UIs.
@@ -42,7 +44,7 @@ var Roles = []Role{RoleOwner, RoleDeveloper, RoleFinance}
 // Permissions lists every Permission in a stable order, for config validation.
 var Permissions = []Permission{
 	TeamRead, TeamManage, ProjectWrite, DropletRead, DropletWrite, SSHKeyWrite, BillingRead, BillingWrite,
-	MailRead, MailWrite, MailSend, APIKeyWrite, StorageRead, StorageWrite,
+	MailRead, MailWrite, MailSend, APIKeyWrite, StorageRead, StorageWrite, KubernetesRead, KubernetesWrite,
 }
 
 // KeyPermissions are the Permissions an API key may carry (docs/adr/0010).
@@ -51,8 +53,8 @@ var KeyPermissions = []Permission{MailSend}
 
 var matrix = map[Role]map[Permission]struct{}{
 	RoleOwner:     set(Permissions...),
-	RoleDeveloper: set(TeamRead, ProjectWrite, DropletRead, DropletWrite, SSHKeyWrite, MailRead, MailWrite, MailSend, APIKeyWrite, StorageRead, StorageWrite),
-	RoleFinance:   set(TeamRead, DropletRead, BillingRead, BillingWrite, MailRead, StorageRead),
+	RoleDeveloper: set(TeamRead, ProjectWrite, DropletRead, DropletWrite, SSHKeyWrite, MailRead, MailWrite, MailSend, APIKeyWrite, StorageRead, StorageWrite, KubernetesRead, KubernetesWrite),
+	RoleFinance:   set(TeamRead, DropletRead, BillingRead, BillingWrite, MailRead, StorageRead, KubernetesRead),
 }
 
 // Allows reports whether the Role holds the Permission. An unknown Role holds

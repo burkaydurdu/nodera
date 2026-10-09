@@ -56,6 +56,8 @@ const (
 	// A throwaway ed25519 public key; no private half exists.
 	testKey  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGpLYgdo0jRVvaW3cq4ZYq2C1a6D3kXAd0Y4r8p3gf1S test@nodera"
 	testKey2 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC1XxvJ0m2aH4b7vK9fXfM0wq3Ycp8rZ4QbQyJ8oV2mN second@nodera"
+	// opsKey stands in for Nodera's operational key a Node Droplet is opened with.
+	opsKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO9c1kqz3nW8f1zYhGx4Xq2a7bD0eF3gH5iJ6kL7mN8o ops@nodera"
 )
 
 // noopPublisher lets the outbox accept writes without a broker: the suite
@@ -71,17 +73,18 @@ type dropletSuite struct {
 	redisResource    *dockertest.Resource
 	mongoResource    *dockertest.Resource
 
-	server   *echo.Echo
-	pgPool   *pgxpool.Pool
-	mongoDB  *mongoDriver.Database
-	redis    redis.IService
-	rawRedis *goredis.Client
-	fake     *fake.Fake
-	registry *providers.Registry
-	outbox   *outbox.Outbox
-	jobs     *jobs.Jobs
-	customer *consumers.CustomerEvents
-	billing  *consumers.BillingEvents
+	server     *echo.Echo
+	pgPool     *pgxpool.Pool
+	mongoDB    *mongoDriver.Database
+	redis      redis.IService
+	rawRedis   *goredis.Client
+	fake       *fake.Fake
+	registry   *providers.Registry
+	outbox     *outbox.Outbox
+	jobs       *jobs.Jobs
+	customer   *consumers.CustomerEvents
+	billing    *consumers.BillingEvents
+	kubernetes *consumers.KubernetesEvents
 }
 
 func TestDropletSuite(t *testing.T) {
@@ -163,6 +166,7 @@ func (s *dropletSuite) SetupSuite() {
 		Environment: "dev",
 		Server:      config.Server{Name: "nodera-droplet-test", Port: ":0"},
 		Secret:      config.Secret{JWT: testJWTSecret},
+		Nodes:       config.Nodes{OpsPublicKey: opsKey},
 	}
 
 	const unlimited = 1_000_000
@@ -170,6 +174,7 @@ func (s *dropletSuite) SetupSuite() {
 	s.jobs = app.BuildJobs(log, s.pgPool, s.registry, outboxInstance)
 	s.customer = app.BuildCustomerConsumer(s.pgPool)
 	s.billing = app.BuildBillingConsumer(log, s.pgPool, s.registry, outboxInstance)
+	s.kubernetes = app.BuildKubernetesConsumer(log, conf, s.pgPool, s.redis, s.registry, outboxInstance)
 }
 
 func (s *dropletSuite) TearDownSuite() {
@@ -201,6 +206,7 @@ func (s *dropletSuite) TearDownTest() {
 	_, _ = s.mongoDB.Collection("outbox").DeleteMany(ctx, bson.M{})
 	s.deleteByPattern("session:*")
 	s.deleteByPattern("ratelimit:*")
+	s.deleteByPattern("node_user_data:*")
 }
 
 // scriptCatalog gives the fake every seeded Offer with stock, at prices the
@@ -298,6 +304,8 @@ func (s *dropletSuite) consumeErr(routingKey, payload string) error {
 	switch routingKey {
 	case constants.TeamBillingStatusChanged, constants.TeamDropletsDeletionRequested:
 		return s.billing.Consume(message)
+	case constants.NodeRequested, constants.NodeReleased:
+		return s.kubernetes.Consume(message)
 	default:
 		return s.customer.Consume(message)
 	}

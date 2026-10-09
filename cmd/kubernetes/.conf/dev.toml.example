@@ -1,0 +1,88 @@
+# Copy to dev.toml (gitignored). Values match docker-compose.yml and cmd/customer/.conf/dev.toml.example.
+environment = "dev"
+
+# The management API sits behind the customer gateway.
+[server]
+name = "nodera-kubernetes"
+port = ":9720"
+
+# The control plane fleet of the one Region this deployment serves
+# (docs/adr/0013): kind is "kamaji" for a real fleet, "fake" for development
+# without one. A Cluster answers at <id>.<region>.<endpoint_domain> on a port
+# of the Region's address that is its alone, the next one being its tunnel's
+# (docs/adr/0015); both ends of the range are included.
+[engine]
+kind = "fake"
+region = "vno1"
+endpoint_domain = "k8s.nodera.local"
+first_endpoint_port = 20000
+last_endpoint_port = 29999
+timeout_seconds = 30
+
+# How the service reaches the management cluster and what every Control plane
+# is made of: the shared etcd pool and the manifests applied into every tenant
+# (the CNI).
+[engine.kamaji]
+api_server = ""
+token = ""
+ca_certificate = ""
+namespace = "nodera-vno1"
+datastore = "etcd-vno1-a"
+replicas = 2
+addons_dir = "deploy/kubernetes/addons"
+
+# The Image of the droplet catalog every Node runs; a customer never chooses it.
+[nodes]
+image = "ubuntu-24-04"
+
+[limits]
+clusters_per_project = 5
+pools_per_cluster = 5
+nodes_per_pool = 20
+
+[postgresql]
+uri = "postgres://postgres:postgres@localhost:5442/nodera_kubernetes?sslmode=disable"
+
+[postgresql.pool]
+max_conns = 8
+min_conns = 0
+max_conn_idle_seconds = 120
+max_conn_lifetime_seconds = 1800
+health_check_period_seconds = 60
+
+[redis]
+host = "localhost"
+port = 6389
+username = ""
+password = ""
+db = 0
+
+# The outbox lives here and nothing else does (docs/adr/0001).
+[mongodb]
+host = "localhost"
+port = 27027
+username = ""
+password = ""
+database = "nodera_kubernetes_outbox"
+uri = "mongodb://localhost:27027/?directConnection=true"
+
+[rabbitmq]
+host = "127.0.0.1:5682"
+username = "guest"
+password = "guest"
+virtualhost = "/nodera"
+auth_secret = "dev-rabbitmq-auth-secret"
+
+# The same JWT secret the customer service signs access tokens with.
+[secret]
+jwt = "dev-jwt-secret-change-me"
+
+[jobs]
+provision_seconds = 15
+watch_seconds = 30
+release_seconds = 15
+delete_seconds = 30
+
+[metrics]
+enabled = false
+port = ":9108"

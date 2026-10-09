@@ -325,6 +325,62 @@ swagger-storage:
 	$(LOCAL_BIN)/swag init -q -d ./cmd/storage,./contexts/storage -g server.go -o contexts/storage/docs --parseDependency --parseInternal
 
 # =============================================================================
+# Kubernetes
+# =============================================================================
+
+server-kubernetes:
+	$(MAKE) -s swagger-kubernetes
+	go run ./cmd/kubernetes server --env=dev
+
+worker-kubernetes:
+	go run ./cmd/kubernetes worker --env=dev
+
+outbox-kubernetes:
+	go run ./cmd/kubernetes outbox --env=dev
+
+migrate-kubernetes:
+	go run ./cmd/kubernetes migrate --env=dev
+
+rollback-kubernetes:
+	go run ./cmd/kubernetes rollback --env=dev
+
+seed-kubernetes:
+	go run ./cmd/kubernetes seed --env=dev
+
+seed-rollback-kubernetes:
+	go run ./cmd/kubernetes seed-rollback --env=dev
+
+# Republishes every Plan and Region for the kubernetes context's catalog read
+# model (docs/adr/0014); the droplet sync job does the same every run.
+replay-catalog:
+	go run ./cmd/droplet replay-catalog --env=dev
+
+# For an older postgres volume that predates scripts/init-db.sql's database.
+create-db-kubernetes:
+	docker compose exec -T postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'nodera_kubernetes'" | grep -q 1 || \
+		docker compose exec -T postgres psql -U postgres -c 'CREATE DATABASE nodera_kubernetes;'
+
+# DESTRUCTIVE: drop and recreate the kubernetes database, then migrate and seed.
+reset-db-kubernetes:
+	docker compose exec -T postgres psql -U postgres -c 'DROP DATABASE IF EXISTS nodera_kubernetes WITH (FORCE);' -c 'CREATE DATABASE nodera_kubernetes;'
+	$(MAKE) -s migrate-kubernetes
+	$(MAKE) -s seed-kubernetes
+
+swagger-kubernetes:
+	$(LOCAL_BIN)/swag init -q -d ./cmd/kubernetes,./contexts/kubernetes -g server.go -o contexts/kubernetes/docs --parseDependency --parseInternal
+
+# A Region's control plane fleet (docs/adr/0013, deploy/kubernetes/README.md):
+# a server ordered from Cherry and turned into a Kamaji management cluster.
+# It bills by the hour while it exists; destroy it when done.
+#   make k8s-fleet-up [REGION=vno1]        order, install and write the config
+#   make k8s-fleet-install [REGION=vno1]   finish or repeat the install
+#   make k8s-fleet-config [REGION=vno1]    write the kubernetes dev.toml again
+#   make k8s-fleet-status [REGION=vno1]
+#   make k8s-fleet-destroy [REGION=vno1]   delete the server at Cherry
+k8s-fleet-up k8s-fleet-install k8s-fleet-config k8s-fleet-status k8s-fleet-destroy:
+	FLEET_REGION=$(or $(REGION),vno1) ./deploy/kubernetes/fleet/fleet.sh $(patsubst k8s-fleet-%,%,$@)
+
+# =============================================================================
 # Integration gateway
 # =============================================================================
 
@@ -349,6 +405,7 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@$(MAKE) -s swagger-notification
 	@$(MAKE) -s swagger-mail
 	@$(MAKE) -s swagger-storage
+	@$(MAKE) -s swagger-kubernetes
 	@touch $(LOG_DIR)/customer-server.log $(LOG_DIR)/customer-outbox.log $(LOG_DIR)/customer-gateway.log $(LOG_DIR)/notification-worker.log $(LOG_DIR)/droplet-server.log $(LOG_DIR)/droplet-worker.log
 	@( go run ./cmd/customer server --env=dev > $(LOG_DIR)/customer-server.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-server.pid
 	@( go run ./cmd/customer outbox --env=dev > $(LOG_DIR)/customer-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/customer-outbox.pid
@@ -376,6 +433,10 @@ start: | $(LOG_DIR) $(PID_DIR)
 	@( go run ./cmd/storage server --env=dev > $(LOG_DIR)/storage-server.log 2>&1 ) & echo $$! > $(PID_DIR)/storage-server.pid
 	@( go run ./cmd/storage worker --env=dev > $(LOG_DIR)/storage-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/storage-worker.pid
 	@( go run ./cmd/storage outbox --env=dev > $(LOG_DIR)/storage-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/storage-outbox.pid
+	@touch $(LOG_DIR)/kubernetes-server.log $(LOG_DIR)/kubernetes-worker.log $(LOG_DIR)/kubernetes-outbox.log
+	@( go run ./cmd/kubernetes server --env=dev > $(LOG_DIR)/kubernetes-server.log 2>&1 ) & echo $$! > $(PID_DIR)/kubernetes-server.pid
+	@( go run ./cmd/kubernetes worker --env=dev > $(LOG_DIR)/kubernetes-worker.log 2>&1 ) & echo $$! > $(PID_DIR)/kubernetes-worker.pid
+	@( go run ./cmd/kubernetes outbox --env=dev > $(LOG_DIR)/kubernetes-outbox.log 2>&1 ) & echo $$! > $(PID_DIR)/kubernetes-outbox.pid
 	@echo "started. Tailing logs (Ctrl-C to stop)."
 	@trap '$(MAKE) -s stop' INT TERM EXIT; tail -f $(LOG_DIR)/*.log
 
@@ -430,6 +491,9 @@ test-integration-gateway:
 test-storage-integration:
 	INTEGRATION=true go test ./cmd/storage/integration-test/ -count=1 -v
 
+test-kubernetes-integration:
+	INTEGRATION=true go test ./cmd/kubernetes/integration-test/ -count=1 -v
+
 # Pulls the KumoMTA image and runs deploy/kumomta's policy against a real MTA.
 test-kumomta-contract:
 	NODERA_MAIL_SMOKE=true go test ./contexts/mail/mta/kumomta/ -run TestKumoMTAContract -count=1 -v
@@ -437,6 +501,12 @@ test-kumomta-contract:
 # Pulls the Ceph image and runs the adapter against a real single-container cluster.
 test-ceph-contract:
 	NODERA_STORAGE_SMOKE=true go test ./contexts/storage/engine/ceph/ -run TestCephContract -count=1 -v
+
+# Runs the adapter against a real Kamaji on a Region's fleet
+# (deploy/kubernetes/README.md, make k8s-fleet-up), named by the NODERA_KAMAJI_*
+# variables; it opens a Control plane there and deletes it again.
+test-kamaji-contract:
+	NODERA_KUBERNETES_SMOKE=true go test ./contexts/kubernetes/engine/kamaji/ -run TestKamajiContract -count=1 -v
 
 lint:
 	$(LOCAL_BIN)/golangci-lint run --config .golangci.yml ./...

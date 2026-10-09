@@ -115,6 +115,21 @@ func (mr *MockIDropletServiceMockRecorder) FindByIDForUpdate(ctx, id any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByIDForUpdate", reflect.TypeOf((*MockIDropletService)(nil).FindByIDForUpdate), ctx, id)
 }
 
+// FindByNodeID mocks base method.
+func (m *MockIDropletService) FindByNodeID(ctx context.Context, nodeID uuid.UUID) (*droplet.Droplet, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByNodeID", ctx, nodeID)
+	ret0, _ := ret[0].(*droplet.Droplet)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByNodeID indicates an expected call of FindByNodeID.
+func (mr *MockIDropletServiceMockRecorder) FindByNodeID(ctx, nodeID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByNodeID", reflect.TypeOf((*MockIDropletService)(nil).FindByNodeID), ctx, nodeID)
+}
+
 // FindByProjectID mocks base method.
 func (m *MockIDropletService) FindByProjectID(ctx context.Context, projectID uuid.UUID) (droplet.Droplets, error) {
 	m.ctrl.T.Helper()

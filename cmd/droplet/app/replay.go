@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/piggystats/nodera/contexts/droplet/application/handlers"
+	"github.com/piggystats/nodera/contexts/droplet/application/jobs"
 	"github.com/piggystats/nodera/contexts/droplet/async/producers"
 	"github.com/piggystats/nodera/contexts/droplet/providers"
 	"github.com/piggystats/nodera/logger"
@@ -32,4 +33,21 @@ func ReplayBilling(ctx context.Context, log logger.ILog, pool *pgxpool.Pool, reg
 	log.Infof("replay-billing queued %d DropletBillingStarted and %d DropletBillingStopped events", summary.Started, summary.Stopped)
 
 	return summary, nil
+}
+
+// ReplayCatalog writes every Plan and Region into the outbox as catalog
+// events, for a kubernetes context built after the catalog (docs/adr/0014).
+// The sync job does the same after each run, so this only hurries it.
+func ReplayCatalog(ctx context.Context, log logger.ILog, pool *pgxpool.Pool, outboxClient producers.OutboxClient) error {
+	ctx = context.WithValue(ctx, constants.CorrelationID, uuid.NewString())
+
+	services := NewServices(pool)
+	published, err := jobs.NewCatalogAnnouncer(log, services.Catalog, producers.NewCatalogChanged(outboxClient)).Announce(ctx)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("replay-catalog queued %d catalog events", published)
+
+	return nil
 }

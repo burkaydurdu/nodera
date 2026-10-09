@@ -29,7 +29,7 @@ var serverCmd = &cobra.Command{
 
 var workerCmd = &cobra.Command{
 	Use:   "worker",
-	Short: "Catalog sync, status poller and the customer- and billing-events consumers",
+	Short: "Catalog sync, status poller and the customer-, billing- and kubernetes-events consumers",
 	Run: func(cmd *cobra.Command, args []string) {
 		RunWorker(config.InitConfig(viper.GetString("env")))
 	},
@@ -102,8 +102,16 @@ var replayBillingCmd = &cobra.Command{
 	},
 }
 
+var replayCatalogCmd = &cobra.Command{
+	Use:   "replay-catalog",
+	Short: "Republish every Plan and Region as catalog events for the kubernetes context's read model, through the outbox",
+	Run: func(cmd *cobra.Command, args []string) {
+		RunReplayCatalog(cmd.Context(), config.InitConfig(viper.GetString("env")))
+	},
+}
+
 func main() {
-	rootCmd.AddCommand(serverCmd, workerCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, outboxCmd, replayBillingCmd)
+	rootCmd.AddCommand(serverCmd, workerCmd, migrateCmd, rollbackCmd, seedCmd, seedRollbackCmd, outboxCmd, replayBillingCmd, replayCatalogCmd)
 	rootCmd.PersistentFlags().StringP("env", "e", "dev", "Config file name under .conf (dev|test|alpha|prod)")
 	cobra.CheckErr(rootCmd.MarkPersistentFlagRequired("env"))
 	cobra.CheckErr(viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env")))

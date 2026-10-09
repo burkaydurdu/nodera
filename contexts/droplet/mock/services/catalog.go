@@ -163,6 +163,36 @@ func (mr *MockICatalogServiceMockRecorder) ListMappedPlansByProvider(ctx, provid
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListMappedPlansByProvider", reflect.TypeOf((*MockICatalogService)(nil).ListMappedPlansByProvider), ctx, providerID)
 }
 
+// ListPlans mocks base method.
+func (m *MockICatalogService) ListPlans(ctx context.Context) (catalog.Plans, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListPlans", ctx)
+	ret0, _ := ret[0].(catalog.Plans)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListPlans indicates an expected call of ListPlans.
+func (mr *MockICatalogServiceMockRecorder) ListPlans(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPlans", reflect.TypeOf((*MockICatalogService)(nil).ListPlans), ctx)
+}
+
+// ListRegions mocks base method.
+func (m *MockICatalogService) ListRegions(ctx context.Context) (catalog.Regions, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListRegions", ctx)
+	ret0, _ := ret[0].(catalog.Regions)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListRegions indicates an expected call of ListRegions.
+func (mr *MockICatalogServiceMockRecorder) ListRegions(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRegions", reflect.TypeOf((*MockICatalogService)(nil).ListRegions), ctx)
+}
+
 // ListUnmappedOffersByProvider mocks base method.
 func (m *MockICatalogService) ListUnmappedOffersByProvider(ctx context.Context, providerID uuid.UUID) (catalog.Offers, error) {
 	m.ctrl.T.Helper()

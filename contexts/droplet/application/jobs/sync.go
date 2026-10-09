@@ -33,6 +33,16 @@ func (j *Jobs) SyncCatalog(ctx context.Context) error {
 		}
 	}
 
+	// The catalog goes out as it stands after the sync, Providers that could
+	// not be reached included: their Plans are as they were, which is still
+	// the truth the kubernetes context should hold.
+	if _, err := j.announcer.Announce(ctx); err != nil {
+		j.log.Error(err)
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
 	return firstErr
 }
 

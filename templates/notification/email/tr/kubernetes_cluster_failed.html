@@ -1,0 +1,25 @@
+{{ define "kubernetes_cluster_failed" }}
+<html>
+{{template "head" .}}
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" class="wrapper-cell">
+        <table role="presentation" class="card" width="552" cellpadding="0" cellspacing="0" border="0">
+          {{template "navbar" .}}
+          <tr>
+            <td class="content">
+              <p class="title">{{.Name}} cluster'ı kurulamadı</p>
+              <p class="subtitle">Merhaba{{if .FullName}} {{.FullName}}{{end}}, {{if .ProjectName}}{{.ProjectName}} projesindeki {{end}}<strong>{{.Name}}</strong> Kubernetes cluster'ı{{if .TeamName}} ({{.TeamName}}){{end}} kurulamadı. Sebep: {{t .FailureKey}}.</p>
+              <p class="subtitle">Yalnızca çalışan node'lar için ücret alınır. Panelden cluster'ı silip yenisini açabilirsin.</p>
+              <p class="subtitle">Bu e-posta, bu takımın Kubernetes cluster'larını görebildiğin için {{.Email}} adresine gönderildi.</p>
+            </td>
+          </tr>
+          {{template "footer" .}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+{{ end }}

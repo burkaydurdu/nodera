@@ -10,10 +10,12 @@ import (
 //go:generate mockgen -destination=../../mock/services/catalog.go -package=mockservices -mock_names=IService=MockICatalogService github.com/piggystats/nodera/contexts/droplet/aggregates/catalog IService
 type IService interface {
 	ListEnabledRegions(ctx context.Context) (Regions, error)
+	ListRegions(ctx context.Context) (Regions, error)
 	FindRegionByCode(ctx context.Context, code string) (*Region, error)
 	ListEnabledImages(ctx context.Context) (Images, error)
 	FindImageMapping(ctx context.Context, code string, providerID uuid.UUID) (*ImageMapping, error)
 	ListEnabledPlansByRegion(ctx context.Context, regionID uuid.UUID) (Plans, error)
+	ListPlans(ctx context.Context) (Plans, error)
 	FindPlanForSale(ctx context.Context, code, regionCode string) (*Plan, error)
 	ListMappedPlansByProvider(ctx context.Context, providerID uuid.UUID) (Plans, error)
 	UpdatePlanPricing(ctx context.Context, planID uuid.UUID, hourly decimal.Decimal, soldOut bool) error
@@ -26,6 +28,8 @@ type IService interface {
 
 type IRepository interface {
 	ListEnabledRegions(ctx context.Context) (Regions, error)
+	ListRegions(ctx context.Context) (Regions, error)
+	ListPlans(ctx context.Context) (Plans, error)
 	FindRegionByCode(ctx context.Context, code string) (*Region, error)
 	ListEnabledImages(ctx context.Context) (Images, error)
 	FindImageMapping(ctx context.Context, code string, providerID uuid.UUID) (*ImageMapping, error)
@@ -50,6 +54,14 @@ func NewService(repository IRepository) *Service {
 
 func (s *Service) ListEnabledRegions(ctx context.Context) (Regions, error) {
 	return s.repository.ListEnabledRegions(ctx)
+}
+
+func (s *Service) ListRegions(ctx context.Context) (Regions, error) {
+	return s.repository.ListRegions(ctx)
+}
+
+func (s *Service) ListPlans(ctx context.Context) (Plans, error) {
+	return s.repository.ListPlans(ctx)
 }
 
 func (s *Service) FindRegionByCode(ctx context.Context, code string) (*Region, error) {

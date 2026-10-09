@@ -70,12 +70,16 @@ type Image struct {
 	Name string
 }
 
+// ServerSpec is one server to rent. UserData is the cloud-init the server
+// runs at first boot, empty for a Droplet a customer opened; a Node Droplet
+// joins its Cluster through it (docs/adr/0014).
 type ServerSpec struct {
 	PlanRef    string
 	RegionRef  string
 	ImageRef   string
 	Hostname   string
 	SSHKeyRefs []string
+	UserData   string
 }
 
 type Server struct {

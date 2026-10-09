@@ -29,6 +29,7 @@ type Config struct {
 	RabbitMQ    RabbitMQ   `mapstructure:"rabbitmq"`
 	Secret      Secret     `mapstructure:"secret"`
 	Providers   Providers  `mapstructure:"providers"`
+	Nodes       Nodes      `mapstructure:"nodes"`
 	Jobs        Jobs       `mapstructure:"jobs"`
 	Metrics     Metrics    `mapstructure:"metrics"`
 }
@@ -108,6 +109,14 @@ type Cherry struct {
 	Token     string `mapstructure:"token"`
 	ProjectID int    `mapstructure:"project_id"`
 	Endpoint  string `mapstructure:"endpoint"`
+}
+
+// Nodes is what a Node Droplet is opened with (docs/adr/0014): Nodera's
+// operational public key, the only key such a Droplet carries. Empty refuses
+// every Node request with a rejection, so a misconfigured environment never
+// orders a server nobody can reach.
+type Nodes struct {
+	OpsPublicKey string `mapstructure:"ops_public_key"`
 }
 
 type Jobs struct {

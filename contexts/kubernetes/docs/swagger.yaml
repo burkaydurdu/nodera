@@ -1,0 +1,599 @@
+basePath: /
+definitions:
+  github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.NodePoolInput:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        maxLength: 32
+        type: string
+      plan:
+        maxLength: 64
+        type: string
+      taints:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.Taint'
+        maxItems: 10
+        type: array
+    required:
+    - count
+    - name
+    - plan
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.OpenRequest:
+    properties:
+      name:
+        maxLength: 63
+        type: string
+      node_pool:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.NodePoolInput'
+      region:
+        maxLength: 16
+        type: string
+      version:
+        maxLength: 16
+        type: string
+    required:
+    - name
+    - node_pool
+    - region
+    - version
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.RenameRequest:
+    properties:
+      name:
+        maxLength: 63
+        type: string
+    required:
+    - name
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.ResizeNodePoolRequest:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+    required:
+    - count
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.Taint:
+    properties:
+      effect:
+        type: string
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster:
+    properties:
+      billing_status:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      endpoint:
+        description: Endpoint is host:port; a Kubeconfig points at https://<endpoint>.
+        example: 0192f0c4-7d2a-7c3e-9a51-3f8e2b6d1a07.vno1.k8s.nodera.cloud:20000
+        type: string
+      failure_code:
+        enum:
+        - control_plane_failed
+        type: string
+      failure_reason:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      node_pools:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.NodePool'
+        type: array
+      project_id:
+        type: string
+      region:
+        type: string
+      status:
+        enum:
+        - provisioning
+        - running
+        - degraded
+        - deleting
+        - failed
+        type: string
+      version:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Kubeconfig:
+    properties:
+      expires_at:
+        type: string
+      kubeconfig:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Node:
+    properties:
+      created_at:
+        type: string
+      droplet_id:
+        type: string
+      droplet_status:
+        type: string
+      failure_code:
+        enum:
+        - node_rejected
+        - timed_out
+        type: string
+      failure_reason:
+        type: string
+      hostname:
+        type: string
+      id:
+        type: string
+      ipv4:
+        type: string
+      pool_id:
+        type: string
+      ready_at:
+        type: string
+      status:
+        enum:
+        - requested
+        - joining
+        - ready
+        - not_ready
+        - releasing
+        - failed
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.NodePool:
+    properties:
+      count:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      plan_code:
+        type: string
+      taints:
+        items:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Taint'
+        type: array
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Plan:
+    properties:
+      code:
+        type: string
+      cpu_count:
+        type: integer
+      hourly_price:
+        example: "0.4920"
+        type: string
+      monthly_price:
+        example: "330.63"
+        type: string
+      ram_gb:
+        type: integer
+      region_code:
+        type: string
+      sold_out:
+        type: boolean
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Region:
+    properties:
+      city:
+        type: string
+      code:
+        type: string
+      country:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Taint:
+    properties:
+      effect:
+        enum:
+        - NoSchedule
+        - PreferNoSchedule
+        - NoExecute
+        type: string
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_kubernetes_application_dto.Version:
+    properties:
+      version:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: 'Kubernetes inside a Project: Clusters, their Node pools and Nodes,
+    and Kubeconfigs. Prices are USD excluding taxes.'
+  title: Nodera Kubernetes API
+  version: "1.0"
+paths:
+  /v1/kubernetes/regions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Region'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Regions Kubernetes is sold in
+      tags:
+      - kubernetes
+  /v1/kubernetes/regions/{region}/plans:
+    get:
+      description: Plans with at least 2 CPUs and 4 GB of RAM; sold-out ones stay
+        listed and flagged. 400 for a Region Kubernetes is not sold in.
+      parameters:
+      - description: Region code
+        in: path
+        name: region
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Plan'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Plans a Node may have in a Region, cheapest first
+      tags:
+      - kubernetes
+  /v1/kubernetes/versions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Version'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Kubernetes versions a Cluster may be opened with, newest first
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters:
+    get:
+      description: 403 without kubernetes.read; 404 for a Project the caller is not
+        a member of.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: A Project's Clusters
+      tags:
+      - kubernetes
+    post:
+      consumes:
+      - application/json
+      description: The name is an RFC 1123 label unique in the Project (409 when taken).
+        The Region must sell Kubernetes (400) and the version be offered (400); the
+        first Node pool's Plan must be large enough for a Node (400) and in stock
+        (409). Needs a payment method (402) and a Team that is not suspended (423);
+        403 without kubernetes.write. The Cluster is answered as provisioning; its
+        Control plane and Nodes follow and arrive through detail.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Name, Region, version and the first Node pool
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.OpenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: Open a Cluster
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}:
+    delete:
+      description: Every Node is released and its Droplet deleted, then the Control
+        plane goes; the Cluster is shown as deleting until then. Allowed whatever
+        the Team's Billing status; 403 without kubernetes.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: Delete a Cluster
+      tags:
+      - kubernetes
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: One Cluster with its Node pools
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}/kubeconfig:
+    get:
+      description: A client certificate cut for the caller as cluster administrator;
+        nothing is kept, so a removed member keeps it until it expires. 409 while
+        the Control plane is not ready, being deleted or failed; 403 without kubernetes.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Kubeconfig'
+      security:
+      - BearerAuth: []
+      summary: A Kubeconfig for the caller, good for seven days
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}/name:
+    put:
+      consumes:
+      - application/json
+      description: The name is an RFC 1123 label unique in the Project (409 when taken);
+        the Endpoint does not change. 409 for a Cluster being deleted or failed; 403
+        without kubernetes.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      - description: The name
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.RenameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: Rename a Cluster
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}/node-pools:
+    post:
+      consumes:
+      - application/json
+      description: Name unique in the Cluster (409), Plan large enough for a Node
+        (400) and in stock (409), count within the limit (400). Needs a payment method
+        (402) and a Team that is not suspended (423); 409 for a Cluster being deleted
+        or failed; 403 without kubernetes.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      - description: Name, Plan, count, labels and taints
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.NodePoolInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: Add a Node pool
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}/node-pools/{poolID}:
+    delete:
+      description: A Cluster keeps at least one Node pool (409). 403 without kubernetes.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      - description: Node pool id
+        in: path
+        name: poolID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: Remove a Node pool and release its Nodes
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}/node-pools/{poolID}/count:
+    put:
+      consumes:
+      - application/json
+      description: More Nodes are asked for (needs a payment method, 402, and a Team
+        that is not suspended, 423); fewer releases the newest. 400 outside 1 and
+        the limit; 403 without kubernetes.write.
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      - description: Node pool id
+        in: path
+        name: poolID
+        required: true
+        type: string
+      - description: The count
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_aggregates_cluster.ResizeNodePoolRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Cluster'
+      security:
+      - BearerAuth: []
+      summary: Change a Node pool's count
+      tags:
+      - kubernetes
+  /v1/projects/{projectID}/clusters/{clusterID}/nodes:
+    get:
+      parameters:
+      - description: Project id
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cluster id
+        in: path
+        name: clusterID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_piggystats_nodera_contexts_kubernetes_application_dto.Node'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: The Nodes of a Cluster, oldest first
+      tags:
+      - kubernetes
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

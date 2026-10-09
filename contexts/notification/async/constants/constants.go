@@ -34,6 +34,9 @@ const (
 	MailRatesWarning     = "MailRatesWarning"
 	MailSendingPaused    = "MailSendingPaused"
 
+	// The kubernetes context's status changes.
+	ClusterStatusChanged = "ClusterStatusChanged"
+
 	// The storage context's news about a Storage.
 	StorageNearlyFull       = "StorageNearlyFull"
 	StorageFull             = "StorageFull"

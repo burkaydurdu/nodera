@@ -89,6 +89,8 @@ definitions:
       monthly_price:
         example: "330.63"
         type: string
+      node:
+        $ref: '#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.DropletNode'
       plan_code:
         type: string
       project_id:
@@ -118,6 +120,15 @@ definitions:
       reason:
         type: string
       to:
+        type: string
+    type: object
+  github_com_piggystats_nodera_contexts_droplet_application_dto.DropletNode:
+    properties:
+      cluster_id:
+        type: string
+      node_id:
+        type: string
+      pool:
         type: string
     type: object
   github_com_piggystats_nodera_contexts_droplet_application_dto.DropletSSHKey:

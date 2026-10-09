@@ -18,7 +18,7 @@ type Worker struct {
 // NewWorker binds one consumer per routing key on the common exchange, each
 // on its own queue so the events fan out to this context regardless of who
 // else listens.
-func NewWorker(client rabbitmq.IClient, log logger.ILog, customer rabbitmq.IConsumer, billing rabbitmq.IConsumer) *Worker {
+func NewWorker(client rabbitmq.IClient, log logger.ILog, customer, billing, kubernetes rabbitmq.IConsumer) *Worker {
 	bind := func(consumer rabbitmq.IConsumer, routingKey string) *rabbitmq.ConsumerItem {
 		return &rabbitmq.ConsumerItem{
 			Consumer: consumer,
@@ -41,6 +41,8 @@ func NewWorker(client rabbitmq.IClient, log logger.ILog, customer rabbitmq.ICons
 			bind(customer, constants.ProjectCreated),
 			bind(billing, constants.TeamBillingStatusChanged),
 			bind(billing, constants.TeamDropletsDeletionRequested),
+			bind(kubernetes, constants.NodeRequested),
+			bind(kubernetes, constants.NodeReleased),
 		},
 	}
 }
@@ -53,5 +55,5 @@ func (w *Worker) Consume(_ context.Context) {
 			HandleConsumer(item.Consumer.Consume)
 	}
 
-	w.log.Info("droplet customer-events and billing-events consumers have started")
+	w.log.Info("droplet customer-, billing- and kubernetes-events consumers have started")
 }

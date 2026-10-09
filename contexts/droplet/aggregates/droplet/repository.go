@@ -27,7 +27,13 @@ const columns = `
 	id, project_id, team_id, plan_id, plan_code, region_code, image_code, hostname, hourly_price::text, monthly_cap_hours,
 	status, provider_id, provider_ref, ipv4, ipv6, ssh_keys, pending_action, failure_reason, failure_code, created_by,
 	created_at, updated_at, active_at, deletion_requested_at, deleted_at, failed_at,
-	billing_started_published_at, billing_stopped_published_at, suspended_power_off_at`
+	billing_started_published_at, billing_stopped_published_at, suspended_power_off_at, node_id, cluster_id, node_pool`
+
+const nodeIndex = "droplets_node_id_idx"
+
+// ErrNodeTaken is a second Droplet for one Node: the request was redelivered
+// and the first one stands.
+var ErrNodeTaken = errors.New("a droplet already exists for this node")
 
 // Create inserts the Droplet and its creating history row. It runs inside the
 // caller's transaction so the row and its first history entry commit together.
@@ -45,14 +51,23 @@ func (r *Repository) Create(ctx context.Context, d *Droplet) error {
 		return ErrorCannotCreate.Copy().SetError(err)
 	}
 
+	var nodeID, clusterID *uuid.UUID
+	var pool *string
+	if d.Node != nil {
+		nodeID, clusterID, pool = &d.Node.NodeID, &d.Node.ClusterID, &d.Node.Pool
+	}
+
 	err = r.queries.Executor(ctx).QueryRow(ctx, `
 		INSERT INTO droplets (id, project_id, team_id, plan_id, plan_code, region_code, image_code, hostname, hourly_price,
-		                      monthly_cap_hours, status, provider_id, ssh_keys, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13, $14)
+		                      monthly_cap_hours, status, provider_id, ssh_keys, created_by, node_id, cluster_id, node_pool)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING created_at, updated_at`,
 		d.ID, d.ProjectID, d.TeamID, d.PlanID, d.PlanCode, d.RegionCode, d.ImageCode, d.Hostname, d.HourlyPrice.StringFixed(priceScale),
-		d.MonthlyCapHours, string(d.Status), d.ProviderID, keys, d.CreatedBy,
+		d.MonthlyCapHours, string(d.Status), d.ProviderID, keys, d.CreatedBy, nodeID, clusterID, pool,
 	).Scan(&d.CreatedAt, &d.UpdatedAt)
+	if constraint, ok := postgresql.UniqueViolationConstraint(err); ok && constraint == nodeIndex {
+		return ErrNodeTaken
+	}
 	if err != nil {
 		return ErrorCannotCreate.Copy().SetError(err)
 	}
@@ -62,6 +77,16 @@ func (r *Repository) Create(ctx context.Context, d *Droplet) error {
 
 func (r *Repository) FindByID(ctx context.Context, id uuid.UUID) (*Droplet, error) {
 	d, err := scan(r.queries.Executor(ctx).QueryRow(ctx, `SELECT `+columns+` FROM droplets WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrorNotFound
+	}
+
+	return d, err
+}
+
+// FindByNodeID answers the Node Droplet opened for a Node of a Cluster.
+func (r *Repository) FindByNodeID(ctx context.Context, nodeID uuid.UUID) (*Droplet, error) {
+	d, err := scan(r.queries.Executor(ctx).QueryRow(ctx, `SELECT `+columns+` FROM droplets WHERE node_id = $1`, nodeID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrorNotFound
 	}
@@ -95,11 +120,15 @@ func (r *Repository) FindByProjectID(ctx context.Context, projectID uuid.UUID) (
 	return scanAll(rows)
 }
 
-// FindTransitional answers the Droplets the poller must ask the Provider about.
+// FindTransitional answers the Droplets the poller must ask the Provider about:
+// the ones moving, and an off one that never ran, which only a poll that
+// caught the end of an install could leave behind before such a reading
+// counted as still provisioning.
 func (r *Repository) FindTransitional(ctx context.Context) (Droplets, error) {
 	rows, err := r.queries.Executor(ctx).Query(ctx, `
 		SELECT `+columns+` FROM droplets
 		WHERE status IN ('provisioning', 'deleting') OR pending_action IS NOT NULL
+		   OR (status = 'off' AND active_at IS NULL)
 		ORDER BY created_at`)
 	if err != nil {
 		return nil, err
@@ -228,20 +257,26 @@ func scanAll(rows pgx.Rows) (Droplets, error) {
 
 func scan(row pgx.Row) (*Droplet, error) {
 	var (
-		d       Droplet
-		price   string
-		status  string
-		keys    []byte
-		pending *string
+		d         Droplet
+		price     string
+		status    string
+		keys      []byte
+		pending   *string
+		nodeID    *uuid.UUID
+		clusterID *uuid.UUID
+		pool      *string
 	)
 	err := row.Scan(
 		&d.ID, &d.ProjectID, &d.TeamID, &d.PlanID, &d.PlanCode, &d.RegionCode, &d.ImageCode, &d.Hostname, &price, &d.MonthlyCapHours,
 		&status, &d.ProviderID, &d.ProviderRef, &d.IPv4, &d.IPv6, &keys, &pending, &d.FailureReason, &d.FailureCode, &d.CreatedBy,
 		&d.CreatedAt, &d.UpdatedAt, &d.ActiveAt, &d.DeletionRequest, &d.DeletedAt, &d.FailedAt,
-		&d.BillingStartedPublishedAt, &d.BillingStoppedPublishedAt, &d.SuspendedPowerOffAt,
+		&d.BillingStartedPublishedAt, &d.BillingStoppedPublishedAt, &d.SuspendedPowerOffAt, &nodeID, &clusterID, &pool,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if nodeID != nil && clusterID != nil && pool != nil {
+		d.Node = &Node{NodeID: *nodeID, ClusterID: *clusterID, Pool: *pool}
 	}
 
 	if d.HourlyPrice, err = decimal.NewFromString(price); err != nil {

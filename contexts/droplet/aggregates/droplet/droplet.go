@@ -56,6 +56,15 @@ type SSHKey struct {
 	Fingerprint string `json:"fingerprint"`
 }
 
+// Node is what a Node Droplet remembers of the Node it is: the kubernetes
+// context's ids, so that context can follow the Droplet without learning its
+// id first (docs/adr/0014). A Droplet a customer opened has none.
+type Node struct {
+	NodeID    uuid.UUID
+	ClusterID uuid.UUID
+	Pool      string
+}
+
 type Droplet struct {
 	ID              uuid.UUID
 	ProjectID       uuid.UUID
@@ -73,6 +82,7 @@ type Droplet struct {
 	IPv4            *string
 	IPv6            *string
 	SSHKeys         []SSHKey
+	Node            *Node
 	PendingAction   *Action
 	FailureReason   *string
 	FailureCode     *FailureCode

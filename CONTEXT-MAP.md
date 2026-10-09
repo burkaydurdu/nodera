@@ -4,8 +4,9 @@ Nodera is a self-service cloud platform: a customer asks for a CPU/RAM/disk/regi
 receives a Droplet, which is a bare-metal server the platform rents from an integrated provider and
 sets up on the customer's behalf. The customer never sees the provider. Its second product, Mail,
 delivers a Team's email from the Team's own domains on Nodera's own mail servers. Its third product, Storage, keeps a
-Team's files in S3 buckets on Nodera's own storage servers. Each product is an App the web app
-switches between.
+Team's files in S3 buckets on Nodera's own storage servers. Its fourth product, Kubernetes, runs a
+Team's Kubernetes clusters: the control planes on Nodera's own servers, the nodes the Team's own
+Droplets. Each product is an App the web app switches between.
 
 Bounded contexts live under `contexts/<name>/`. A context gets a `CONTEXT.md` when its vocabulary
 is first written down, so this list grows as terms are settled.
@@ -32,6 +33,8 @@ is first written down, so this list grows as terms are settled.
   token and nothing else (ADR-0007).
 - [Storage](./contexts/storage/CONTEXT.md): the third product — a Team's files in S3 buckets on
   Nodera's own storage servers, each a Storage on its own Package (ADR-0012).
+- [Kubernetes](./contexts/kubernetes/CONTEXT.md): the fourth product — a Team's Clusters, each a
+  Control plane Nodera runs and Node pools of the Team's own Droplets (ADR-0013, ADR-0014).
 - Admin (planned): the operator-facing side. Not started.
 
 ## Relationships
@@ -93,3 +96,21 @@ is first written down, so this list grows as terms are settled.
   a smaller Package not applied); notification tells the members holding `storage.read`.
 - **Customer gateway → Storage**: the gateway fronts the Storage management API as a sixth target;
   the storage service authorizes each route through its Project access read model.
+- **Customer → Kubernetes**: customer emits Team and Project events; kubernetes keeps its own
+  Project access read model from them, like droplet, mail and storage (ADR-0004).
+- **Kubernetes → Droplet**: kubernetes asks for a Node's Droplet to be opened or deleted with a
+  request event naming the Node, the Project, the Plan and the Region, and leaves the Node's
+  cloud-init in Redis for one hour; droplet opens or deletes the Droplet (ADR-0014).
+- **Droplet → Kubernetes**: droplet's Droplet status events carry the Node id of a Node Droplet, so
+  kubernetes follows its Nodes without knowing Droplet ids first, and a request no Droplet could be
+  opened for is answered with a rejection; droplet also emits its Plan and Region changes, from
+  which kubernetes keeps a catalog read model (ADR-0014).
+- **Billing → Kubernetes**: billing emits a Team's Billing status; kubernetes refuses opening a
+  Cluster or adding Nodes without a Payment method or when suspended, and deletes the Team's
+  Clusters on the day billing asks for its Droplets to be deleted.
+- **Kubernetes → Billing**: nothing. A Node is charged as the Droplet it is, by the droplet
+  context's usage events; a Control plane is not charged (ADR-0013).
+- **Kubernetes → Notification**: kubernetes emits every change of a Cluster's status; notification
+  tells the members holding `kubernetes.read` of the ones worth telling (running, failed).
+- **Customer gateway → Kubernetes**: the gateway fronts the Kubernetes management API as a seventh
+  target; the kubernetes service authorizes each route through its Project access read model.

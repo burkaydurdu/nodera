@@ -422,6 +422,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "330.63"
                 },
+                "node": {
+                    "$ref": "#/definitions/github_com_piggystats_nodera_contexts_droplet_application_dto.DropletNode"
+                },
                 "plan_code": {
                     "type": "string"
                 },
@@ -463,6 +466,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_piggystats_nodera_contexts_droplet_application_dto.DropletNode": {
+            "type": "object",
+            "properties": {
+                "cluster_id": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "pool": {
                     "type": "string"
                 }
             }

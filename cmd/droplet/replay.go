@@ -34,3 +34,28 @@ func RunReplayBilling(ctx context.Context, conf *config.Config) {
 		log.Fatal(err)
 	}
 }
+
+// RunReplayCatalog queues every Plan and Region as catalog events. It only
+// writes the outbox; the `outbox` command relays them.
+func RunReplayCatalog(ctx context.Context, conf *config.Config) {
+	log := logger.New(conf.Environment)
+	defer recover.Init(log)
+
+	pool, err := postgresql.Connect(ctx, log, conf.PostgreSQL.ToDBConfig("nodera-droplet-replay"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	mongoClient := newMongoClient(conf, log)
+	defer func() { _ = mongoClient.GetClient().Disconnect(ctx) }()
+
+	outboxInstance, err := newOutbox(mongoClient, newRabbitMQClient(ctx, conf, log), log)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := app.ReplayCatalog(ctx, log, pool, outboxInstance); err != nil {
+		log.Fatal(err)
+	}
+}

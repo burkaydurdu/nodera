@@ -48,6 +48,11 @@ token = ""
 project_id = 0
 endpoint = ""
 
+# The operational public key a Node Droplet is opened with (docs/adr/0014); a
+# Node carries no customer key. Empty rejects every Node request.
+[nodes]
+ops_public_key = ""
+
 [jobs]
 sync_interval_minutes = 15
 poll_interval_seconds = 30

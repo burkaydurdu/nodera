@@ -62,6 +62,12 @@ func NewStatusAnnouncer(log logger.ILog, outboxClient producers.OutboxClient) *h
 	return handlers.NewStatusAnnouncer(log, producers.NewStatusChanged(outboxClient))
 }
 
+// NewNodeRejected is the one announcer of a Node request this context could
+// not open a Droplet for (docs/adr/0014).
+func NewNodeRejected(outboxClient producers.OutboxClient) *producers.NodeRejected {
+	return producers.NewNodeRejected(outboxClient)
+}
+
 // BuildServer wires the droplet service over already-built dependencies. The
 // binary and the integration suite both go through it, so the suite exercises
 // the same chain the binary serves.
@@ -100,8 +106,20 @@ func BuildJobs(log logger.ILog, pool *pgxpool.Pool, registry *providers.Registry
 
 	return jobs.New(
 		log, services.Providers, services.Catalog, services.Droplets, services.Billing, registry, services.Transactions,
-		NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient),
+		NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient), producers.NewCatalogChanged(outboxClient),
 	)
+}
+
+// BuildKubernetesConsumer opens and releases Node Droplets at the kubernetes
+// context's request (docs/adr/0014).
+func BuildKubernetesConsumer(log logger.ILog, conf *config.Config, pool *pgxpool.Pool, redisService redis.IService, registry *providers.Registry, outboxClient producers.OutboxClient) *consumers.KubernetesEvents {
+	services := NewServices(pool)
+	droplets := handlers.NewDroplet(
+		log, services.Catalog, services.Droplets, services.Access, services.Billing, services.Providers, registry, services.Transactions,
+		NewMeter(log, outboxClient), NewStatusAnnouncer(log, outboxClient), ratelimit.NewLimiter(redisService),
+	)
+
+	return consumers.NewKubernetesEvents(handlers.NewNodes(droplets, redisService, NewNodeRejected(outboxClient), conf.Nodes.OpsPublicKey))
 }
 
 func BuildCustomerConsumer(pool *pgxpool.Pool) *consumers.CustomerEvents {

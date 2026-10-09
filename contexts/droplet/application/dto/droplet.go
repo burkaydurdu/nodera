@@ -21,6 +21,15 @@ type DropletHistory struct {
 	Reason string    `json:"reason"`
 }
 
+// DropletNode says which Cluster and Node pool a Node Droplet belongs to; it
+// is null for a Droplet a customer opened. A Node Droplet takes no power
+// action and no deletion here: its Cluster releases it.
+type DropletNode struct {
+	ClusterID uuid.UUID `json:"cluster_id"`
+	NodeID    uuid.UUID `json:"node_id"`
+	Pool      string    `json:"pool"`
+}
+
 type Droplet struct {
 	ID                  uuid.UUID        `json:"id"`
 	ProjectID           uuid.UUID        `json:"project_id"`
@@ -34,6 +43,7 @@ type Droplet struct {
 	HourlyPrice         string           `json:"hourly_price" example:"0.4920"`
 	MonthlyPrice        string           `json:"monthly_price" example:"330.63"`
 	SSHKeys             []DropletSSHKey  `json:"ssh_keys"`
+	Node                *DropletNode     `json:"node"`
 	FailureReason       *string          `json:"failure_reason"`
 	FailureCode         *string          `json:"failure_code" enums:"rejected,unavailable,timed_out,server_gone,provider_failed"`
 	CreatedAt           time.Time        `json:"created_at"`
@@ -48,8 +58,14 @@ func ToDroplet(d *droplet.Droplet) *Droplet {
 		keys = append(keys, DropletSSHKey{Name: k.Name, Fingerprint: k.Fingerprint})
 	}
 
+	var node *DropletNode
+	if d.Node != nil {
+		node = &DropletNode{ClusterID: d.Node.ClusterID, NodeID: d.Node.NodeID, Pool: d.Node.Pool}
+	}
+
 	return &Droplet{
 		ID:                  d.ID,
+		Node:                node,
 		ProjectID:           d.ProjectID,
 		Hostname:            d.Hostname,
 		Status:              string(d.Status),

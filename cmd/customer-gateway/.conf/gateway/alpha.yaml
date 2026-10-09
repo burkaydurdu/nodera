@@ -355,3 +355,36 @@ gateway:
           method: PUT
         - path: /v1/projects/:projectID/storages/:storageID/usage
           method: GET
+    # Selected by X-Target-Server: kubernetes. No route names a Team, so none
+    # lists permissions: the kubernetes service authorizes each one itself
+    # through its Project access read model, kubernetes.read to read and
+    # kubernetes.write to change (docs/adr/0013).
+    kubernetes:
+      host: http://nodera-kubernetes:9720
+      endpoints:
+        - path: /v1/kubernetes/versions
+          method: GET
+        - path: /v1/kubernetes/regions
+          method: GET
+        - path: /v1/kubernetes/regions/:region/plans
+          method: GET
+        - path: /v1/projects/:projectID/clusters
+          method: GET
+        - path: /v1/projects/:projectID/clusters
+          method: POST
+        - path: /v1/projects/:projectID/clusters/:clusterID
+          method: GET
+        - path: /v1/projects/:projectID/clusters/:clusterID
+          method: DELETE
+        - path: /v1/projects/:projectID/clusters/:clusterID/name
+          method: PUT
+        - path: /v1/projects/:projectID/clusters/:clusterID/kubeconfig
+          method: GET
+        - path: /v1/projects/:projectID/clusters/:clusterID/nodes
+          method: GET
+        - path: /v1/projects/:projectID/clusters/:clusterID/node-pools
+          method: POST
+        - path: /v1/projects/:projectID/clusters/:clusterID/node-pools/:poolID/count
+          method: PUT
+        - path: /v1/projects/:projectID/clusters/:clusterID/node-pools/:poolID
+          method: DELETE

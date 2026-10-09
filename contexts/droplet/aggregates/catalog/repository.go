@@ -48,6 +48,31 @@ func (r *Repository) ListEnabledRegions(ctx context.Context) (Regions, error) {
 	return regions, rows.Err()
 }
 
+// ListRegions is every Region, disabled ones included, for the catalog events
+// the kubernetes context keeps its read model from (docs/adr/0014).
+func (r *Repository) ListRegions(ctx context.Context) (Regions, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `
+		SELECT r.id, r.code, r.city, r.country, r.enabled,
+		       (SELECT count(*) FROM plans p WHERE p.region_id = r.id AND p.enabled)
+		FROM regions r
+		ORDER BY r.code`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	regions := make(Regions, 0)
+	for rows.Next() {
+		var region Region
+		if err := rows.Scan(&region.ID, &region.Code, &region.City, &region.Country, &region.Enabled, &region.PlanCount); err != nil {
+			return nil, err
+		}
+		regions = append(regions, &region)
+	}
+
+	return regions, rows.Err()
+}
+
 func (r *Repository) FindRegionByCode(ctx context.Context, code string) (*Region, error) {
 	var region Region
 	err := r.queries.Executor(ctx).QueryRow(ctx, `
@@ -129,6 +154,18 @@ func (r *Repository) ListEnabledPlansByRegion(ctx context.Context, regionID uuid
 	rows, err := r.queries.Executor(ctx).Query(ctx, `SELECT `+planColumns+planFrom+`
 		WHERE p.region_id = $1 AND p.enabled
 		ORDER BY p.hourly_price, p.code`, regionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanPlans(rows)
+}
+
+// ListPlans is every Plan, disabled and sold out ones included, for the
+// catalog events.
+func (r *Repository) ListPlans(ctx context.Context) (Plans, error) {
+	rows, err := r.queries.Executor(ctx).Query(ctx, `SELECT `+planColumns+planFrom+` ORDER BY r.code, p.code`)
 	if err != nil {
 		return nil, err
 	}

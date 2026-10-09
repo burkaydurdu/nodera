@@ -161,6 +161,16 @@ func (f *Fake) Advance() {
 	}
 }
 
+// SetStatus puts a server in a status, as the supplier would report it on its
+// own: powered off at the end of an install, failed, gone.
+func (f *Fake) SetStatus(ref string, status providers.Status) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if s, ok := f.servers[ref]; ok {
+		s.status = status
+	}
+}
+
 // Server exposes a server's supplier-side state to assertions.
 func (f *Fake) Server(ref string) (providers.Server, bool) {
 	f.mu.Lock()

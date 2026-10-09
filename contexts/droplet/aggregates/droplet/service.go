@@ -10,6 +10,7 @@ import (
 type IService interface {
 	Create(ctx context.Context, d *Droplet) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Droplet, error)
+	FindByNodeID(ctx context.Context, nodeID uuid.UUID) (*Droplet, error)
 	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*Droplet, error)
 	FindByProjectID(ctx context.Context, projectID uuid.UUID) (Droplets, error)
 	FindByTeamID(ctx context.Context, teamID uuid.UUID) (Droplets, error)
@@ -24,6 +25,7 @@ type IService interface {
 type IRepository interface {
 	Create(ctx context.Context, d *Droplet) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Droplet, error)
+	FindByNodeID(ctx context.Context, nodeID uuid.UUID) (*Droplet, error)
 	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*Droplet, error)
 	FindByProjectID(ctx context.Context, projectID uuid.UUID) (Droplets, error)
 	FindByTeamID(ctx context.Context, teamID uuid.UUID) (Droplets, error)
@@ -48,6 +50,10 @@ func (s *Service) Create(ctx context.Context, d *Droplet) error {
 
 func (s *Service) FindByID(ctx context.Context, id uuid.UUID) (*Droplet, error) {
 	return s.repository.FindByID(ctx, id)
+}
+
+func (s *Service) FindByNodeID(ctx context.Context, nodeID uuid.UUID) (*Droplet, error) {
+	return s.repository.FindByNodeID(ctx, nodeID)
 }
 
 func (s *Service) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*Droplet, error) {

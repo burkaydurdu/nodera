@@ -38,6 +38,13 @@ rented from a Provider and set up by the platform. Belongs to exactly one Projec
 the customer context, which uses the same word.
 _Avoid_: server, instance, VM, machine, order
 
+**Node Droplet**:
+A Droplet opened at the kubernetes context's request to be a Node of one of its Clusters, carrying
+that Node's id. It is listed with the Project's other Droplets, but no power action or deletion is
+taken on it here: the Cluster releases it, and the droplet context deletes it then. It carries
+Nodera's operational SSH key only, never a customer's.
+_Avoid_: worker, managed Droplet, kubernetes Droplet
+
 **Image**:
 The operating system a Droplet is installed with, named by Nodera's own code (such as
 `ubuntu-24-04`) and mapped to each Provider's own image behind the scenes.
